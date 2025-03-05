@@ -1,0 +1,10 @@
+[package]
+name = "boolygon"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Boolean operations on polygons."
+readme = "./README.md"
+repository = "https://github.com/HectorMRC/boolygon"
+
+[dependencies]
