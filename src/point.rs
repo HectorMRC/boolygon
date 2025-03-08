@@ -1,0 +1,14 @@
+/// Represents a point in a plain.
+#[derive(Debug, Clone)]
+pub struct Point<T = f64> {
+    /// The horizontal coordinate of the point.
+    pub x: T,
+    /// The vertical coordinate of the point.
+    pub y: T,
+}
+
+impl<T> From<[T; 2]> for Point<T> {
+    fn from([x, y]: [T; 2]) -> Self {
+        Self { x, y }
+    }
+}
