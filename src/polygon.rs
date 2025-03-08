@@ -3,7 +3,7 @@ use std::ops::{Add, Mul, Sub};
 use crate::point::Point;
 
 /// Represents the straight line between two vertices of a [`Polygon`].
-pub struct Segment<'a, T = f64> {
+pub struct Segment<'a, T> {
     /// The first point in the segment.
     pub from: &'a Point<T>,
     /// The last point in the segment.
@@ -47,12 +47,7 @@ where
 
 impl<T> Polygon<T>
 where
-    T: PartialOrd
-        + Copy
-        + Add<T, Output = T>
-        + Sub<T, Output = T>
-        + Mul<T, Output = T>
-        + num_traits::Signed,
+    T: PartialOrd + Copy + num_traits::Signed,
 {
     /// Returns the amount of times self winds around the given [`Point`].
     pub fn winding(&self, point: &Point<T>) -> isize {
@@ -82,13 +77,13 @@ where
 impl<T> Polygon<T> {
     /// Returns an ordered iterator over all the vertices of the polygon.
     ///
-    /// By definition, a polygon is a closed shape, hence the latest point of the iterator will be
-    /// equal to the very first one.
+    /// By definition, a polygon is a closed shape, hence the latest point of the iterator equals
+    /// the very first.
     pub fn vertices(&self) -> impl Iterator<Item = &Point<T>> {
         self.vertices.iter().chain(self.vertices.first())
     }
 
-    /// Returns an ordered iterator over all the segments that make up the polygon.
+    /// Returns an ordered iterator over all the [`Segment`]s of this polygon.
     pub fn segments(&self) -> impl Iterator<Item = Segment<'_, T>> {
         self.vertices()
             .zip(self.vertices().skip(1))
