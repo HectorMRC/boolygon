@@ -15,7 +15,7 @@ impl<T> From<[T; 2]> for Point<T> {
 
 #[macro_export]
 macro_rules! point {
-    ($x:tt, $y:tt) => {
+    ($x:expr, $y:expr) => {
         Point { x: $x, y: $y }
     };
 }

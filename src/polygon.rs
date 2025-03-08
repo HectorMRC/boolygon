@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display,
-    ops::{Mul, Sub},
-};
+use std::ops::{Mul, Sub};
 
 use crate::point::Point;
 
@@ -21,7 +18,7 @@ impl<'a, T> From<(&'a Point<T>, &'a Point<T>)> for Segment<'a, T> {
 
 impl<T> Segment<'_, T>
 where
-    T: PartialOrd + Copy + num_traits::Signed + Display,
+    T: PartialOrd + Copy + num_traits::Signed,
 {
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
     pub fn intersection(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
@@ -35,7 +32,7 @@ where
         let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
-        if t.signum() != determinant.signum() || t.abs() > determinant.abs() {
+        if !t.is_zero() && t.signum() != determinant.signum() || t.abs() > determinant.abs() {
             return None;
         }
 
@@ -43,7 +40,7 @@ where
         let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
 
-        if u.signum() != determinant.signum() || u.abs() > determinant.abs() {
+        if !u.is_zero() && u.signum() != determinant.signum() || u.abs() > determinant.abs() {
             return None;
         }
 
@@ -156,7 +153,43 @@ mod tests {
                     from: &point!(0., 4.),
                     to: &point!(4., 0.),
                 },
-                want: Some([2., 2.].into()),
+                want: Some(point!(2., 2.)),
+            },
+            Test {
+                name: "Segments starting at the same point",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(-4., 4.),
+                },
+                want: Some(point!(0., 0.)),
+            },
+            Test {
+                name: "Connected segments",
+                segment: Segment {
+                    from: &point!(4., 4.),
+                    to: &point!(0., 0.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(-4., 4.),
+                },
+                want: Some(point!(0., 0.)),
+            },
+            Test {
+                name: "Segments ending at the same point",
+                segment: Segment {
+                    from: &point!(4., 4.),
+                    to: &point!(0., 0.),
+                },
+                rhs: Segment {
+                    from: &point!(-4., 4.),
+                    to: &point!(0., 0.),
+                },
+                want: None,
             },
             Test {
                 name: "Non-crossing segments",
@@ -183,7 +216,7 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "Overlapping segments",
+                name: "Coincident segments",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -191,6 +224,18 @@ mod tests {
                 rhs: Segment {
                     from: &point!(0., 0.),
                     to: &point!(2., 2.),
+                },
+                want: None,
+            },
+            Test {
+                name: "Collinear segments",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(-4., -4.),
+                    to: &point!(0., 0.),
                 },
                 want: None,
             },
