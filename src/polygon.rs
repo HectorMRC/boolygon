@@ -1,8 +1,11 @@
-use std::ops::{Add, Mul, Sub};
+use std::{
+    fmt::Display,
+    ops::{Mul, Sub},
+};
 
 use crate::point::Point;
 
-/// Represents the straight line between two vertices of a [`Polygon`].
+/// Represents the straight line between two consecutive vertices of a [`Polygon`].
 pub struct Segment<'a, T> {
     /// The first point in the segment.
     pub from: &'a Point<T>,
@@ -18,7 +21,42 @@ impl<'a, T> From<(&'a Point<T>, &'a Point<T>)> for Segment<'a, T> {
 
 impl<T> Segment<'_, T>
 where
-    T: Copy + Add<T, Output = T> + Sub<T, Output = T> + Mul<T, Output = T>,
+    T: PartialOrd + Copy + num_traits::Signed + Display,
+{
+    /// Returns the [`Point`] of intersection between self and the given segment, if any.
+    pub fn intersection(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
+        let determinant = (self.from.x - self.to.x) * (rhs.from.y - rhs.to.y)
+            - (self.from.y - self.to.y) * (rhs.from.x - rhs.to.x);
+
+        if determinant.is_zero() {
+            return None;
+        }
+
+        let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
+            - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
+
+        if t.signum() != determinant.signum() || t.abs() > determinant.abs() {
+            return None;
+        }
+
+        let t = t / determinant;
+        let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
+            - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
+
+        if u.signum() != determinant.signum() || u.abs() > determinant.abs() {
+            return None;
+        }
+
+        Some(Point {
+            x: self.from.x + t * (self.to.x - self.from.x),
+            y: self.from.y + t * (self.to.y - self.from.y),
+        })
+    }
+}
+
+impl<T> Segment<'_, T>
+where
+    T: Copy + Sub<Output = T> + Mul<Output = T>,
 {
     /// Returns the scalar cross product of the triangle resulting from self and the given
     /// [`Point`].
@@ -93,10 +131,83 @@ impl<T> Polygon<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{point::Point, polygon::Polygon};
+    use crate::{
+        point::{point, Point},
+        polygon::{Polygon, Segment},
+    };
 
     #[test]
-    fn winding_number() {
+    fn segment_intersection() {
+        struct Test {
+            name: &'static str,
+            segment: Segment<'static, f64>,
+            rhs: Segment<'static, f64>,
+            want: Option<Point>,
+        }
+
+        vec![
+            Test {
+                name: "Crossing segments",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 4.),
+                    to: &point!(4., 0.),
+                },
+                want: Some([2., 2.].into()),
+            },
+            Test {
+                name: "Non-crossing segments",
+                segment: Segment {
+                    from: &point!(4., 4.),
+                    to: &point!(8., 8.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 4.),
+                    to: &point!(4., 0.),
+                },
+                want: None,
+            },
+            Test {
+                name: "Parallel segments",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 4.),
+                    to: &point!(4., 8.),
+                },
+                want: None,
+            },
+            Test {
+                name: "Overlapping segments",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(2., 2.),
+                },
+                want: None,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let got = test.segment.intersection(&test.rhs);
+            assert_eq!(
+                got, test.want,
+                "{}: got intersection point = {got:?}, want = {:?}",
+                test.name, test.want
+            );
+        });
+    }
+
+    #[test]
+    fn polygon_winding_number() {
         struct Test {
             name: &'static str,
             polygon: Polygon,
@@ -106,31 +217,31 @@ mod tests {
 
         vec![
             Test {
-                name: "Center of a counterclockwise polygon.",
+                name: "Center of a counterclockwise polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [2., 2.].into(),
                 want: 1,
             },
             Test {
-                name: "Center of a clockwise polygon.",
+                name: "Center of a clockwise polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [2., 2.].into(),
                 want: -1,
             },
             Test {
-                name: "On the left of the polygon.",
+                name: "On the left of the polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [-2., -2.].into(),
                 want: 0,
             },
             Test {
-                name: "On the right of the polygon.",
+                name: "On the right of the polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [6., 6.].into(),
                 want: 0,
             },
             Test {
-                name: "Inside self-crossing polygon.",
+                name: "Inside self-crossing polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -148,7 +259,7 @@ mod tests {
                 want: 2,
             },
             Test {
-                name: "Outside self-crossing polygon.",
+                name: "Outside self-crossing polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -171,7 +282,7 @@ mod tests {
             let got = test.polygon.winding(&test.point);
             assert_eq!(
                 got, test.want,
-                "{} got winding number = {got}, want = {}",
+                "{}: got winding number = {got}, want = {}",
                 test.name, test.want
             );
         });

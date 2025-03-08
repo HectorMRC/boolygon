@@ -1,5 +1,5 @@
 /// Represents a point in a plain.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Point<T = f64> {
     /// The horizontal coordinate of the point.
     pub x: T,
@@ -12,3 +12,12 @@ impl<T> From<[T; 2]> for Point<T> {
         Self { x, y }
     }
 }
+
+#[macro_export]
+macro_rules! point {
+    ($x:tt, $y:tt) => {
+        Point { x: $x, y: $y }
+    };
+}
+
+pub use point;
