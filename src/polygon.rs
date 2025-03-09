@@ -18,29 +18,30 @@ impl<'a, T> From<(&'a Point<T>, &'a Point<T>)> for Segment<'a, T> {
 
 impl<T> Segment<'_, T>
 where
-    T: PartialOrd + Copy + num_traits::Signed,
+    T: PartialOrd + Copy + num_traits::Float,
 {
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
     pub fn intersection(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
-        let determinant = (self.from.x - self.to.x) * (rhs.from.y - rhs.to.y)
+        let denominator = (self.from.x - self.to.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - self.to.y) * (rhs.from.x - rhs.to.x);
 
-        if determinant.is_zero() {
-            return None;
+        if denominator.is_zero() {
+            // When the two (infinte) lines are parallel or coincident, the denominator is zero.
+            return self.collinear_common_point(rhs);
         }
 
         let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
-        if !t.is_zero() && t.signum() != determinant.signum() || t.abs() > determinant.abs() {
+        if t.abs() > denominator.abs() || !t.is_zero() && t.signum() != denominator.signum() {
             return None;
         }
 
-        let t = t / determinant;
+        let t = t / denominator;
         let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
 
-        if !u.is_zero() && u.signum() != determinant.signum() || u.abs() > determinant.abs() {
+        if u.abs() > denominator.abs() || !u.is_zero() && u.signum() != denominator.signum() {
             return None;
         }
 
@@ -48,6 +49,46 @@ where
             x: self.from.x + t * (self.to.x - self.from.x),
             y: self.from.y + t * (self.to.y - self.from.y),
         })
+    }
+
+    /// Being self and rhs collinear, returns the single common [`Point`] between them, if any.
+    fn collinear_common_point(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
+        let contains = |point| {
+            // Optimized version of `Self::contains`:
+            // No need to compute the cross product, by sharing an endpoint its guaranteed both
+            // segments are collinear.
+            self.from.distance(point) <= self.length() && self.to.distance(point) <= self.length()
+        };
+
+        if (self.from == rhs.from && !contains(rhs.to))
+            || (self.from == rhs.to && !contains(rhs.from))
+        {
+            return Some(*self.from);
+        }
+
+        if (self.to == rhs.from && !contains(rhs.to)) || (self.to == rhs.to && !contains(rhs.from))
+        {
+            return Some(*self.to);
+        }
+
+        None
+    }
+}
+
+impl<T> Segment<'_, T>
+where
+    T: Copy + num_traits::Float,
+{
+    /// Returns the distance between the two endpoints of the segment.
+    pub fn length(&self) -> T {
+        self.from.distance(self.to)
+    }
+
+    /// Returns true if, and only if, the given [`Point`] exists within the segment.
+    pub fn contains(&self, point: &Point<T>) -> bool {
+        self.cross(point).is_zero()
+            && self.from.distance(point) <= self.length()
+            && self.to.distance(point) <= self.length()
     }
 }
 
@@ -180,6 +221,30 @@ mod tests {
                 want: Some(point!(0., 0.)),
             },
             Test {
+                name: "Collinear segments with common point",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(-4., -4.),
+                    to: &point!(0., 0.),
+                },
+                want: Some(point!(0., 0.)),
+            },
+            Test {
+                name: "Collinear segments with no common point",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(-4., -4.),
+                    to: &point!(-2., -2.),
+                },
+                want: None,
+            },
+            Test {
                 name: "Segments ending at the same point",
                 segment: Segment {
                     from: &point!(4., 4.),
@@ -188,18 +253,6 @@ mod tests {
                 rhs: Segment {
                     from: &point!(-4., 4.),
                     to: &point!(0., 0.),
-                },
-                want: None,
-            },
-            Test {
-                name: "Non-crossing segments",
-                segment: Segment {
-                    from: &point!(4., 4.),
-                    to: &point!(8., 8.),
-                },
-                rhs: Segment {
-                    from: &point!(0., 4.),
-                    to: &point!(4., 0.),
                 },
                 want: None,
             },
@@ -228,14 +281,14 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "Collinear segments",
+                name: "Non-crossing segments",
                 segment: Segment {
-                    from: &point!(0., 0.),
-                    to: &point!(4., 4.),
+                    from: &point!(4., 4.),
+                    to: &point!(8., 8.),
                 },
                 rhs: Segment {
-                    from: &point!(-4., -4.),
-                    to: &point!(0., 0.),
+                    from: &point!(0., 4.),
+                    to: &point!(4., 0.),
                 },
                 want: None,
             },
