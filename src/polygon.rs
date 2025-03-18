@@ -51,12 +51,13 @@ where
         })
     }
 
-    /// Being self and rhs collinear, returns the single common [`Point`] between them, if any.
+    /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
+    /// them, if any.
     fn collinear_common_point(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
         let contains = |point| {
             // Optimized version of `Self::contains`:
             // No need to compute the cross product, by sharing an endpoint its guaranteed both
-            // segments are collinear.
+            // parallel segments are collinear.
             self.from.distance(point) <= self.length() && self.to.distance(point) <= self.length()
         };
 
@@ -98,7 +99,7 @@ where
 {
     /// Returns the scalar cross product of the triangle resulting from self and the given
     /// [`Point`].
-    pub fn cross(&self, point: &Point<T>) -> T {
+    fn cross(&self, point: &Point<T>) -> T {
         (self.to.x - self.from.x) * (point.y - self.from.y)
             - (point.x - self.from.x) * (self.to.y - self.from.y)
     }
