@@ -1,3 +1,5 @@
+use std::ops::{Mul, Sub};
+
 use num_traits::{Float, Signed, Zero};
 
 use crate::{determinant::Determinant, point::Point};
@@ -27,13 +29,13 @@ where
 
     /// Returns true if, and only if, the given [`Point`] exists within the segment.
     fn contains(&self, point: &Point<T>) -> bool {
-        Determinant::from([point, self.from, self.to]).is_zero()
+        Determinant::from((self, point)).into_inner().is_zero()
             && self.from.distance(point) <= self.length()
             && self.to.distance(point) <= self.length()
     }
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
     fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
-        let determinant = Determinant::from([self, rhs]);
+        let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
             // When the two (infinte) lines are parallel or coincident, the determinant is zero.
@@ -44,20 +46,16 @@ where
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
         // Predict if the division `t / determinant` will be in the range `[0,1]`
-        if t.abs() > determinant.into_inner().abs()
-            || !t.is_zero() && t.signum() != determinant.signum()
-        {
+        if t.abs() > determinant.abs() || !t.is_zero() && t.signum() != determinant.signum() {
             return None;
         }
 
-        let t = t / determinant.into_inner();
+        let t = t / determinant;
         let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
 
         // Predict if the division `u / determinant` will be in the range `[0,1]`
-        if u.abs() > determinant.into_inner().abs()
-            || !u.is_zero() && u.signum() != determinant.signum()
-        {
+        if u.abs() > determinant.abs() || !u.is_zero() && u.signum() != determinant.signum() {
             return None;
         }
 
@@ -118,12 +116,16 @@ where
         self.segments().fold(0, |wn, segment| {
             if segment.from.y <= point.y
                 && segment.to.y > point.y
-                && Determinant::from([segment.from, segment.to, point]).is_positive()
+                && Determinant::from((&segment, point))
+                    .into_inner()
+                    .is_positive()
             {
                 wn + 1
             } else if segment.from.y > point.y
                 && segment.to.y <= point.y
-                && Determinant::from([segment.from, segment.to, point]).is_negative()
+                && Determinant::from((&segment, point))
+                    .into_inner()
+                    .is_negative()
             {
                 wn - 1
             } else {
@@ -158,7 +160,7 @@ impl<T> Polygon<T> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        point::{point, Point},
+        point::{Point, point},
         polygon::{Polygon, Segment},
     };
 
