@@ -1,9 +1,9 @@
-use std::ops::{Mul, Sub};
+use num_traits::{Float, Signed, Zero};
 
-use crate::point::Point;
+use crate::{determinant::Determinant, point::Point};
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
-pub struct Segment<'a, T> {
+pub(crate) struct Segment<'a, T> {
     /// The first point in the segment.
     pub from: &'a Point<T>,
     /// The last point in the segment.
@@ -18,30 +18,46 @@ impl<'a, T> From<(&'a Point<T>, &'a Point<T>)> for Segment<'a, T> {
 
 impl<T> Segment<'_, T>
 where
-    T: PartialOrd + Copy + num_traits::Float,
+    T: Signed + Float + Zero,
 {
-    /// Returns the [`Point`] of intersection between self and the given segment, if any.
-    pub fn intersection(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
-        let denominator = (self.from.x - self.to.x) * (rhs.from.y - rhs.to.y)
-            - (self.from.y - self.to.y) * (rhs.from.x - rhs.to.x);
+    /// Returns the distance between the two endpoints of the segment.
+    fn length(&self) -> T {
+        self.from.distance(self.to)
+    }
 
-        if denominator.is_zero() {
-            // When the two (infinte) lines are parallel or coincident, the denominator is zero.
+    /// Returns true if, and only if, the given [`Point`] exists within the segment.
+    fn contains(&self, point: &Point<T>) -> bool {
+        Determinant::from([point, self.from, self.to]).is_zero()
+            && self.from.distance(point) <= self.length()
+            && self.to.distance(point) <= self.length()
+    }
+    /// Returns the [`Point`] of intersection between self and the given segment, if any.
+    fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
+        let determinant = Determinant::from([self, rhs]);
+
+        if determinant.is_zero() {
+            // When the two (infinte) lines are parallel or coincident, the determinant is zero.
             return self.collinear_common_point(rhs);
         }
 
         let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
-        if t.abs() > denominator.abs() || !t.is_zero() && t.signum() != denominator.signum() {
+        // Predict if the division `t / determinant` will be in the range `[0,1]`
+        if t.abs() > determinant.into_inner().abs()
+            || !t.is_zero() && t.signum() != determinant.signum()
+        {
             return None;
         }
 
-        let t = t / denominator;
+        let t = t / determinant.into_inner();
         let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
 
-        if u.abs() > denominator.abs() || !u.is_zero() && u.signum() != denominator.signum() {
+        // Predict if the division `u / determinant` will be in the range `[0,1]`
+        if u.abs() > determinant.into_inner().abs()
+            || !u.is_zero() && u.signum() != determinant.signum()
+        {
             return None;
         }
 
@@ -76,39 +92,10 @@ where
     }
 }
 
-impl<T> Segment<'_, T>
-where
-    T: Copy + num_traits::Float,
-{
-    /// Returns the distance between the two endpoints of the segment.
-    pub fn length(&self) -> T {
-        self.from.distance(self.to)
-    }
-
-    /// Returns true if, and only if, the given [`Point`] exists within the segment.
-    pub fn contains(&self, point: &Point<T>) -> bool {
-        self.cross(point).is_zero()
-            && self.from.distance(point) <= self.length()
-            && self.to.distance(point) <= self.length()
-    }
-}
-
-impl<T> Segment<'_, T>
-where
-    T: Copy + Sub<Output = T> + Mul<Output = T>,
-{
-    /// Returns the scalar cross product of the triangle resulting from self and the given
-    /// [`Point`].
-    fn cross(&self, point: &Point<T>) -> T {
-        (self.to.x - self.from.x) * (point.y - self.from.y)
-            - (point.x - self.from.x) * (self.to.y - self.from.y)
-    }
-}
-
 /// Represents a closed shape in the plain.
-pub struct Polygon<T = f64> {
+struct Polygon<T = f64> {
     /// The ordered list of vertices describing the polygon.  
-    pub vertices: Vec<Point<T>>,
+    vertices: Vec<Point<T>>,
 }
 
 impl<T, P> From<Vec<P>> for Polygon<T>
@@ -124,19 +111,19 @@ where
 
 impl<T> Polygon<T>
 where
-    T: PartialOrd + Copy + num_traits::Signed,
+    T: Signed + Float,
 {
     /// Returns the amount of times self winds around the given [`Point`].
-    pub fn winding(&self, point: &Point<T>) -> isize {
+    fn winding(&self, point: &Point<T>) -> isize {
         self.segments().fold(0, |wn, segment| {
             if segment.from.y <= point.y
                 && segment.to.y > point.y
-                && segment.cross(point).is_positive()
+                && Determinant::from([segment.from, segment.to, point]).is_positive()
             {
                 wn + 1
             } else if segment.from.y > point.y
                 && segment.to.y <= point.y
-                && segment.cross(point).is_negative()
+                && Determinant::from([segment.from, segment.to, point]).is_negative()
             {
                 wn - 1
             } else {
@@ -146,7 +133,7 @@ where
     }
 
     /// Returns true if, and only if, self contains the given point.
-    pub fn contains(&self, point: &Point<T>) -> bool {
+    fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
     }
 }
@@ -156,12 +143,12 @@ impl<T> Polygon<T> {
     ///
     /// By definition, a polygon is a closed shape, hence the latest point of the iterator equals
     /// the very first.
-    pub fn vertices(&self) -> impl Iterator<Item = &Point<T>> {
+    fn vertices(&self) -> impl Iterator<Item = &Point<T>> {
         self.vertices.iter().chain(self.vertices.first())
     }
 
     /// Returns an ordered iterator over all the [`Segment`]s of this polygon.
-    pub fn segments(&self) -> impl Iterator<Item = Segment<'_, T>> {
+    fn segments(&self) -> impl Iterator<Item = Segment<'_, T>> {
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(Segment::from)

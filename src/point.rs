@@ -1,10 +1,10 @@
 /// Represents a point in a plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Point<T = f64> {
+pub(crate) struct Point<T = f64> {
     /// The horizontal coordinate of the point.
-    pub x: T,
+    pub(crate) x: T,
     /// The vertical coordinate of the point.
-    pub y: T,
+    pub(crate) y: T,
 }
 
 impl<T> From<[T; 2]> for Point<T> {
@@ -18,7 +18,7 @@ where
     T: Copy + num_traits::Float,
 {
     /// Returns the distance between self and rhs.
-    pub fn distance(&self, rhs: &Point<T>) -> T {
+    pub(crate) fn distance(&self, rhs: &Self) -> T {
         ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
     }
 }
