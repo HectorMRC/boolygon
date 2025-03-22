@@ -4,7 +4,7 @@ use crate::{point::Point, polygon::Segment};
 
 /// The scalar value representing the determinant of a matrix.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Determinant<T>(T);
+pub(crate) struct Determinant<T>(T);
 
 impl<T> From<[&Point<T>; 3]> for Determinant<T>
 where
@@ -41,7 +41,7 @@ where
 
 impl<T> Determinant<T> {
     /// Returns the inner value of self.
-    pub fn into_inner(self) -> T {
+    pub(crate) fn into_inner(self) -> T {
         self.0
     }
 }
@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::{
         determinant::Determinant,
-        point::{Point, point},
+        point::{point, Point},
     };
 
     #[test]

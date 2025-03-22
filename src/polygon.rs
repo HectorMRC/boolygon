@@ -1,7 +1,4 @@
-use std::{
-    cmp::Ordering,
-    ops::{Mul, Sub},
-};
+use std::cmp::Ordering;
 
 use num_traits::{Float, Signed, Zero};
 
@@ -93,8 +90,8 @@ where
     }
 }
 
-/// Represents a closed shape in the plain.
-struct Polygon<T = f64> {
+/// Represents a polygon in the plain.
+pub(crate) struct Polygon<T = f64> {
     /// The ordered list of vertices describing the polygon.  
     vertices: Vec<Point<T>>,
 }
