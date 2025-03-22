@@ -2,7 +2,10 @@ use std::cmp::Ordering;
 
 use num_traits::{Float, Signed, Zero};
 
-use crate::{determinant::Determinant, point::Point};
+use crate::{
+    determinant::Determinant,
+    point::{point, Point},
+};
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
 pub(crate) struct Segment<'a, T> {
@@ -91,7 +94,7 @@ where
 }
 
 /// Represents a polygon in the plain.
-pub(crate) struct Polygon<T = f64> {
+pub(crate) struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  
     vertices: Vec<Point<T>>,
 }
@@ -182,11 +185,52 @@ impl<T> Polygon<T> {
     }
 }
 
+/// The smallest rectangular box that completely encloses a [`Polygon`].
+#[derive(Debug, PartialEq, Eq)]
+struct BoundingBox<T> {
+    /// The point containing the left-bottom coordinates.
+    min: Point<T>,
+    /// The point containing the right-top coordinates.
+    max: Point<T>,
+}
+
+impl<T> From<&Polygon<T>> for BoundingBox<T>
+where
+    T: Float,
+{
+    /// Returns the smallest rectangular box that completely encloses the given [`Polygon`].
+    fn from(polygon: &Polygon<T>) -> Self {
+        polygon.vertices.iter().fold(
+            Self {
+                min: point!(T::infinity(), T::infinity()),
+                max: point!(T::neg_infinity(), T::neg_infinity()),
+            },
+            |bb, vertex| Self {
+                min: point!(bb.min.x.min(vertex.x), bb.min.y.min(vertex.y)),
+                max: point!(bb.max.x.max(vertex.x), bb.max.y.max(vertex.y)),
+            },
+        )
+    }
+}
+
+impl<T> BoundingBox<T>
+where
+    T: Ord,
+{
+    /// Returns true if, and only if, rhs is enclosed by self.
+    fn contains(&self, rhs: &Self) -> bool {
+        rhs.min.x >= self.min.x
+            && rhs.min.y >= self.min.y
+            && rhs.max.x <= self.max.x
+            && rhs.max.y <= self.max.y
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         point::{point, Point},
-        polygon::{Polygon, Segment},
+        polygon::{BoundingBox, Polygon, Segment},
     };
 
     #[test]
@@ -195,7 +239,7 @@ mod tests {
             name: &'static str,
             segment: Segment<'static, f64>,
             rhs: Segment<'static, f64>,
-            want: Option<Point>,
+            want: Option<Point<f64>>,
         }
 
         vec![
@@ -323,8 +367,8 @@ mod tests {
     fn polygon_winding_number() {
         struct Test {
             name: &'static str,
-            polygon: Polygon,
-            point: Point,
+            polygon: Polygon<f64>,
+            point: Point<f64>,
             want: isize,
         }
 
@@ -405,7 +449,7 @@ mod tests {
     fn polygon_clockwise_orientation() {
         struct Test {
             name: &'static str,
-            polygon: Polygon,
+            polygon: Polygon<f64>,
             want: bool,
         }
 
@@ -444,6 +488,63 @@ mod tests {
             assert_eq!(
                 got, test.want,
                 "{}: got is clockwise = {got}, want = {}",
+                test.name, test.want
+            );
+        });
+    }
+
+    #[test]
+    fn polygon_bounding_box() {
+        struct Test {
+            name: &'static str,
+            polygon: Polygon<f64>,
+            want: BoundingBox<f64>,
+        }
+
+        vec![
+            Test {
+                name: "Triangle",
+                polygon: vec![[4., 0.], [4., 4.], [0., 0.]].into(),
+                want: BoundingBox {
+                    min: point!(0., 0.),
+                    max: point!(4., 4.),
+                },
+            },
+            Test {
+                name: "Rectangle",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                want: BoundingBox {
+                    min: point!(0., 0.),
+                    max: point!(4., 4.),
+                },
+            },
+            Test {
+                name: "Self-crossing polygon",
+                polygon: vec![
+                    [8., 0.],
+                    [8., 6.],
+                    [2., 6.],
+                    [2., 4.],
+                    [6., 4.],
+                    [6., 2.],
+                    [4., 2.],
+                    [4., 8.],
+                    [0., 8.],
+                    [0., 0.],
+                ]
+                .into(),
+                want: BoundingBox {
+                    min: point!(0., 0.),
+                    max: point!(8., 8.),
+                },
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let got = BoundingBox::from(&test.polygon);
+            assert_eq!(
+                got, test.want,
+                "{}: got bounding box = {got:?}, want = {:?}",
                 test.name, test.want
             );
         });

@@ -2,7 +2,7 @@ use crate::polygon::Polygon;
 
 /// A [`Polygon`] containing other polygons inside.
 ///
-/// It is guaranteed that none of the cluster's children intersect with each other nor exceed the
+/// It is guaranteed that none of the children intersect with each other nor intersect with the
 /// polygon's boundaries.
 struct PolygonCluster<T> {
     polygon: Polygon<T>,

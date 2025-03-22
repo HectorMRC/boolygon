@@ -57,8 +57,8 @@ mod tests {
     fn determinant_of_vectors() {
         struct Test {
             name: &'static str,
-            points: [Point<f32>; 3],
-            want: Determinant<f32>,
+            points: [Point<f64>; 3],
+            want: Determinant<f64>,
         }
 
         vec![
