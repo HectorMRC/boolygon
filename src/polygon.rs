@@ -1,4 +1,7 @@
-use std::ops::{Mul, Sub};
+use std::{
+    cmp::Ordering,
+    ops::{Mul, Sub},
+};
 
 use num_traits::{Float, Signed, Zero};
 
@@ -113,20 +116,18 @@ where
 {
     /// Returns the amount of times self winds around the given [`Point`].
     fn winding(&self, point: &Point<T>) -> isize {
+        // Returns true if, and only if, the point is on the right of the infinite line containing
+        // the given segment.
+        let right_of = |segment: &Segment<'_, T>| {
+            Determinant::from((segment, point))
+                .into_inner()
+                .is_negative()
+        };
+
         self.segments().fold(0, |wn, segment| {
-            if segment.from.y <= point.y
-                && segment.to.y > point.y
-                && Determinant::from((&segment, point))
-                    .into_inner()
-                    .is_positive()
-            {
+            if segment.from.y <= point.y && segment.to.y > point.y && !right_of(&segment) {
                 wn + 1
-            } else if segment.from.y > point.y
-                && segment.to.y <= point.y
-                && Determinant::from((&segment, point))
-                    .into_inner()
-                    .is_negative()
-            {
+            } else if segment.from.y > point.y && segment.to.y <= point.y && right_of(&segment) {
                 wn - 1
             } else {
                 wn
@@ -137,6 +138,33 @@ where
     /// Returns true if, and only if, self contains the given point.
     fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
+    }
+
+    /// Returns true if, and only if, the polygon is oriented clockwise.
+    fn is_clockwise(&self) -> bool {
+        self.vertices
+            .iter()
+            .enumerate()
+            .min_by(|(_, a), (_, b)| {
+                match a.y.partial_cmp(&b.y) {
+                    Some(Ordering::Equal) => b.x.partial_cmp(&a.x),
+                    other => other,
+                }
+                .unwrap_or(Ordering::Equal)
+            })
+            .map(|(mut position, min)| {
+                // Avoids usize overflow when position = 0.
+                position += self.vertices.len();
+
+                Determinant::from([
+                    &self.vertices[(position - 1) % self.vertices.len()],
+                    min,
+                    &self.vertices[(position + 1) % self.vertices.len()],
+                ])
+                .into_inner()
+                .is_negative()
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -160,7 +188,7 @@ impl<T> Polygon<T> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        point::{Point, point},
+        point::{point, Point},
         polygon::{Polygon, Segment},
     };
 
@@ -371,6 +399,54 @@ mod tests {
             assert_eq!(
                 got, test.want,
                 "{}: got winding number = {got}, want = {}",
+                test.name, test.want
+            );
+        });
+    }
+
+    #[test]
+    fn polygon_clockwise_orientation() {
+        struct Test {
+            name: &'static str,
+            polygon: Polygon,
+            want: bool,
+        }
+
+        vec![
+            Test {
+                name: "Simple counter-clockwise polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                want: false,
+            },
+            Test {
+                name: "Simple clockwise polygon",
+                polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
+                want: true,
+            },
+            Test {
+                name: "Self-crossing counter-clockwise polygon",
+                polygon: vec![
+                    [8., 0.],
+                    [8., 6.],
+                    [2., 6.],
+                    [2., 4.],
+                    [6., 4.],
+                    [6., 2.],
+                    [4., 2.],
+                    [4., 8.],
+                    [0., 8.],
+                    [0., 0.],
+                ]
+                .into(),
+                want: false,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let got = test.polygon.is_clockwise();
+            assert_eq!(
+                got, test.want,
+                "{}: got is clockwise = {got}, want = {}",
                 test.name, test.want
             );
         });
