@@ -1,6 +1,6 @@
 /// Represents a point in a plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Point<T = f64> {
+pub(crate) struct Point<T> {
     /// The horizontal coordinate of the point.
     pub(crate) x: T,
     /// The vertical coordinate of the point.

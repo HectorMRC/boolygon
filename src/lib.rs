@@ -1,3 +1,4 @@
 mod determinant;
-pub mod point;
-pub mod polygon;
+mod point;
+mod polygon;
+mod shape;
