@@ -34,18 +34,18 @@ impl<T> From<Polygon<T>> for Shape<T> {
 }
 
 impl<T> Shape<T> {
-    /// Returns the intersection of self and rhs.
-    fn and(self, rhs: Self) -> Self {
+    /// Returns the intersection of self and the given [`Polygon`].
+    fn and(self, polygon: Polygon<T>) -> Self {
         todo!()
     }
 
-    /// Returns the difference of rhs on self.
-    fn not(self, rhs: Self) -> Self {
+    /// Returns the difference of the given [`Polygon`] on self.
+    fn not(self, polygon: Polygon<T>) -> Self {
         todo!()
     }
 
-    /// Returns the union of self and rhs.
-    fn or(self, rhs: Self) -> Self {
+    /// Returns the union of self and the given [`Polygon`].
+    fn or(self, polygon: Polygon<T>) -> Self {
         todo!()
     }
 }
