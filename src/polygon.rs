@@ -112,6 +112,23 @@ where
 
 impl<T> Polygon<T>
 where
+    T: Ord + Signed + Float,
+{
+    /// Returns true if, and only if, rhs is enclosed by self.
+    pub(crate) fn contains(&self, rhs: &Self) -> bool {
+        if !BoundingBox::from(self).contains(&BoundingBox::from(rhs)) {
+            return false;
+        }
+
+        rhs.vertices
+            .iter()
+            .find(|vertex| !self.contains_point(vertex))
+            .is_none()
+    }
+}
+
+impl<T> Polygon<T>
+where
     T: Signed + Float,
 {
     /// Returns the amount of times self winds around the given [`Point`].
@@ -136,7 +153,7 @@ where
     }
 
     /// Returns true if, and only if, self contains the given point.
-    fn contains(&self, point: &Point<T>) -> bool {
+    fn contains_point(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
     }
 
@@ -187,7 +204,7 @@ impl<T> Polygon<T> {
 
 /// The smallest rectangular box that completely encloses a [`Polygon`].
 #[derive(Debug, PartialEq, Eq)]
-struct BoundingBox<T> {
+pub(crate) struct BoundingBox<T> {
     /// The point containing the left-bottom coordinates.
     min: Point<T>,
     /// The point containing the right-top coordinates.
@@ -218,7 +235,7 @@ where
     T: Ord,
 {
     /// Returns true if, and only if, rhs is enclosed by self.
-    fn contains(&self, rhs: &Self) -> bool {
+    pub(crate) fn contains(&self, rhs: &Self) -> bool {
         rhs.min.x >= self.min.x
             && rhs.min.y >= self.min.y
             && rhs.max.x <= self.max.x

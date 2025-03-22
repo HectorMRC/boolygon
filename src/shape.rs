@@ -49,23 +49,3 @@ impl<T> Shape<T> {
         todo!()
     }
 }
-
-///
-struct Weaver<T, F> {
-    left: Shape<T>,
-    right: Shape<T>,
-    rule: F,
-}
-
-impl<T, F> Weaver<T, F> {
-    fn new<U>(rule: F, left: U, right: U) -> Self
-    where
-        U: Into<Shape<T>>,
-    {
-        Self {
-            left: left.into(),
-            right: right.into(),
-            rule,
-        }
-    }
-}
