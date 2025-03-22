@@ -19,7 +19,6 @@ impl<T> From<Polygon<T>> for PolygonCluster<T> {
 }
 
 /// Represents a combination of non-crossing [`Polygon`]s.
-#[derive(Default)]
 struct Shape<T> {
     /// The hierarchically ordered list of [`Polygon`]s involved in the shape.
     clusters: Vec<PolygonCluster<T>>,
