@@ -1,4 +1,5 @@
+mod clipper;
 mod determinant;
-mod point;
-mod polygon;
-mod shape;
+pub mod point;
+pub mod polygon;
+pub mod shape;
