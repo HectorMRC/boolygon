@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     determinant::Determinant,
-    point::{point, Point},
+    point::{Point, point},
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
@@ -97,7 +97,7 @@ where
 #[derive(Debug)]
 pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  
-    vertices: Vec<Point<T>>,
+    pub(crate) vertices: Vec<Point<T>>,
 }
 
 impl<T, P> From<Vec<P>> for Polygon<T>
@@ -149,10 +149,7 @@ where
             return false;
         }
 
-        rhs.vertices
-            .iter()
-            .find(|vertex| !self.contains(vertex))
-            .is_none()
+        rhs.vertices.iter().all(|vertex| self.contains(vertex))
     }
 }
 
@@ -275,7 +272,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        point::{point, Point},
+        point::{Point, point},
         polygon::{BoundingBox, Polygon, Segment},
     };
 

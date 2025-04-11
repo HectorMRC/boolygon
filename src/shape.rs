@@ -6,7 +6,7 @@ use crate::{point::Point, polygon::Polygon};
 #[derive(Debug)]
 pub struct Shape<T> {
     /// The list of non-crossing [`Polygon`]s.
-    polygons: Vec<Polygon<T>>,
+    pub(crate) polygons: Vec<Polygon<T>>,
 }
 
 impl<T, P> From<T> for Shape<P>
@@ -54,6 +54,14 @@ where
 }
 
 impl<T> Shape<T> {
+    /// Returns the amount of vertices in the shape.
+    pub(crate) fn total_vertices(&self) -> usize {
+        self.polygons
+            .iter()
+            .map(|polygon| polygon.vertices.len())
+            .sum()
+    }
+
     /// Returns the difference of rhs on self.
     pub fn not(self, rhs: Self) -> Self {
         todo!()
