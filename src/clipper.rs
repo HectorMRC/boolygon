@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, btree_map::IntoIter};
+use std::collections::{btree_map::IntoIter, BTreeMap};
 
 use num_traits::{Float, Signed};
 
@@ -58,15 +58,38 @@ where
 }
 
 struct Vertex<T> {
+    /// The location of the vertex.
     point: Point<T>,
+    /// The index of the vertex following this one.
     next: usize,
+    /// The index of the vertex previous to this one.
     previous: usize,
-    sibling: Option<usize>,
+    /// Vertices from the oposite shape located at the same point.
+    sibling: Vec<usize>,
 }
 
-struct Boundary {
-    first_vertex: usize,
-    is_subject: bool,
+/// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
+enum Boundary {
+    Clip(usize),
+    Subject(usize),
+}
+
+impl Boundary {
+    fn is_subject(&self) -> bool {
+        matches!(self, Boundary::Subject(_))
+    }
+
+    fn edges<'a, T>(&self, graph: &'a ClipperGraph<T>) -> impl Iterator<Item = Edge<'a, T>> {
+        let start = match self {
+            Boundary::Clip(index) | Boundary::Subject(index) => *index,
+        };
+
+        EdgesIterator {
+            graph,
+            start,
+            next: start,
+        }
+    }
 }
 
 struct ClipperGraph<T> {
@@ -85,23 +108,20 @@ impl<T> Default for ClipperGraph<T> {
 
 impl<T> ClipperGraph<T> {
     fn with_subject(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, true)
+        self.with_shape(shape, Boundary::Subject)
     }
 
     fn with_clip(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, false)
+        self.with_shape(shape, Boundary::Clip)
     }
 
-    fn with_shape(mut self, shape: Shape<T>, is_subject: bool) -> Self {
+    fn with_shape(mut self, shape: Shape<T>, boundary: impl Fn(usize) -> Boundary) -> Self {
         self.vertices.reserve(shape.total_vertices());
         self.polygons.reserve(shape.polygons.len());
 
         for polygon in shape.polygons {
             let offset = self.vertices.len();
-            self.polygons.push(Boundary {
-                first_vertex: offset,
-                is_subject,
-            });
+            self.polygons.push(boundary(offset));
 
             let total_vertices = polygon.vertices.len();
             for (mut index, vertex) in polygon.vertices.into_iter().enumerate() {
@@ -111,20 +131,12 @@ impl<T> ClipperGraph<T> {
                     point: vertex,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),
-                    sibling: None,
+                    sibling: Vec::new(),
                 }));
             }
         }
 
         self
-    }
-
-    fn edges_iter(&self, boundary: &Boundary) -> impl Iterator<Item = Edge<'_, T>> {
-        EdgeIterator {
-            graph: self,
-            start: boundary.first_vertex,
-            next: boundary.first_vertex,
-        }
     }
 
     fn with_intersections(mut self) -> Self
@@ -143,7 +155,7 @@ impl<T> ClipperGraph<T> {
                     point: intersection.point,
                     next: self.vertices.len() + index + 1,
                     previous: self.vertices.len() + index - 1,
-                    sibling: None,
+                    sibling: Vec::new(),
                 });
             // TODO: register intersections and update endpoints
         }
@@ -157,13 +169,13 @@ struct Edge<'a, T> {
     index: usize,
 }
 
-struct EdgeIterator<'a, T> {
+struct EdgesIterator<'a, T> {
     graph: &'a ClipperGraph<T>,
     start: usize,
     next: usize,
 }
 
-impl<'a, T> Iterator for EdgeIterator<'a, T> {
+impl<'a, T> Iterator for EdgesIterator<'a, T> {
     type Item = Edge<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -225,7 +237,7 @@ where
             .iter()
             .enumerate()
             .skip(1)
-            .find(|(index, polygon)| polygon.is_subject != graph.polygons[index - 1].is_subject)
+            .find(|(index, polygon)| polygon.is_subject() != graph.polygons[index - 1].is_subject())
             .map(|(index, _)| index)
         else {
             // No partition means all polygons belongs to the same shape; hence, there are no
@@ -235,8 +247,8 @@ where
 
         for subject_polygon in &graph.polygons[..partition] {
             for clip_polygon in &graph.polygons[partition..] {
-                for subject_edge in graph.edges_iter(subject_polygon) {
-                    for clip_edge in graph.edges_iter(clip_polygon) {
+                for subject_edge in subject_polygon.edges(graph) {
+                    for clip_edge in clip_polygon.edges(graph) {
                         if let Some(intersection) =
                             subject_edge.segment.intersection(&clip_edge.segment)
                         {
