@@ -1,4 +1,7 @@
-use std::collections::{btree_map::IntoIter, BTreeMap};
+use std::{
+    collections::{btree_map::IntoIter, BTreeMap, HashSet},
+    rc::Rc,
+};
 
 use num_traits::{Float, Signed};
 
@@ -50,8 +53,17 @@ where
     pub fn execute(self) -> Shape<T> {
         let graph = ClipperGraph::default()
             .with_subject(self.subject)
-            .with_clip(self.clip)
-            .with_intersections();
+            .with_clip(self.clip);
+
+        let intersections = Intersections::from(&graph);
+        for (edge, mut indexes) in intersections.by_edge {
+            let vertex = graph.vertices[edge].point;
+            indexes.sort_by(|&a, &b| {
+                vertex
+                    .distance(&intersections.all[a].point)
+                    .cmp(&vertex.distance(&intersections.all[b].point))
+            });
+        }
 
         todo!()
     }
@@ -93,7 +105,7 @@ impl Boundary {
 }
 
 struct ClipperGraph<T> {
-    vertices: Vec<Option<Vertex<T>>>,
+    vertices: Vec<Vertex<T>>,
     polygons: Vec<Boundary>,
 }
 
@@ -127,37 +139,13 @@ impl<T> ClipperGraph<T> {
             for (mut index, vertex) in polygon.vertices.into_iter().enumerate() {
                 index += total_vertices;
 
-                self.vertices.push(Some(Vertex {
+                self.vertices.push(Vertex {
                     point: vertex,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),
                     sibling: Vec::new(),
-                }));
-            }
-        }
-
-        self
-    }
-
-    fn with_intersections(mut self) -> Self
-    where
-        T: Ord + Signed + Float,
-    {
-        for (index, mut intersections) in Intersections::from(&self).into_iter() {
-            intersections.sort_by(|a, b| a.distance.cmp(&b.distance));
-            intersections
-                .into_iter()
-                .enumerate()
-                .inspect(|(index, intersection)| {
-                    // TODO: register position for siblings
-                })
-                .map(|(index, intersection)| Vertex {
-                    point: intersection.point,
-                    next: self.vertices.len() + index + 1,
-                    previous: self.vertices.len() + index - 1,
-                    sibling: Vec::new(),
                 });
-            // TODO: register intersections and update endpoints
+            }
         }
 
         self
@@ -180,7 +168,7 @@ impl<'a, T> Iterator for EdgesIterator<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next;
-        let vertex = self.graph.vertices[current].as_ref()?;
+        let vertex = &self.graph.vertices[current];
         self.next = vertex.next;
 
         if self.next == self.start {
@@ -190,87 +178,56 @@ impl<'a, T> Iterator for EdgesIterator<'a, T> {
         Some(Edge {
             segment: Segment {
                 from: &vertex.point,
-                to: self.graph.vertices[vertex.next]
-                    .as_ref()
-                    .map(|vertex| &vertex.point)?,
+                to: &self.graph.vertices[vertex.next].point,
             },
             index: current,
         })
     }
 }
 
-struct IntersectingLine<T> {
-    /// The index of the vertex previous at this intersection.
-    index: usize,
-    /// The distance of the intersection point to the index.
-    distance: T,
-}
-
+/// The intersection between two edges.
 struct Intersection<T> {
-    /// The intersection point.
+    /// The [`Point`] of intersection between the edges started by subject and clip.
     point: Point<T>,
-    /// The index of the vertex previous at this intersection.
-    previous: usize,
-    /// The index of the vertex previous at this intersection at the oposite shape.
-    sibling: usize,
-    /// The distance from this intersection point to the previous vertex.
-    distance: T,
+    /// The index of the starting vertex in the subject edge involved in this intersection.
+    subject: usize,
+    /// The index of the starting vertex in the clip edge involved in this intersection.
+    clip: usize,
 }
 
-struct Intersections<T>(BTreeMap<usize, Vec<Intersection<T>>>);
+/// All the intersections between the edges of a subject and clip [`Shape`]s.
+struct Intersections<T> {
+    all: Vec<Intersection<T>>,
+    by_edge: BTreeMap<usize, Vec<usize>>,
+}
 
 impl<T> Default for Intersections<T> {
     fn default() -> Self {
-        Self(Default::default())
+        Self {
+            all: Default::default(),
+            by_edge: Default::default(),
+        }
     }
 }
 
 impl<T> From<&ClipperGraph<T>> for Intersections<T>
 where
-    T: Ord + Signed + Float,
+    T: Signed + Float,
 {
     fn from(graph: &ClipperGraph<T>) -> Self {
         let mut intersections = Self::default();
-
-        let Some(partition) = graph
-            .polygons
-            .iter()
-            .enumerate()
-            .skip(1)
-            .find(|(index, polygon)| polygon.is_subject() != graph.polygons[index - 1].is_subject())
-            .map(|(index, _)| index)
-        else {
-            // No partition means all polygons belongs to the same shape; hence, there are no
-            // intersections.
-            return intersections;
-        };
-
-        for subject_polygon in &graph.polygons[..partition] {
-            for clip_polygon in &graph.polygons[partition..] {
+        for subject_polygon in graph.polygons.iter().filter(|p| p.is_subject()) {
+            for clip_polygon in graph.polygons.iter().filter(|p| !p.is_subject()) {
                 for subject_edge in subject_polygon.edges(graph) {
                     for clip_edge in clip_polygon.edges(graph) {
                         if let Some(intersection) =
                             subject_edge.segment.intersection(&clip_edge.segment)
                         {
-                            intersections = intersections
-                                .with_intersection(
-                                    subject_edge.index,
-                                    Intersection {
-                                        point: intersection,
-                                        previous: subject_edge.index,
-                                        sibling: clip_edge.index,
-                                        distance: subject_edge.segment.from.distance(&intersection),
-                                    },
-                                )
-                                .with_intersection(
-                                    clip_edge.index,
-                                    Intersection {
-                                        point: intersection,
-                                        previous: clip_edge.index,
-                                        sibling: subject_edge.index,
-                                        distance: clip_edge.segment.from.distance(&intersection),
-                                    },
-                                )
+                            intersections = intersections.with_intersection(Intersection {
+                                point: intersection,
+                                subject: subject_edge.index,
+                                clip: clip_edge.index,
+                            });
                         }
                     }
                 }
@@ -281,24 +238,24 @@ where
     }
 }
 
-impl<T> IntoIterator for Intersections<T> {
-    type Item = (usize, Vec<Intersection<T>>);
-    type IntoIter = IntoIter<usize, Vec<Intersection<T>>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 impl<T> Intersections<T> {
-    fn with_intersection(mut self, index: usize, intersection: Intersection<T>) -> Self {
-        match self.0.get_mut(&index) {
-            Some(group) => group.push(intersection),
+    fn with_intersection(mut self, intersection: Intersection<T>) -> Self {
+        match self.by_edge.get_mut(&intersection.subject) {
+            Some(group) => group.push(self.all.len()),
             None => {
-                self.0.insert(index, vec![intersection]);
+                self.by_edge
+                    .insert(intersection.subject, vec![self.all.len()]);
             }
-        }
+        };
 
+        match self.by_edge.get_mut(&intersection.clip) {
+            Some(group) => group.push(self.all.len()),
+            None => {
+                self.by_edge.insert(intersection.clip, vec![self.all.len()]);
+            }
+        };
+
+        self.all.push(intersection);
         self
     }
 }
