@@ -53,17 +53,8 @@ where
     pub fn execute(self) -> Shape<T> {
         let graph = ClipperGraph::default()
             .with_subject(self.subject)
-            .with_clip(self.clip);
-
-        let intersections = Intersections::from(&graph);
-        for (edge, mut indexes) in intersections.by_edge {
-            let vertex = graph.vertices[edge].point;
-            indexes.sort_by(|&a, &b| {
-                vertex
-                    .distance(&intersections.all[a].point)
-                    .cmp(&vertex.distance(&intersections.all[b].point))
-            });
-        }
+            .with_clip(self.clip)
+            .with_intersections();
 
         todo!()
     }
@@ -77,7 +68,7 @@ struct Vertex<T> {
     /// The index of the vertex previous to this one.
     previous: usize,
     /// Vertices from the oposite shape located at the same point.
-    sibling: Vec<usize>,
+    siblings: Vec<usize>,
 }
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
@@ -89,18 +80,6 @@ enum Boundary {
 impl Boundary {
     fn is_subject(&self) -> bool {
         matches!(self, Boundary::Subject(_))
-    }
-
-    fn edges<'a, T>(&self, graph: &'a ClipperGraph<T>) -> impl Iterator<Item = Edge<'a, T>> {
-        let start = match self {
-            Boundary::Clip(index) | Boundary::Subject(index) => *index,
-        };
-
-        EdgesIterator {
-            graph,
-            start,
-            next: start,
-        }
     }
 }
 
@@ -115,6 +94,63 @@ impl<T> Default for ClipperGraph<T> {
             vertices: Default::default(),
             polygons: Default::default(),
         }
+    }
+}
+
+impl<T> ClipperGraph<T>
+where
+    T: Ord + Signed + Float,
+{
+    fn with_intersections(mut self) -> Self {
+        let intersections = Intersections::from(&self);
+        let mut visited = BTreeMap::new();
+
+        for (edge, mut indexes) in intersections.by_edge {
+            let vertex = self.vertices[edge].point;
+            indexes.sort_by(|&a, &b| {
+                vertex
+                    .distance(&intersections.all[a].point)
+                    .cmp(&vertex.distance(&intersections.all[b].point))
+            });
+
+            indexes
+                .chunk_by(|&a, &b| intersections.all[a].point == intersections.all[b].point)
+                .fold(edge, |previous, chunk| {
+                    let point = intersections.all[chunk[0]].point;
+                    let index = self.vertices.len();
+
+                    visited.insert((edge, point), index);
+
+                    let next = self.vertices[previous].next;
+                    self.vertices[previous].next = index;
+                    self.vertices[next].previous = index;
+
+                    let siblings = chunk
+                        .into_iter()
+                        .map(|&index| {
+                            if edge == intersections.all[index].clip {
+                                intersections.all[index].subject
+                            } else {
+                                intersections.all[index].clip
+                            }
+                        })
+                        .filter_map(|edge| visited.get(&(edge, point)))
+                        .copied()
+                        .inspect(|&sibling| self.vertices[sibling].siblings.push(index))
+                        .collect();
+
+                    self.vertices.push(Vertex {
+                        point,
+                        next,
+                        previous,
+                        siblings,
+                    });
+
+                    index
+                });
+        }
+
+        self
     }
 }
 
@@ -143,12 +179,24 @@ impl<T> ClipperGraph<T> {
                     point: vertex,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),
-                    sibling: Vec::new(),
+                    siblings: Vec::new(),
                 });
             }
         }
 
         self
+    }
+
+    fn edges<'a>(&'a self, boundary: &Boundary) -> impl Iterator<Item = Edge<'a, T>> {
+        let start = match boundary {
+            Boundary::Clip(index) | Boundary::Subject(index) => *index,
+        };
+
+        EdgesIterator {
+            graph: self,
+            start,
+            next: start,
+        }
     }
 }
 
@@ -218,8 +266,8 @@ where
         let mut intersections = Self::default();
         for subject_polygon in graph.polygons.iter().filter(|p| p.is_subject()) {
             for clip_polygon in graph.polygons.iter().filter(|p| !p.is_subject()) {
-                for subject_edge in subject_polygon.edges(graph) {
-                    for clip_edge in clip_polygon.edges(graph) {
+                for subject_edge in graph.edges(subject_polygon) {
+                    for clip_edge in graph.edges(clip_polygon) {
                         if let Some(intersection) =
                             subject_edge.segment.intersection(&clip_edge.segment)
                         {
