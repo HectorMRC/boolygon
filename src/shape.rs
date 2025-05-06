@@ -66,13 +66,6 @@ where
     /// Returns true if, and only if, self contains the given [`Point`].
     pub fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
-            || self
-                .polygons
-                .iter()
-                .map(|polygon| polygon.vertices.iter())
-                .flatten()
-                .find(|p| p == &point)
-                .is_some()
     }
 }
 

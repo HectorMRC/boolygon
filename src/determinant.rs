@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::{
         determinant::Determinant,
-        point::{Point, point},
+        point::{point, Point},
     };
 
     #[test]
@@ -71,6 +71,11 @@ mod tests {
                 name: "counter-clockwise vectors",
                 points: [point!(0., 1.), point!(0., 0.), point!(1., 0.)],
                 want: Determinant(1.),
+            },
+            Test {
+                name: "colinear vectors",
+                points: [point!(4., 4.), point!(2., 2.), point!(0., 0.)],
+                want: Determinant(0.),
             },
         ]
         .into_iter()

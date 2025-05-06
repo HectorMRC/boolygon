@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     determinant::Determinant,
-    point::{Point, point},
+    point::{point, Point},
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
@@ -161,18 +161,23 @@ where
 {
     /// Returns the amount of times self winds around the given [`Point`].
     pub(crate) fn winding(&self, point: &Point<T>) -> isize {
-        // Returns true if, and only if, the point is on the left of the infinite line containing
-        // the given segment.
-        let left_of = |segment: &Segment<'_, T>| {
-            Determinant::from((segment, point))
-                .into_inner()
-                .is_positive()
-        };
-
         self.segments().fold(0, |wn, segment| {
-            if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
+            let determinant = Determinant::from((&segment, point)).into_inner();
+
+            if determinant.is_zero() {
+                // The point belongs to the segment.
                 wn + 1
-            } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
+            } else if segment.from.y <= point.y
+                && segment.to.y > point.y
+                && determinant.is_positive()
+            {
+                // The point is on the left of the infinite line containing the segment.
+                wn + 1
+            } else if segment.from.y > point.y
+                && segment.to.y <= point.y
+                && determinant.is_negative()
+            {
+                // The point is on the right of the infinite line containing the segment.
                 wn - 1
             } else {
                 wn
@@ -182,7 +187,7 @@ where
 
     /// Returns true if, and only if, self contains the given [`Point`].
     pub fn contains(&self, point: &Point<T>) -> bool {
-        self.winding(point) != 0 || self.vertices.contains(point)
+        self.winding(point) != 0
     }
 
     /// Returns true if, and only if, the polygon is oriented clockwise.
@@ -274,7 +279,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        point::{Point, point},
+        point::{point, Point},
         polygon::{BoundingBox, Polygon, Segment},
     };
 
