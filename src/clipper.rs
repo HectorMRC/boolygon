@@ -59,10 +59,10 @@ where
             .iter()
             .filter_map(|cell| cell.as_ref())
             .position(Vertex::is_intersection)
-            .map(|start| VertexIterator {
+            .map(|start| VerticesIterator {
                 clipper: &self,
                 graph: &mut graph,
-                next: Some(start),
+                next: start,
             })
         {
             let polygon = iter.collect::<Vec<_>>().into();
@@ -94,31 +94,33 @@ impl<T> Vertex<T> {
     }
 }
 
-struct VertexIterator<'a, O, T> {
+struct VerticesIterator<'a, O, T> {
     clipper: &'a Clipper<O, Shape<T>, Shape<T>>,
     graph: &'a mut ClipperGraph<T>,
-    next: Option<usize>,
+    next: usize,
 }
 
-impl<'a, O, T> Iterator for VertexIterator<'a, O, T>
+impl<'a, O, T> Iterator for VerticesIterator<'a, O, T>
 where
     T: Signed + Float,
 {
     type Item = Point<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let vertex = self.graph.vertices[self.next?].take()?;
+        let vertex = self.graph.vertices[self.next].take()?;
 
         self.next = vertex
             .siblings
             .into_iter()
             .find_map(|sibling| {
-                let point = self.graph.vertices[sibling]
+                if self.graph.vertices[sibling]
                     .as_ref()
                     .and_then(|vertex| self.graph.vertices[vertex.next].as_ref())
-                    .map(|vertex| &vertex.point)?;
-
-                if self.clipper.subject.contains(point) ^ self.clipper.clip.contains(point) {
+                    .is_some_and(|vertex| {
+                        self.clipper.subject.contains(&vertex.point)
+                            ^ self.clipper.clip.contains(&vertex.point)
+                    })
+                {
                     return self.graph.vertices[sibling]
                         .take()
                         .map(|vertex| vertex.next);
@@ -126,7 +128,7 @@ where
 
                 None
             })
-            .or(Some(vertex.next));
+            .unwrap_or(vertex.next);
 
         Some(vertex.point)
     }
