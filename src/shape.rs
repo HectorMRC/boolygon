@@ -1,9 +1,11 @@
+use std::fmt::Debug;
+
 use num_traits::{Float, Signed};
 
-use crate::{point::Point, polygon::Polygon};
+use crate::{clipper::Clipper, point::Point, polygon::Polygon};
 
 /// A combination of disjoint [`Polygon`]s.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Shape<T> {
     /// The list of non-crossing [`Polygon`]s.
     pub(crate) polygons: Vec<Polygon<T>>,
@@ -37,6 +39,20 @@ where
 
 impl<T> Shape<T>
 where
+    T: PartialOrd + Signed + Float + Debug,
+{
+    /// Returns the union of self and rhs.
+    pub fn or(self, rhs: Self) -> Self {
+        Clipper::new(())
+            .with_subject(self)
+            .with_clip(rhs)
+            .execute()
+            .expect("union should always return a shape")
+    }
+}
+
+impl<T> Shape<T>
+where
     T: Signed + Float,
 {
     /// Returns the amount of times self winds around the given [`Point`].
@@ -50,6 +66,13 @@ where
     /// Returns true if, and only if, self contains the given [`Point`].
     pub fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
+            || self
+                .polygons
+                .iter()
+                .map(|polygon| polygon.vertices.iter())
+                .flatten()
+                .find(|p| p == &point)
+                .is_some()
     }
 }
 
@@ -61,16 +84,6 @@ impl<T> Shape<T> {
             .map(|polygon| polygon.vertices.len())
             .sum()
     }
-
-    /// Returns the difference of rhs on self.
-    pub fn not(self, rhs: Self) -> Self {
-        todo!()
-    }
-
-    /// Returns the union of self and rhs.
-    pub fn or(self, rhs: Self) -> Self {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -81,15 +94,15 @@ mod tests {
     fn shape_union() {
         struct Test {
             name: &'static str,
-            left: Shape<f64>,
-            right: Shape<f64>,
+            subject: Shape<f64>,
+            clip: Shape<f64>,
             want: Shape<f64>,
         }
 
         vec![Test {
             name: "overlapping squares",
-            left: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
-            right: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+            subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+            clip: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
             want: vec![
                 [0., 0.],
                 [4., 0.],
@@ -104,12 +117,8 @@ mod tests {
         }]
         .into_iter()
         .for_each(|test| {
-            let got = test.left.or(test.right);
-            assert_eq!(
-                got, test.want,
-                "{} got = {got:?}, want = {:?}",
-                test.name, test.want
-            );
+            let got = test.subject.or(test.clip);
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }

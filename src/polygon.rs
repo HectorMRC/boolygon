@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Debug};
 
 use num_traits::{Float, Signed};
 
@@ -8,6 +8,7 @@ use crate::{
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
+#[derive(Debug)]
 pub struct Segment<'a, T> {
     /// The first point in the segment.
     pub from: &'a Point<T>,
@@ -54,8 +55,9 @@ where
         }
 
         let t = t / determinant;
-        let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
-            - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
+
+        let u = -((self.from.x - self.to.x) * (self.from.y - rhs.from.y)
+            - (self.from.y - self.to.y) * (self.from.x - rhs.from.x));
 
         // Predict if the division `u / determinant` will be in the range `[0,1]`
         if u.abs() > determinant.abs() || !u.is_zero() && u.signum() != determinant.signum() {
@@ -94,7 +96,7 @@ where
 }
 
 /// Represents a polygon in the plain.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  
     pub(crate) vertices: Vec<Point<T>>,
@@ -180,7 +182,7 @@ where
 
     /// Returns true if, and only if, self contains the given [`Point`].
     pub fn contains(&self, point: &Point<T>) -> bool {
-        self.winding(point) != 0
+        self.winding(point) != 0 || self.vertices.contains(point)
     }
 
     /// Returns true if, and only if, the polygon is oriented clockwise.
@@ -356,7 +358,7 @@ mod tests {
                     from: &point!(-4., 4.),
                     to: &point!(0., 0.),
                 },
-                want: None,
+                want: Some(point!(0., 0.)),
             },
             Test {
                 name: "parallel segments",
@@ -393,6 +395,18 @@ mod tests {
                     to: &point!(4., 0.),
                 },
                 want: None,
+            },
+            Test {
+                name: "perpendicular segments",
+                segment: Segment {
+                    from: &point!(4., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(2., 2.),
+                    to: &point!(6., 2.),
+                },
+                want: Some(point!(4., 2.)),
             },
         ]
         .into_iter()
