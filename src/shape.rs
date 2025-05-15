@@ -126,6 +126,40 @@ mod tests {
                 clip: vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]].into(),
                 want: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
             },
+            Test {
+                name: "subject enclosing clip",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                want: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+            },
+            Test {
+                name: "subject with hole enclosing clip",
+                subject: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
+                    ],
+                },
+                clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                want: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+            },
+            Test {
+                name: "subject with hole excluding clip",
+                subject: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                },
+                clip: vec![[1.5, 1.5], [2.5, 1.5], [2.5, 2.5], [1.5, 2.5]].into(),
+                want: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                        vec![[1.5, 1.5], [2.5, 1.5], [2.5, 2.5], [1.5, 2.5]].into(),
+                    ],
+                },
+            },
         ]
         .into_iter()
         .for_each(|test| {
