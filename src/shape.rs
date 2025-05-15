@@ -14,10 +14,17 @@ pub struct Shape<T> {
 impl<T, P> From<T> for Shape<P>
 where
     T: Into<Polygon<P>>,
+    P: Signed + Float,
 {
     fn from(value: T) -> Self {
+        let mut polygon = value.into();
+        if polygon.is_clockwise() {
+            // shapes are right-handed.
+            polygon.invert_winding();
+        }
+
         Self {
-            polygons: vec![value.into()],
+            polygons: vec![polygon],
         }
     }
 }

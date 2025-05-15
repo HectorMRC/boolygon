@@ -188,7 +188,7 @@ where
     }
 
     /// Returns true if, and only if, the polygon is oriented clockwise.
-    fn is_clockwise(&self) -> bool {
+    pub(crate) fn is_clockwise(&self) -> bool {
         self.vertices
             .iter()
             .enumerate()
@@ -229,6 +229,11 @@ impl<T> Polygon<T> {
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(Segment::from)
+    }
+
+    /// Reverses the order of vertices in the polygon.
+    pub(crate) fn invert_winding(&mut self) {
+        self.vertices.reverse();
     }
 }
 
