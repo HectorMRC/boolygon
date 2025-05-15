@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
+use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug, marker::PhantomData};
 
 use num_traits::{Float, Signed};
 
@@ -6,19 +6,50 @@ use crate::{point::Point, polygon::Segment, shape::Shape};
 
 pub struct Unknown;
 
+pub(crate) struct Operands<'a, T> {
+    pub subject: &'a Shape<T>,
+    pub clip: &'a Shape<T>,
+}
+
+impl<'a, T, Op> From<&'a Clipper<Op, Shape<T>, Shape<T>>> for Operands<'a, T> {
+    fn from(clipper: &'a Clipper<Op, Shape<T>, Shape<T>>) -> Self {
+        Operands {
+            subject: &clipper.subject,
+            clip: &clipper.clip,
+        }
+    }
+}
+
+/// Represents the operation to perform by the clipping algorithm.
+pub(crate) trait Operator<T> {
+    /// Returns true if, and only if, the given vertex belongs to the output of the clipping
+    /// operation.
+    fn is_output<'a>(ops: Operands<'a, T>, vertex: &'a Vertex<T>) -> bool;
+}
+
 /// Implements the clipping algorithm.                                                                                                                                   
-pub struct Clipper<Operator, Subject, Clip> {
-    operation: Operator,
+pub(crate) struct Clipper<Operator, Subject, Clip> {
+    operator: PhantomData<Operator>,
     subject: Subject,
     clip: Clip,
 }
 
-impl<Op> Clipper<Op, Unknown, Unknown> {
-    pub fn new(operation: Op) -> Self {
+impl Default for Clipper<Unknown, Unknown, Unknown> {
+    fn default() -> Self {
         Self {
-            operation,
+            operator: PhantomData,
             subject: Unknown,
             clip: Unknown,
+        }
+    }
+}
+
+impl<Op, Sub, Clip> Clipper<Op, Sub, Clip> {
+    pub fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip> {
+        Clipper {
+            operator: PhantomData,
+            subject: self.subject,
+            clip: self.clip,
         }
     }
 }
@@ -26,7 +57,7 @@ impl<Op> Clipper<Op, Unknown, Unknown> {
 impl<Op, Clip> Clipper<Op, Unknown, Clip> {
     pub fn with_subject<T>(self, subject: impl Into<Shape<T>>) -> Clipper<Op, Shape<T>, Clip> {
         Clipper {
-            operation: self.operation,
+            operator: PhantomData,
             subject: subject.into(),
             clip: self.clip,
         }
@@ -36,7 +67,7 @@ impl<Op, Clip> Clipper<Op, Unknown, Clip> {
 impl<Op, Sub> Clipper<Op, Sub, Unknown> {
     pub fn with_clip<T>(self, clip: impl Into<Shape<T>>) -> Clipper<Op, Sub, Shape<T>> {
         Clipper {
-            operation: self.operation,
+            operator: PhantomData,
             subject: self.subject,
             clip: clip.into(),
         }
@@ -46,6 +77,7 @@ impl<Op, Sub> Clipper<Op, Sub, Unknown> {
 impl<T, Op> Clipper<Op, Shape<T>, Shape<T>>
 where
     T: Clone + PartialOrd + Signed + Float + Debug,
+    Op: Operator<T>,
 {
     pub fn execute(self) -> Option<Shape<T>> {
         let mut graph = ClipperGraph::default()
@@ -70,9 +102,7 @@ where
         }
 
         while let Some(iter) = graph
-            .position_where(|vertex| {
-                self.subject.contains(&vertex.point) ^ self.clip.contains(&vertex.point)
-            })
+            .position_where(|vertex| Op::is_output((&self).into(), vertex))
             .map(|position| VerticesIterator {
                 clipper: &self,
                 graph: &mut graph,
@@ -104,9 +134,9 @@ where
 }
 
 #[derive(Debug)]
-struct Vertex<T> {
+pub(crate) struct Vertex<T> {
     /// The location of the vertex.
-    point: Point<T>,
+    pub point: Point<T>,
     /// The index of the vertex following this one.
     next: usize,
     /// The index of the vertex previous to this one.
@@ -130,6 +160,7 @@ struct VerticesIterator<'a, Op, T> {
 impl<'a, Op, T> Iterator for VerticesIterator<'a, Op, T>
 where
     T: Signed + Float,
+    Op: Operator<T>,
 {
     type Item = Vertex<T>;
 
@@ -143,10 +174,7 @@ where
                 if self.graph.vertices[sibling]
                     .as_ref()
                     .and_then(|vertex| self.graph.vertices[vertex.next].as_ref())
-                    .is_some_and(|vertex| {
-                        self.clipper.subject.contains(&vertex.point)
-                            ^ self.clipper.clip.contains(&vertex.point)
-                    })
+                    .is_some_and(|vertex| Op::is_output(self.clipper.into(), vertex))
                 {
                     return self.graph.vertices[sibling]
                         .take()

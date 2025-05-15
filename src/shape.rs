@@ -1,8 +1,12 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, marker::PhantomData};
 
 use num_traits::{Float, Signed};
 
-use crate::{clipper::Clipper, point::Point, polygon::Polygon};
+use crate::{
+    clipper::{Clipper, Operands, Operator, Vertex},
+    point::Point,
+    polygon::Polygon,
+};
 
 /// A combination of disjoint [`Polygon`]s.
 #[derive(Debug, Clone)]
@@ -50,7 +54,27 @@ where
 {
     /// Returns the union of self and rhs.
     pub fn or(self, rhs: Self) -> Self {
-        Clipper::new(())
+        struct OrOperator<T> {
+            _unit: PhantomData<T>,
+        }
+
+        impl<T> Operator<T> for OrOperator<T>
+        where
+            T: Signed + Float,
+        {
+            fn is_output<'a>(ops: Operands<'a, T>, vertex: &'a Vertex<T>) -> bool {
+                ops.subject.contains(&vertex.point) ^ ops.clip.contains(&vertex.point)
+            }
+        }
+
+        impl<T> Default for OrOperator<T> {
+            fn default() -> Self {
+                Self { _unit: PhantomData }
+            }
+        }
+
+        Clipper::default()
+            .with_operator::<OrOperator<T>>()
             .with_subject(self)
             .with_clip(rhs)
             .execute()
