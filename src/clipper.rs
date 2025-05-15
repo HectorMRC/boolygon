@@ -192,11 +192,7 @@ impl<'a, T> Iterator for EdgesIterator<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next?;
         let vertex = self.graph.vertices[current].as_ref()?;
-        self.next = if vertex.next != self.start {
-            Some(vertex.next)
-        } else {
-            None
-        };
+        self.next = (vertex.next != self.start).then_some(vertex.next);
 
         Some(Edge {
             segment: Segment {

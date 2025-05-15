@@ -120,6 +120,12 @@ mod tests {
                     ],
                 },
             },
+            Test {
+                name: "enclosing squares",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]].into(),
+                want: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+            },
         ]
         .into_iter()
         .for_each(|test| {
