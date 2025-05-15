@@ -55,17 +55,44 @@ where
 
         let mut shape = None;
         while let Some(iter) = graph
-            .vertices
-            .iter()
-            .filter_map(|cell| cell.as_ref())
-            .position(Vertex::is_intersection)
-            .map(|start| VerticesIterator {
+            .position_where(Vertex::is_intersection)
+            .map(|position| VerticesIterator {
                 clipper: &self,
                 graph: &mut graph,
-                next: start,
+                next: position,
             })
         {
-            let polygon = iter.collect::<Vec<_>>().into();
+            let polygon = iter.map(|vertex| vertex.point).collect::<Vec<_>>().into();
+            match shape.as_mut() {
+                None => shape = Some(Shape::from(polygon)),
+                Some(shape) => shape.polygons.push(polygon),
+            };
+        }
+
+        while let Some(iter) = graph
+            .position_where(|vertex| {
+                self.subject.contains(&vertex.point) ^ self.clip.contains(&vertex.point)
+            })
+            .map(|position| VerticesIterator {
+                clipper: &self,
+                graph: &mut graph,
+                next: position,
+            })
+        {
+            let start = iter.next;
+            let vertices = iter.collect::<Vec<_>>();
+
+            if vertices[vertices.len() - 1].next != start {
+                // The succession of vertices is an open shape.
+                continue;
+            }
+
+            let polygon = vertices
+                .into_iter()
+                .map(|vertex| vertex.point)
+                .collect::<Vec<_>>()
+                .into();
+
             match shape.as_mut() {
                 None => shape = Some(Shape::from(polygon)),
                 Some(shape) => shape.polygons.push(polygon),
@@ -94,25 +121,25 @@ impl<T> Vertex<T> {
     }
 }
 
-struct VerticesIterator<'a, O, T> {
-    clipper: &'a Clipper<O, Shape<T>, Shape<T>>,
+struct VerticesIterator<'a, Op, T> {
+    clipper: &'a Clipper<Op, Shape<T>, Shape<T>>,
     graph: &'a mut ClipperGraph<T>,
     next: usize,
 }
 
-impl<'a, O, T> Iterator for VerticesIterator<'a, O, T>
+impl<'a, Op, T> Iterator for VerticesIterator<'a, Op, T>
 where
     T: Signed + Float,
 {
-    type Item = Point<T>;
+    type Item = Vertex<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let vertex = self.graph.vertices[self.next].take()?;
 
         self.next = vertex
             .siblings
-            .into_iter()
-            .find_map(|sibling| {
+            .iter()
+            .find_map(|&sibling| {
                 if self.graph.vertices[sibling]
                     .as_ref()
                     .and_then(|vertex| self.graph.vertices[vertex.next].as_ref())
@@ -130,7 +157,7 @@ where
             })
             .unwrap_or(vertex.next);
 
-        Some(vertex.point)
+        Some(vertex)
     }
 }
 
@@ -155,24 +182,21 @@ struct Edge<'a, T> {
 
 struct EdgesIterator<'a, T> {
     graph: &'a ClipperGraph<T>,
+    next: Option<usize>,
     start: usize,
-    next: usize,
-    done: bool,
 }
 
 impl<'a, T> Iterator for EdgesIterator<'a, T> {
     type Item = Edge<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            return None;
-        }
-
-        let current = self.next;
+        let current = self.next?;
         let vertex = self.graph.vertices[current].as_ref()?;
-        self.next = vertex.next;
-
-        self.done = self.next == self.start;
+        self.next = if vertex.next != self.start {
+            Some(vertex.next)
+        } else {
+            None
+        };
 
         Some(Edge {
             segment: Segment {
@@ -438,8 +462,16 @@ impl<T> ClipperGraph<T> {
         EdgesIterator {
             graph: self,
             start,
-            next: start,
-            done: false,
+            next: Some(start),
         }
+    }
+
+    fn position_where(&self, f: impl Fn(&Vertex<T>) -> bool) -> Option<usize> {
+        self.vertices
+            .iter()
+            .enumerate()
+            .filter_map(|(index, cell)| cell.as_ref().map(|vertex| (index, vertex)))
+            .find(|(_, vertex)| f(vertex))
+            .map(|(start, _)| start)
     }
 }

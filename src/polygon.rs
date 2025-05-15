@@ -161,23 +161,20 @@ where
 {
     /// Returns the amount of times self winds around the given [`Point`].
     pub(crate) fn winding(&self, point: &Point<T>) -> isize {
-        self.segments().fold(0, |wn, segment| {
-            let determinant = Determinant::from((&segment, point)).into_inner();
+        // Returns true if, and only if, the point is on the left of the infinite line containing
+        // the given segment.
+        let left_of = |segment: &Segment<'_, T>| {
+            Determinant::from((segment, point))
+                .into_inner()
+                .is_positive()
+        };
 
-            if determinant.is_zero() {
-                // The point belongs to the segment.
+        self.segments().fold(0, |wn, segment| {
+            if segment.contains(point) {
                 wn + 1
-            } else if segment.from.y <= point.y
-                && segment.to.y > point.y
-                && determinant.is_positive()
-            {
-                // The point is on the left of the infinite line containing the segment.
+            } else if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
                 wn + 1
-            } else if segment.from.y > point.y
-                && segment.to.y <= point.y
-                && determinant.is_negative()
-            {
-                // The point is on the right of the infinite line containing the segment.
+            } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
                 wn - 1
             } else {
                 wn

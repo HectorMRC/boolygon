@@ -92,22 +92,35 @@ mod tests {
             want: Shape<f64>,
         }
 
-        vec![Test {
-            name: "overlapping squares",
-            subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
-            clip: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
-            want: vec![
-                [0., 0.],
-                [4., 0.],
-                [4., 2.],
-                [6., 2.],
-                [6., 6.],
-                [2., 6.],
-                [2., 4.],
-                [0., 4.],
-            ]
-            .into(),
-        }]
+        vec![
+            Test {
+                name: "overlapping squares",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+                want: vec![
+                    [0., 0.],
+                    [4., 0.],
+                    [4., 2.],
+                    [6., 2.],
+                    [6., 6.],
+                    [2., 6.],
+                    [2., 4.],
+                    [0., 4.],
+                ]
+                .into(),
+            },
+            Test {
+                name: "non-overlapping squares",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[6., 6.], [10., 6.], [10., 10.], [6., 10.]].into(),
+                want: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[6., 6.], [10., 6.], [10., 10.], [6., 10.]].into(),
+                    ],
+                },
+            },
+        ]
         .into_iter()
         .for_each(|test| {
             let got = test.subject.or(test.clip);
