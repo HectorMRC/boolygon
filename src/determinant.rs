@@ -63,14 +63,19 @@ mod tests {
 
         vec![
             Test {
-                name: "Clockwise vectors",
+                name: "clockwise vectors",
                 points: [point!(0., 1.), point!(0., 0.), point!(-1., 0.)],
                 want: Determinant(-1.),
             },
             Test {
-                name: "Counter-clockwise vectors",
+                name: "counter-clockwise vectors",
                 points: [point!(0., 1.), point!(0., 0.), point!(1., 0.)],
                 want: Determinant(1.),
+            },
+            Test {
+                name: "colinear vectors",
+                points: [point!(4., 4.), point!(2., 2.), point!(0., 0.)],
+                want: Determinant(0.),
             },
         ]
         .into_iter()

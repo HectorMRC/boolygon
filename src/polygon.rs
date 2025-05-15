@@ -1,6 +1,6 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, fmt::Debug};
 
-use num_traits::{Float, Signed, Zero};
+use num_traits::{Float, Signed};
 
 use crate::{
     determinant::Determinant,
@@ -8,7 +8,8 @@ use crate::{
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
-pub(crate) struct Segment<'a, T> {
+#[derive(Debug)]
+pub struct Segment<'a, T> {
     /// The first point in the segment.
     pub from: &'a Point<T>,
     /// The last point in the segment.
@@ -23,21 +24,21 @@ impl<'a, T> From<(&'a Point<T>, &'a Point<T>)> for Segment<'a, T> {
 
 impl<T> Segment<'_, T>
 where
-    T: Signed + Float + Zero,
+    T: Signed + Float,
 {
     /// Returns the distance between the two endpoints of the segment.
-    fn length(&self) -> T {
+    pub fn length(&self) -> T {
         self.from.distance(self.to)
     }
 
     /// Returns true if, and only if, the given [`Point`] exists within the segment.
-    fn contains(&self, point: &Point<T>) -> bool {
+    pub fn contains(&self, point: &Point<T>) -> bool {
         Determinant::from((self, point)).into_inner().is_zero()
             && self.from.distance(point) <= self.length()
             && self.to.distance(point) <= self.length()
     }
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
-    fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
+    pub fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
@@ -54,8 +55,9 @@ where
         }
 
         let t = t / determinant;
-        let u = -(self.from.x - self.to.x) * (self.from.y - rhs.from.y)
-            - (self.from.y - self.to.y) * (self.from.x - rhs.from.x);
+
+        let u = -((self.from.x - self.to.x) * (self.from.y - rhs.from.y)
+            - (self.from.y - self.to.y) * (self.from.x - rhs.from.x));
 
         // Predict if the division `u / determinant` will be in the range `[0,1]`
         if u.abs() > determinant.abs() || !u.is_zero() && u.signum() != determinant.signum() {
@@ -94,9 +96,10 @@ where
 }
 
 /// Represents a polygon in the plain.
-pub(crate) struct Polygon<T> {
+#[derive(Debug, Clone)]
+pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  
-    vertices: Vec<Point<T>>,
+    pub(crate) vertices: Vec<Point<T>>,
 }
 
 impl<T, P> From<Vec<P>> for Polygon<T>
@@ -110,20 +113,45 @@ where
     }
 }
 
+impl<T> PartialEq for Polygon<T>
+where
+    T: Clone + PartialEq,
+{
+    /// Two polygons are equal if, and only if, they have the same vertices describing the same
+    /// boundary.
+    fn eq(&self, other: &Self) -> bool {
+        let len = self.vertices.len();
+        if len != other.vertices.len() {
+            return false;
+        }
+
+        let mut double = other.vertices.clone();
+        double.extend_from_slice(&other.vertices);
+
+        let is_rotation = |double: &[Point<T>]| {
+            (0..len).any(|padding| double[padding..padding + len] == self.vertices)
+        };
+
+        if is_rotation(&double) {
+            return true;
+        }
+
+        double.reverse();
+        is_rotation(&double)
+    }
+}
+
 impl<T> Polygon<T>
 where
     T: Ord + Signed + Float,
 {
     /// Returns true if, and only if, rhs is enclosed by self.
-    pub(crate) fn contains(&self, rhs: &Self) -> bool {
-        if !BoundingBox::from(self).contains(&BoundingBox::from(rhs)) {
+    pub fn encloses(&self, rhs: &Self) -> bool {
+        if !BoundingBox::from(self).encloses(&BoundingBox::from(rhs)) {
             return false;
         }
 
-        rhs.vertices
-            .iter()
-            .find(|vertex| !self.contains_point(vertex))
-            .is_none()
+        rhs.vertices.iter().all(|vertex| self.contains(vertex))
     }
 }
 
@@ -132,7 +160,7 @@ where
     T: Signed + Float,
 {
     /// Returns the amount of times self winds around the given [`Point`].
-    fn winding(&self, point: &Point<T>) -> isize {
+    pub(crate) fn winding(&self, point: &Point<T>) -> isize {
         // Returns true if, and only if, the point is on the left of the infinite line containing
         // the given segment.
         let left_of = |segment: &Segment<'_, T>| {
@@ -142,7 +170,9 @@ where
         };
 
         self.segments().fold(0, |wn, segment| {
-            if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
+            if segment.contains(point) {
+                wn + 1
+            } else if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
                 wn + 1
             } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
                 wn - 1
@@ -152,8 +182,8 @@ where
         })
     }
 
-    /// Returns true if, and only if, self contains the given point.
-    fn contains_point(&self, point: &Point<T>) -> bool {
+    /// Returns true if, and only if, self contains the given [`Point`].
+    pub fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
     }
 
@@ -190,12 +220,12 @@ impl<T> Polygon<T> {
     ///
     /// By definition, a polygon is a closed shape, hence the latest point of the iterator equals
     /// the very first.
-    fn vertices(&self) -> impl Iterator<Item = &Point<T>> {
+    pub fn vertices(&self) -> impl Iterator<Item = &Point<T>> {
         self.vertices.iter().chain(self.vertices.first())
     }
 
     /// Returns an ordered iterator over all the [`Segment`]s of this polygon.
-    fn segments(&self) -> impl Iterator<Item = Segment<'_, T>> {
+    pub fn segments(&self) -> impl Iterator<Item = Segment<'_, T>> {
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(Segment::from)
@@ -235,7 +265,7 @@ where
     T: Ord,
 {
     /// Returns true if, and only if, rhs is enclosed by self.
-    pub(crate) fn contains(&self, rhs: &Self) -> bool {
+    pub(crate) fn encloses(&self, rhs: &Self) -> bool {
         rhs.min.x >= self.min.x
             && rhs.min.y >= self.min.y
             && rhs.max.x <= self.max.x
@@ -261,7 +291,7 @@ mod tests {
 
         vec![
             Test {
-                name: "Crossing segments",
+                name: "crossing segments",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -273,7 +303,7 @@ mod tests {
                 want: Some(point!(2., 2.)),
             },
             Test {
-                name: "Segments starting at the same point",
+                name: "segments starting at the same point",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -285,7 +315,7 @@ mod tests {
                 want: Some(point!(0., 0.)),
             },
             Test {
-                name: "Connected segments",
+                name: "connected segments",
                 segment: Segment {
                     from: &point!(4., 4.),
                     to: &point!(0., 0.),
@@ -297,7 +327,7 @@ mod tests {
                 want: Some(point!(0., 0.)),
             },
             Test {
-                name: "Collinear segments with common point",
+                name: "collinear segments with common point",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -309,7 +339,7 @@ mod tests {
                 want: Some(point!(0., 0.)),
             },
             Test {
-                name: "Collinear segments with no common point",
+                name: "collinear segments with no common point",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -321,7 +351,7 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "Segments ending at the same point",
+                name: "segments ending at the same point",
                 segment: Segment {
                     from: &point!(4., 4.),
                     to: &point!(0., 0.),
@@ -330,10 +360,10 @@ mod tests {
                     from: &point!(-4., 4.),
                     to: &point!(0., 0.),
                 },
-                want: None,
+                want: Some(point!(0., 0.)),
             },
             Test {
-                name: "Parallel segments",
+                name: "parallel segments",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -345,7 +375,7 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "Coincident segments",
+                name: "coincident segments",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -357,7 +387,7 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "Non-crossing segments",
+                name: "non-crossing segments",
                 segment: Segment {
                     from: &point!(4., 4.),
                     to: &point!(8., 8.),
@@ -367,6 +397,18 @@ mod tests {
                     to: &point!(4., 0.),
                 },
                 want: None,
+            },
+            Test {
+                name: "perpendicular segments",
+                segment: Segment {
+                    from: &point!(4., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(2., 2.),
+                    to: &point!(6., 2.),
+                },
+                want: Some(point!(4., 2.)),
             },
         ]
         .into_iter()
@@ -391,31 +433,31 @@ mod tests {
 
         vec![
             Test {
-                name: "Center of a counterclockwise polygon",
+                name: "center of a counterclockwise polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [2., 2.].into(),
                 want: 1,
             },
             Test {
-                name: "Center of a clockwise polygon",
+                name: "center of a clockwise polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [2., 2.].into(),
                 want: -1,
             },
             Test {
-                name: "On the left of the polygon",
+                name: "on the left of the polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [-2., -2.].into(),
                 want: 0,
             },
             Test {
-                name: "On the right of the polygon",
+                name: "on the right of the polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [6., 6.].into(),
                 want: 0,
             },
             Test {
-                name: "Inside self-crossing polygon",
+                name: "inside self-crossing polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -433,7 +475,7 @@ mod tests {
                 want: 2,
             },
             Test {
-                name: "Outside self-crossing polygon",
+                name: "outside self-crossing polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -472,17 +514,17 @@ mod tests {
 
         vec![
             Test {
-                name: "Simple counter-clockwise polygon",
+                name: "simple counter-clockwise polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 want: false,
             },
             Test {
-                name: "Simple clockwise polygon",
+                name: "simple clockwise polygon",
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 want: true,
             },
             Test {
-                name: "Self-crossing counter-clockwise polygon",
+                name: "self-crossing counter-clockwise polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -520,7 +562,7 @@ mod tests {
 
         vec![
             Test {
-                name: "Triangle",
+                name: "triangle",
                 polygon: vec![[4., 0.], [4., 4.], [0., 0.]].into(),
                 want: BoundingBox {
                     min: point!(0., 0.),
@@ -528,7 +570,7 @@ mod tests {
                 },
             },
             Test {
-                name: "Rectangle",
+                name: "rectangle",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 want: BoundingBox {
                     min: point!(0., 0.),
@@ -536,7 +578,7 @@ mod tests {
                 },
             },
             Test {
-                name: "Self-crossing polygon",
+                name: "self-crossing polygon",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -562,6 +604,52 @@ mod tests {
             assert_eq!(
                 got, test.want,
                 "{}: got bounding box = {got:?}, want = {:?}",
+                test.name, test.want
+            );
+        });
+    }
+
+    #[test]
+    fn polygon_equaliry() {
+        struct Test {
+            name: &'static str,
+            left: Polygon<f64>,
+            right: Polygon<f64>,
+            want: bool,
+        }
+
+        vec![
+            Test {
+                name: "same polygon",
+                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                right: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                want: true,
+            },
+            Test {
+                name: "with different orientation",
+                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                right: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
+                want: true,
+            },
+            Test {
+                name: "starting at different vertex",
+                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                right: vec![[4., 4.], [0., 4.], [0., 0.], [4., 0.]].into(),
+                want: true,
+            },
+            Test {
+                name: "different polygons",
+                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                right: vec![[4., 0.], [4., 4.], [0., 4.], [1., 1.]].into(),
+                want: false,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let got = test.left == test.right;
+            assert_eq!(
+                got, test.want,
+                "{}: got = {got}, want = {}",
                 test.name, test.want
             );
         });
