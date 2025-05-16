@@ -1,15 +1,15 @@
+mod graph;
+mod vertex;
+
 use std::{fmt::Debug, marker::PhantomData};
 
 use num_traits::{Float, Signed};
 
 use crate::shape::Shape;
 
-mod graph;
-use graph::GraphBuilder;
-
-mod vertex;
-pub use vertex::Vertex;
-use vertex::VerticesIterator;
+use self::graph::GraphBuilder;
+pub use self::vertex::Vertex;
+use self::vertex::VerticesIterator;
 
 pub struct Unknown;
 
@@ -92,7 +92,14 @@ where
             .with_clip(self.clip.clone())
             .build();
 
-        let mut shape = None;
+        let mut output = None;
+        let mut store_output = |polygon| {
+            match output.as_mut() {
+                None => output = Some(Shape::from(polygon)),
+                Some(shape) => shape.polygons.push(polygon),
+            };
+        };
+
         while let Some(iter) = graph
             .position_where(Vertex::is_intersection)
             .map(|position| VerticesIterator {
@@ -101,11 +108,7 @@ where
                 next: position,
             })
         {
-            let polygon = iter.map(|vertex| vertex.point).collect::<Vec<_>>().into();
-            match shape.as_mut() {
-                None => shape = Some(Shape::from(polygon)),
-                Some(shape) => shape.polygons.push(polygon),
-            };
+            store_output(iter.map(|vertex| vertex.point).collect::<Vec<_>>().into());
         }
 
         while let Some(iter) = graph
@@ -124,18 +127,15 @@ where
                 continue;
             }
 
-            let polygon = vertices
-                .into_iter()
-                .map(|vertex| vertex.point)
-                .collect::<Vec<_>>()
-                .into();
-
-            match shape.as_mut() {
-                None => shape = Some(Shape::from(polygon)),
-                Some(shape) => shape.polygons.push(polygon),
-            };
+            store_output(
+                vertices
+                    .into_iter()
+                    .map(|vertex| vertex.point)
+                    .collect::<Vec<_>>()
+                    .into(),
+            );
         }
 
-        shape
+        output
     }
 }
