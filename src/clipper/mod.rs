@@ -93,7 +93,7 @@ where
             .build();
 
         let mut output = None;
-        let mut store_output = |polygon| {
+        let mut output_polygon = |polygon| {
             match output.as_mut() {
                 None => output = Some(Shape::from(polygon)),
                 Some(shape) => shape.polygons.push(polygon),
@@ -108,7 +108,7 @@ where
                 next: position,
             })
         {
-            store_output(iter.map(|vertex| vertex.point).collect::<Vec<_>>().into());
+            output_polygon(iter.map(|vertex| vertex.point).collect::<Vec<_>>().into());
         }
 
         while let Some(iter) = graph
@@ -128,7 +128,7 @@ where
                 continue;
             }
 
-            store_output(
+            output_polygon(
                 vertices
                     .into_iter()
                     .map(|vertex| vertex.point)
