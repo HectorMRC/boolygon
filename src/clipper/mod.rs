@@ -8,8 +8,8 @@ use num_traits::{Float, Signed};
 use crate::shape::Shape;
 
 use self::graph::GraphBuilder;
-pub use self::vertex::Vertex;
 use self::vertex::VerticesIterator;
+pub use self::vertex::{Role, Vertex};
 
 pub struct Unknown;
 

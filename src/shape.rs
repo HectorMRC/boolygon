@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use num_traits::{Float, Signed};
 
 use crate::{
-    clipper::{Clipper, Operands, Operator, Vertex},
+    clipper::{Clipper, Operands, Operator, Role, Vertex},
     point::Point,
     polygon::Polygon,
 };
@@ -54,22 +54,18 @@ where
 {
     /// Returns the union of self and rhs.
     pub fn or(self, rhs: Self) -> Self {
-        struct OrOperator<T> {
-            _unit: PhantomData<T>,
-        }
+        struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Signed + Float,
         {
             fn is_output<'a>(ops: Operands<'a, T>, vertex: &'a Vertex<T>) -> bool {
-                ops.subject.contains(&vertex.point) ^ ops.clip.contains(&vertex.point)
-            }
-        }
-
-        impl<T> Default for OrOperator<T> {
-            fn default() -> Self {
-                Self { _unit: PhantomData }
+                match vertex.role {
+                    Role::Subject => !ops.clip.contains(&vertex.point),
+                    Role::Clip => !ops.subject.contains(&vertex.point),
+                    Role::Intersection => true,
+                }
             }
         }
 
@@ -79,6 +75,32 @@ where
             .with_clip(rhs)
             .execute()
             .expect("union should always return a shape")
+    }
+
+    /// Returns the difference of rhs on self or [`None`] if no polygon remains.
+    pub fn not(self, mut rhs: Self) -> Option<Self> {
+        struct NotOperator<T>(PhantomData<T>);
+
+        impl<T> Operator<T> for NotOperator<T>
+        where
+            T: Signed + Float,
+        {
+            fn is_output<'a>(ops: Operands<'a, T>, vertex: &'a Vertex<T>) -> bool {
+                match vertex.role {
+                    Role::Subject => !ops.clip.contains(&vertex.point),
+                    Role::Clip => ops.subject.contains(&vertex.point),
+                    Role::Intersection => true,
+                }
+            }
+        }
+
+        rhs.invert_winding();
+
+        Clipper::default()
+            .with_operator::<NotOperator<T>>()
+            .with_subject(self)
+            .with_clip(rhs)
+            .execute()
     }
 }
 
@@ -97,6 +119,11 @@ where
     /// Returns true if, and only if, self contains the given [`Point`].
     pub fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
+    }
+
+    /// Inverts the winding of all the polygons in the shape.
+    fn invert_winding(&mut self) {
+        self.polygons.iter_mut().for_each(Polygon::invert_winding);
     }
 }
 
@@ -195,6 +222,33 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.subject.or(test.clip);
+            assert_eq!(got, test.want, "{}", test.name);
+        });
+    }
+
+    #[test]
+    fn shape_difference() {
+        struct Test {
+            name: &'static str,
+            subject: Shape<f64>,
+            clip: Shape<f64>,
+            want: Option<Shape<f64>>,
+        }
+
+        vec![Test {
+            name: "overlapping squares",
+            subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+            clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+            want: Some(Shape {
+                polygons: vec![
+                    vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                    vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                ],
+            }),
+        }]
+        .into_iter()
+        .for_each(|test| {
+            let got = test.subject.not(test.clip);
             assert_eq!(got, test.want, "{}", test.name);
         });
     }

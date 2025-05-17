@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{point::Point, polygon::Segment, shape::Shape};
 
-use super::vertex::Vertex;
+use super::{vertex::Vertex, Role};
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
 #[derive(Debug)]
@@ -13,9 +13,22 @@ enum Boundary {
     Subject(usize),
 }
 
+impl From<&Boundary> for Role {
+    fn from(boundary: &Boundary) -> Self {
+        match boundary {
+            Boundary::Subject(_) => Role::Subject,
+            Boundary::Clip(_) => Role::Clip,
+        }
+    }
+}
+
 impl Boundary {
     fn is_subject(&self) -> bool {
         matches!(self, Boundary::Subject(_))
+    }
+
+    fn role(&self) -> Role {
+        self.into()
     }
 }
 
@@ -285,6 +298,7 @@ where
 
                     self.graph.vertices.push(Some(Vertex {
                         point,
+                        role: Role::Intersection,
                         next,
                         previous,
                         siblings,
@@ -313,14 +327,18 @@ impl<T> GraphBuilder<T> {
 
         for polygon in shape.polygons {
             let offset = self.graph.vertices.len();
-            self.polygons.push(boundary(offset));
+            let boundary = boundary(offset);
+            let role = boundary.role();
+
+            self.polygons.push(boundary);
 
             let total_vertices = polygon.vertices.len();
-            for (mut index, vertex) in polygon.vertices.into_iter().enumerate() {
+            for (mut index, point) in polygon.vertices.into_iter().enumerate() {
                 index += total_vertices;
 
                 self.graph.vertices.push(Some(Vertex {
-                    point: vertex,
+                    point,
+                    role,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),
                     siblings: Vec::new(),

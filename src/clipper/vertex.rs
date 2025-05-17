@@ -4,12 +4,25 @@ use num_traits::{Float, Signed};
 
 use crate::{point::Point, shape::Shape};
 
-use super::{Clipper, Operator, graph::Graph};
+use super::{graph::Graph, Clipper, Operator};
+
+/// Determines the role of a [`Vertex`] during the clipping process.
+#[derive(Debug, Clone, Copy)]
+pub enum Role {
+    /// The vertex belongs to the subject shape.
+    Subject,
+    /// The vertex belongs to the clip shape.
+    Clip,
+    /// The vertex is an intersection, therefore it belongs to both the subject and clip shapes.
+    Intersection,
+}
 
 #[derive(Debug)]
 pub struct Vertex<T> {
     /// The location of the vertex.
     pub point: Point<T>,
+    /// The role of the vertex.
+    pub role: Role,
     /// The index of the vertex following this one.
     pub(super) next: usize,
     /// The index of the vertex previous to this one.
