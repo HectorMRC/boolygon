@@ -122,7 +122,8 @@ where
             let start = iter.next;
             let vertices = iter.collect::<Vec<_>>();
 
-            if vertices[vertices.len() - 1].next != start {
+            // SAFETY: the iterator yields, at least, the vertex found by `position_where`.
+            if vertices.last().unwrap().next != start {
                 // The succession of vertices is an open shape.
                 continue;
             }
