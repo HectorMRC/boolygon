@@ -235,17 +235,31 @@ mod tests {
             want: Option<Shape<f64>>,
         }
 
-        vec![Test {
-            name: "overlapping squares",
-            subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
-            clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
-            want: Some(Shape {
-                polygons: vec![
-                    vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
-                    vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
-                ],
-            }),
-        }]
+        vec![
+            Test {
+                name: "overlapping squares",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+                want: Some(vec![[0., 0.], [4., 0.], [4., 2.], [2., 2.], [2., 4.], [0., 4.]].into()),
+            },
+            Test {
+                name: "subject enclosing clip",
+                subject: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                want: Some(Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                }),
+            },
+            Test {
+                name: "clip enclosing subject",
+                subject: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                clip: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                want: None,
+            },
+        ]
         .into_iter()
         .for_each(|test| {
             let got = test.subject.not(test.clip);
