@@ -231,9 +231,10 @@ impl<T> Polygon<T> {
             .map(Segment::from)
     }
 
-    /// Reverses the order of vertices in the polygon.
-    pub(crate) fn invert_winding(&mut self) {
+    /// Returns a new polygon with the reverses order of vertices.
+    pub(crate) fn reversed(mut self) -> Self {
         self.vertices.reverse();
+        self
     }
 }
 

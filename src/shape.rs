@@ -21,14 +21,14 @@ where
     P: Signed + Float,
 {
     fn from(value: T) -> Self {
-        let mut polygon = value.into();
-        if polygon.is_clockwise() {
-            // shapes are right-handed.
-            polygon.invert_winding();
-        }
+        let polygon = value.into();
 
         Self {
-            polygons: vec![polygon],
+            polygons: vec![if polygon.is_clockwise() {
+                polygon.reversed()
+            } else {
+                polygon
+            }],
         }
     }
 }
@@ -78,7 +78,7 @@ where
     }
 
     /// Returns the difference of rhs on self or [`None`] if no polygon remains.
-    pub fn not(self, mut rhs: Self) -> Option<Self> {
+    pub fn not(self, rhs: Self) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
@@ -94,12 +94,10 @@ where
             }
         }
 
-        rhs.invert_winding();
-
         Clipper::default()
             .with_operator::<NotOperator<T>>()
+            .with_clip(rhs.inverted_winding())
             .with_subject(self)
-            .with_clip(rhs)
             .execute()
     }
 }
@@ -121,9 +119,11 @@ where
         self.winding(point) != 0
     }
 
-    /// Inverts the winding of all the polygons in the shape.
-    fn invert_winding(&mut self) {
-        self.polygons.iter_mut().for_each(Polygon::invert_winding);
+    /// Returns  a new shape with the inverted winding.
+    fn inverted_winding(self) -> Self {
+        Self {
+            polygons: self.polygons.into_iter().map(Polygon::reversed).collect(),
+        }
     }
 }
 
@@ -258,6 +258,47 @@ mod tests {
                 subject: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
                 clip: vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                 want: None,
+            },
+            Test {
+                name: "subject with hole enclosing clip",
+                subject: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
+                    ],
+                },
+                clip: vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                want: Some(Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                    ],
+                }),
+            },
+            Test {
+                name: "subject with hole intersecting clip",
+                subject: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                },
+                clip: vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+                want: Some(
+                    vec![
+                        [0., 0.],
+                        [4., 0.],
+                        [4., 2.],
+                        [3., 2.],
+                        [3., 1.],
+                        [1., 1.],
+                        [1., 3.],
+                        [2., 3.],
+                        [2., 4.],
+                        [0., 4.],
+                    ]
+                    .into(),
+                ),
             },
         ]
         .into_iter()
