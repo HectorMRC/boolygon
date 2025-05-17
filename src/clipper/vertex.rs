@@ -8,7 +8,7 @@ use super::{graph::Graph, Clipper, Operator};
 
 /// Determines the role of a [`Vertex`] during the clipping process.
 #[derive(Debug, Clone, Copy)]
-pub enum Role {
+pub(crate) enum Role {
     /// The vertex belongs to the subject shape.
     Subject,
     /// The vertex belongs to the clip shape.
@@ -18,7 +18,7 @@ pub enum Role {
 }
 
 #[derive(Debug)]
-pub struct Vertex<T> {
+pub(crate) struct Vertex<T> {
     /// The location of the vertex.
     pub point: Point<T>,
     /// The role of the vertex.

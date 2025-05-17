@@ -9,7 +9,7 @@ use crate::shape::Shape;
 
 use self::graph::GraphBuilder;
 use self::vertex::VerticesIterator;
-pub use self::vertex::{Role, Vertex};
+pub(crate) use self::vertex::{Role, Vertex};
 
 pub struct Unknown;
 
