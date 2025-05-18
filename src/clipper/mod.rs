@@ -122,9 +122,7 @@ where
             let start = iter.next.expect("next should have an initial value");
             let vertices = iter.collect::<Vec<_>>();
 
-            // SAFETY: the iterator yields, at least, the vertex found by `position_where`.
-            // It is impossible to reach this code if there are no vertices to yield.
-            if vertices.last().unwrap().next != start {
+            if vertices.last().expect("one vertex should exist").next != start {
                 // The succession of vertices is an open shape.
                 continue;
             }

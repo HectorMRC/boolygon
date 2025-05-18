@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{point::Point, polygon::Segment, shape::Shape};
 
-use super::{graph::Graph, Clipper, Operator};
+use super::{Clipper, Operator, graph::Graph};
 
 /// Determines the role of a [`Vertex`] during the clipping process.
 #[derive(Debug, Clone, Copy)]

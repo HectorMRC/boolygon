@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::{
         determinant::Determinant,
-        point::{point, Point},
+        point::{Point, point},
     };
 
     #[test]

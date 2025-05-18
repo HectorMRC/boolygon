@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     determinant::Determinant,
-    point::{point, Point},
+    point::{Point, point},
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
@@ -262,7 +262,7 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        point::{point, Point},
+        point::{Point, point},
         polygon::{BoundingBox, Polygon, Segment},
     };
 
