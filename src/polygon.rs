@@ -154,20 +154,6 @@ where
 
 impl<T> Polygon<T>
 where
-    T: Ord + Signed + Float,
-{
-    /// Returns true if, and only if, rhs is enclosed by self.
-    pub(crate) fn encloses(&self, rhs: &Self) -> bool {
-        if !BoundingBox::from(self).encloses(&BoundingBox::from(rhs)) {
-            return false;
-        }
-
-        rhs.vertices.iter().all(|vertex| self.contains(vertex))
-    }
-}
-
-impl<T> Polygon<T>
-where
     T: Signed + Float,
 {
     /// Returns the amount of times self winds around the given [`Point`].
