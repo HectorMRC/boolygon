@@ -263,19 +263,6 @@ where
     }
 }
 
-impl<T> BoundingBox<T>
-where
-    T: Ord,
-{
-    /// Returns true if, and only if, rhs is enclosed by self.
-    pub(crate) fn encloses(&self, rhs: &Self) -> bool {
-        rhs.min.x >= self.min.x
-            && rhs.min.y >= self.min.y
-            && rhs.max.x <= self.max.x
-            && rhs.max.y <= self.max.y
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{
