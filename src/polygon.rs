@@ -37,6 +37,7 @@ where
             && self.from.distance(point) <= self.length()
             && self.to.distance(point) <= self.length()
     }
+
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
     pub(crate) fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
