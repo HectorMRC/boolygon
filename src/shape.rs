@@ -64,7 +64,6 @@ where
                 match vertex.role {
                     Role::Subject => !ops.clip.contains(&vertex.point),
                     Role::Clip => !ops.subject.contains(&vertex.point),
-                    Role::Intersection => true,
                 }
             }
         }
@@ -89,7 +88,6 @@ where
                 match vertex.role {
                     Role::Subject => !ops.clip.contains(&vertex.point),
                     Role::Clip => ops.subject.contains(&vertex.point),
-                    Role::Intersection => true,
                 }
             }
         }
@@ -115,7 +113,7 @@ where
     }
 
     /// Returns true if, and only if, self contains the given [`Point`].
-    pub fn contains(&self, point: &Point<T>) -> bool {
+    pub(crate) fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
     }
 
@@ -299,6 +297,39 @@ mod tests {
                     ]
                     .into(),
                 ),
+            },
+            Test {
+                name: "subject with hole intersecting clip with hole",
+                subject: Shape {
+                    polygons: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                },
+                clip: Shape {
+                    polygons: vec![
+                        vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+                        vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
+                    ],
+                },
+                want: Some(Shape {
+                    polygons: vec![
+                        vec![
+                            [0., 0.],
+                            [4., 0.],
+                            [4., 2.],
+                            [3., 2.],
+                            [3., 1.],
+                            [1., 1.],
+                            [1., 3.],
+                            [2., 3.],
+                            [2., 4.],
+                            [0., 4.],
+                        ]
+                        .into(),
+                        vec![[3., 3.], [4., 3.], [4., 4.], [3., 4.]].into(),
+                    ],
+                }),
             },
         ]
         .into_iter()

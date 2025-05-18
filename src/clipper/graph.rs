@@ -241,40 +241,37 @@ where
         let mut visited = PartialOrdBTreeMap::new();
 
         for (edge, mut indexes) in intersections.by_edge {
-            let vertex = self.graph.vertices[edge]
+            let &Vertex {
+                point, role, next, ..
+            } = self.graph.vertices[edge]
                 .as_ref()
-                .expect("edge vertex should exist")
+                .expect("edge vertex should exist");
+
+            let endpoint = self.graph.vertices[next]
+                .as_ref()
+                .expect("edge endpoint should exist")
                 .point;
 
             indexes.sort_by(|&a, &b| {
-                vertex
+                point
                     .distance(&intersections.all[a].point)
-                    .partial_cmp(&vertex.distance(&intersections.all[b].point))
+                    .partial_cmp(&point.distance(&intersections.all[b].point))
                     .unwrap_or(Ordering::Equal)
             });
 
             indexes
                 .chunk_by(|&a, &b| intersections.all[a].point == intersections.all[b].point)
                 .fold(edge, |previous, chunk| {
-                    let point = intersections.all[chunk[0]].point;
-                    let index = self.graph.vertices.len();
+                    let intersection_point = intersections.all[chunk[0]].point;
+                    let index = if intersection_point == point {
+                        edge
+                    } else if intersection_point == endpoint {
+                        next
+                    } else {
+                        self.graph.vertices.len()
+                    };
 
-                    visited.insert((edge, point), index);
-
-                    let next = self.graph.vertices[previous]
-                        .as_ref()
-                        .expect("previous vertex should exist")
-                        .next;
-
-                    self.graph.vertices[previous]
-                        .as_mut()
-                        .expect("previous vertex should exist")
-                        .next = index;
-
-                    self.graph.vertices[next]
-                        .as_mut()
-                        .expect("next vertex should exist")
-                        .previous = index;
+                    visited.insert((edge, intersection_point), index);
 
                     let siblings = chunk
                         .into_iter()
@@ -285,7 +282,7 @@ where
                                 intersections.all[index].clip
                             }
                         })
-                        .filter_map(|edge| visited.get((edge, point)))
+                        .filter_map(|edge| visited.get((edge, intersection_point)))
                         .copied()
                         .inspect(|&sibling| {
                             self.graph.vertices[sibling]
@@ -296,13 +293,36 @@ where
                         })
                         .collect();
 
-                    self.graph.vertices.push(Some(Vertex {
-                        point,
-                        role: Role::Intersection,
-                        next,
-                        previous,
-                        siblings,
-                    }));
+                    if [point, endpoint].contains(&intersection_point) {
+                        self.graph.vertices[index]
+                            .as_mut()
+                            .expect("endpoint vertex should exists")
+                            .siblings
+                            .extend(siblings);
+                    } else {
+                        let next = self.graph.vertices[previous]
+                            .as_ref()
+                            .expect("previous vertex should exist")
+                            .next;
+
+                        self.graph.vertices[previous]
+                            .as_mut()
+                            .expect("previous vertex should exist")
+                            .next = index;
+
+                        self.graph.vertices[next]
+                            .as_mut()
+                            .expect("next vertex should exist")
+                            .previous = index;
+
+                        self.graph.vertices.push(Some(Vertex {
+                            point: intersection_point,
+                            role,
+                            next,
+                            previous,
+                            siblings,
+                        }));
+                    }
 
                     index
                 });

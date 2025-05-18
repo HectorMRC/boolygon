@@ -27,18 +27,18 @@ where
     T: Signed + Float,
 {
     /// Returns the distance between the two endpoints of the segment.
-    pub fn length(&self) -> T {
+    pub(crate) fn length(&self) -> T {
         self.from.distance(self.to)
     }
 
     /// Returns true if, and only if, the given [`Point`] exists within the segment.
-    pub fn contains(&self, point: &Point<T>) -> bool {
+    pub(crate) fn contains(&self, point: &Point<T>) -> bool {
         Determinant::from((self, point)).into_inner().is_zero()
             && self.from.distance(point) <= self.length()
             && self.to.distance(point) <= self.length()
     }
     /// Returns the [`Point`] of intersection between self and the given segment, if any.
-    pub fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
+    pub(crate) fn intersection(&self, rhs: &Self) -> Option<Point<T>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
@@ -73,25 +73,36 @@ where
     /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
     /// them, if any.
     fn collinear_common_point(&self, rhs: &Segment<'_, T>) -> Option<Point<T>> {
-        let contains = |point| {
+        let contains = |segment: &Segment<'_, T>, point| {
             // Optimized version of `Self::contains`:
             // No need to compute the cross product, by sharing an endpoint its guaranteed both
             // parallel segments are collinear.
-            self.from.distance(point) <= self.length() && self.to.distance(point) <= self.length()
+            segment.from.distance(point) <= segment.length()
+                && segment.to.distance(point) <= segment.length()
         };
 
-        if (self.from == rhs.from && !contains(rhs.to))
-            || (self.from == rhs.to && !contains(rhs.from))
+        if (self.from == rhs.from && !contains(self, rhs.to) && !contains(rhs, self.to))
+            || (self.from == rhs.to && !contains(self, rhs.from) && !contains(rhs, self.to))
         {
             return Some(*self.from);
         }
 
-        if (self.to == rhs.from && !contains(rhs.to)) || (self.to == rhs.to && !contains(rhs.from))
+        if (self.to == rhs.from && !contains(self, rhs.to) && !contains(rhs, self.from))
+            || (self.to == rhs.to && !contains(self, rhs.from) && !contains(rhs, self.from))
         {
             return Some(*self.to);
         }
 
         None
+    }
+
+    /// Returns the middle point between the endpoints of this segment.
+    pub(crate) fn midpoint(&self) -> Point<T> {
+        let two = T::one() + T::one();
+        Point {
+            x: (self.from.x + self.to.x) / two,
+            y: (self.from.y + self.to.y) / two,
+        }
     }
 }
 
@@ -146,7 +157,7 @@ where
     T: Ord + Signed + Float,
 {
     /// Returns true if, and only if, rhs is enclosed by self.
-    pub fn encloses(&self, rhs: &Self) -> bool {
+    pub(crate) fn encloses(&self, rhs: &Self) -> bool {
         if !BoundingBox::from(self).encloses(&BoundingBox::from(rhs)) {
             return false;
         }
@@ -183,7 +194,7 @@ where
     }
 
     /// Returns true if, and only if, self contains the given [`Point`].
-    pub fn contains(&self, point: &Point<T>) -> bool {
+    pub(crate) fn contains(&self, point: &Point<T>) -> bool {
         self.winding(point) != 0
     }
 
@@ -381,7 +392,7 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "coincident segments",
+                name: "coincident segments when rhs is shorter",
                 segment: Segment {
                     from: &point!(0., 0.),
                     to: &point!(4., 4.),
@@ -389,6 +400,18 @@ mod tests {
                 rhs: Segment {
                     from: &point!(0., 0.),
                     to: &point!(2., 2.),
+                },
+                want: None,
+            },
+            Test {
+                name: "coincident segments when rhs is larger",
+                segment: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(4., 4.),
+                },
+                rhs: Segment {
+                    from: &point!(0., 0.),
+                    to: &point!(8., 8.),
                 },
                 want: None,
             },

@@ -101,11 +101,11 @@ where
         };
 
         while let Some(iter) = graph
-            .position_where(Vertex::is_intersection)
+            .position_where(|vertex| vertex.is_subject() && vertex.is_intersection())
             .map(|position| VerticesIterator {
                 clipper: &self,
                 graph: &mut graph,
-                next: position,
+                next: Some(position),
             })
         {
             output_polygon(iter.map(|vertex| vertex.point).collect::<Vec<_>>().into());
@@ -116,10 +116,10 @@ where
             .map(|position| VerticesIterator {
                 clipper: &self,
                 graph: &mut graph,
-                next: position,
+                next: Some(position),
             })
         {
-            let start = iter.next;
+            let start = iter.next.expect("next should have an initial value");
             let vertices = iter.collect::<Vec<_>>();
 
             // SAFETY: the iterator yields, at least, the vertex found by `position_where`.

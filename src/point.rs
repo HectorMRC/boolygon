@@ -20,7 +20,7 @@ where
     T: Copy + Float,
 {
     /// Returns the distance between self and rhs.
-    pub fn distance(&self, rhs: &Self) -> T {
+    pub(crate) fn distance(&self, rhs: &Self) -> T {
         ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
     }
 }
