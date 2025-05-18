@@ -179,11 +179,6 @@ where
         })
     }
 
-    /// Returns true if, and only if, self contains the given [`Point`].
-    pub(crate) fn contains(&self, point: &Point<T>) -> bool {
-        self.winding(point) != 0
-    }
-
     /// Returns true if, and only if, the polygon is oriented clockwise.
     pub(crate) fn is_clockwise(&self) -> bool {
         self.vertices
