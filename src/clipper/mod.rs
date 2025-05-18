@@ -11,8 +11,10 @@ use self::graph::GraphBuilder;
 use self::vertex::VerticesIterator;
 pub(crate) use self::vertex::{Role, Vertex};
 
+/// Marker for yet undefined generic parameters.
 pub struct Unknown;
 
+/// References to both operand, the subject and clip shapes, of a clipping operation.
 pub(crate) struct Operands<'a, T> {
     pub subject: &'a Shape<T>,
     pub clip: &'a Shape<T>,
@@ -86,6 +88,7 @@ where
     T: Clone + PartialOrd + Signed + Float + Debug,
     Op: Operator<T>,
 {
+    /// Performs the clipping operation and returns the resulting [`Shape`], if any.
     pub fn execute(self) -> Option<Shape<T>> {
         let mut graph = GraphBuilder::default()
             .with_subject(self.subject.clone())
