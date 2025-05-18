@@ -122,7 +122,7 @@ where
                 next: Some(position),
             })
         {
-            let start = iter.next.expect("next should have an initial value");
+            let start = iter.next.expect("next should be set");
             let vertices = iter.collect::<Vec<_>>();
 
             if vertices.last().expect("last vertex should exist").next != start {
