@@ -125,7 +125,7 @@ where
             let start = iter.next.expect("next should have an initial value");
             let vertices = iter.collect::<Vec<_>>();
 
-            if vertices.last().expect("one vertex should exist").next != start {
+            if vertices.last().expect("last vertex should exist").next != start {
                 // The succession of vertices is an open shape.
                 continue;
             }

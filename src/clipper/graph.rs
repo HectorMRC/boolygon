@@ -4,7 +4,7 @@ use num_traits::{Float, Signed};
 
 use crate::{point::Point, polygon::Segment, shape::Shape};
 
-use super::{Role, vertex::Vertex};
+use super::{vertex::Vertex, Role};
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
 #[derive(Debug)]
