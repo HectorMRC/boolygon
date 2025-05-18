@@ -140,8 +140,17 @@ impl<T> Intersections<T> {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq)]
 struct PartialOrdKey<T>(T);
+
+impl<T> PartialOrd for PartialOrdKey<T>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl<T> Eq for PartialOrdKey<T> where T: PartialEq {}
 impl<T> Ord for PartialOrdKey<T>
@@ -149,7 +158,7 @@ where
     T: PartialOrd,
 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Less)
+        self.0.partial_cmp(&other.0).unwrap_or(Ordering::Less)
     }
 }
 
@@ -274,7 +283,7 @@ where
                     visited.insert((edge, intersection_point), index);
 
                     let siblings = chunk
-                        .into_iter()
+                        .iter()
                         .map(|&index| {
                             if edge == intersections.all[index].clip {
                                 intersections.all[index].subject

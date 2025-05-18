@@ -24,7 +24,7 @@ where
     /// Being `A` and `B` the endpoints of the given [`Segment`], and `C` the given [`Point`],
     /// returns the determinant of the matrix representing the direction vector `AB` and `AC`.
     fn from((segment, point): (&Segment<'_, T>, &Point<T>)) -> Self {
-        Self::from([&segment.from, &segment.to, point])
+        Self::from([segment.from, segment.to, point])
     }
 }
 
@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::{
         determinant::Determinant,
-        point::{Point, point},
+        point::{point, Point},
     };
 
     #[test]

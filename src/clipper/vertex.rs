@@ -45,7 +45,7 @@ pub(super) struct VerticesIterator<'a, Op, T> {
     pub(super) next: Option<usize>,
 }
 
-impl<'a, Op, T> Iterator for VerticesIterator<'a, Op, T>
+impl<Op, T> Iterator for VerticesIterator<'_, Op, T>
 where
     T: Signed + Float + Debug,
     Op: Operator<T>,
@@ -65,7 +65,7 @@ where
     }
 }
 
-impl<'a, Op, T> VerticesIterator<'a, Op, T>
+impl<Op, T> VerticesIterator<'_, Op, T>
 where
     T: Signed + Float + Debug,
     Op: Operator<T>,

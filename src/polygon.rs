@@ -167,9 +167,9 @@ where
         };
 
         self.segments().fold(0, |wn, segment| {
-            if segment.contains(point) {
-                wn + 1
-            } else if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
+            if segment.contains(point)
+                || segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment)
+            {
                 wn + 1
             } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
                 wn - 1
