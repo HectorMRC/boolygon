@@ -3,9 +3,8 @@ use std::{fmt::Debug, marker::PhantomData};
 use num_traits::{Float, Signed};
 
 use crate::{
+    cartesian::{Point, Polygon},
     clipper::{Clipper, Operands, Operator, Role, Vertex},
-    point::Point,
-    polygon::Polygon,
 };
 
 /// A combination of disjoint [`Polygon`]s.

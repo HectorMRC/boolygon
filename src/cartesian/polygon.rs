@@ -2,7 +2,7 @@ use std::{cmp::Ordering, fmt::Debug};
 
 use num_traits::{Float, Signed};
 
-use crate::{
+use super::{
     determinant::Determinant,
     point::{Point, point},
 };
@@ -261,7 +261,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{
+    use crate::cartesian::{
         point::{Point, point},
         polygon::{BoundingBox, Polygon, Segment},
     };

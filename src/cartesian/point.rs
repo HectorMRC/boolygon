@@ -1,6 +1,6 @@
 use num_traits::Float;
 
-/// Represents a point in a plain.
+/// A point in the plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Point<T> {
     /// The horizontal coordinate of the point.

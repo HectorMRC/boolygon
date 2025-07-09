@@ -1,6 +1,6 @@
 use std::ops::{Mul, Sub};
 
-use crate::{point::Point, polygon::Segment};
+use super::{point::Point, polygon::Segment};
 
 /// The scalar value representing the determinant of a matrix.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -48,9 +48,9 @@ impl<T> Determinant<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
+    use crate::cartesian::{
         determinant::Determinant,
-        point::{Point, point},
+        point::{point, Point},
     };
 
     #[test]

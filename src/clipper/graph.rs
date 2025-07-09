@@ -2,7 +2,10 @@ use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use num_traits::{Float, Signed};
 
-use crate::{point::Point, polygon::Segment, shape::Shape};
+use crate::{
+    cartesian::{Point, Segment},
+    shape::Shape,
+};
 
 use super::{vertex::Vertex, Role};
 
