@@ -1,10 +1,10 @@
 use std::ops::{Mul, Sub};
 
-use super::{point::Point, polygon::Segment};
+use super::{Point, Segment};
 
 /// The scalar value representing the determinant of a matrix.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) struct Determinant<T>(T);
+pub(super) struct Determinant<T>(T);
 
 impl<T> From<[&Point<T>; 3]> for Determinant<T>
 where
@@ -41,7 +41,7 @@ where
 
 impl<T> Determinant<T> {
     /// Returns the inner value of self.
-    pub(crate) fn into_inner(self) -> T {
+    pub(super) fn into_inner(self) -> T {
         self.0
     }
 }
@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::cartesian::{
         determinant::Determinant,
-        point::{point, Point},
+        point::{cartesian_point, Point},
     };
 
     #[test]
@@ -64,17 +64,29 @@ mod tests {
         vec![
             Test {
                 name: "clockwise vectors",
-                points: [point!(0., 1.), point!(0., 0.), point!(-1., 0.)],
+                points: [
+                    cartesian_point!(0., 1.),
+                    cartesian_point!(0., 0.),
+                    cartesian_point!(-1., 0.),
+                ],
                 want: Determinant(-1.),
             },
             Test {
                 name: "counter-clockwise vectors",
-                points: [point!(0., 1.), point!(0., 0.), point!(1., 0.)],
+                points: [
+                    cartesian_point!(0., 1.),
+                    cartesian_point!(0., 0.),
+                    cartesian_point!(1., 0.),
+                ],
                 want: Determinant(1.),
             },
             Test {
                 name: "colinear vectors",
-                points: [point!(4., 4.), point!(2., 2.), point!(0., 0.)],
+                points: [
+                    cartesian_point!(4., 4.),
+                    cartesian_point!(2., 2.),
+                    cartesian_point!(0., 0.),
+                ],
                 want: Determinant(0.),
             },
         ]

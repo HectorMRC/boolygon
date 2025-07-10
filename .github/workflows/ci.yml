@@ -53,7 +53,7 @@ jobs:
           command: generate-lockfile
 
       - name: Cargo llvm-cov
-        run: cargo llvm-cov --locked --lcov --output-path lcov.info --no-default-features --package boolygon -- --nocapture
+        run: cargo llvm-cov --locked --lcov --output-path lcov.info --no-default-features --all-features --package boolygon -- --nocapture
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5

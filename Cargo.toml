@@ -8,4 +8,10 @@ readme = "./README.md"
 repository = "https://github.com/HectorMRC/boolygon"
 
 [dependencies]
+geocart = { git = "https://github.com/hectormrc/geocart", branch = "main", default-features = false, optional = true }
 num-traits = "0.2.19"
+
+[features]
+default = ["cartesian", "spherical"]
+spherical = ["dep:geocart"]
+cartesian = []

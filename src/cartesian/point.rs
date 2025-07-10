@@ -1,5 +1,7 @@
 use num_traits::Float;
 
+use crate::{IsClose, Metric, Tolerance};
+
 /// A point in the plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Point<T> {
@@ -15,21 +17,34 @@ impl<T> From<[T; 2]> for Point<T> {
     }
 }
 
-impl<T> Point<T>
+impl<T> Metric for Point<T>
 where
     T: Copy + Float,
 {
-    /// Returns the distance between self and rhs.
-    pub(crate) fn distance(&self, rhs: &Self) -> T {
+    type Scalar = T;
+
+    fn distance(&self, rhs: &Self) -> Self::Scalar {
         ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
     }
 }
 
+impl<T> IsClose for Point<T>
+where
+    T: IsClose<Tolerance = Tolerance<T>> + Copy,
+{
+    type Tolerance = Tolerance<T>;
+
+    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
+        self.x.is_close(&rhs.x, tolerance) && self.y.is_close(&rhs.y, tolerance)
+    }
+}
+
+/// A constructor macro for the cartesian [`Point`].
 #[macro_export]
-macro_rules! point {
+macro_rules! cartesian_point {
     ($x:expr, $y:expr) => {
         Point { x: $x, y: $y }
     };
 }
 
-pub use point;
+pub use cartesian_point;
