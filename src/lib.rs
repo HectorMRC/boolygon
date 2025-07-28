@@ -18,16 +18,16 @@ use self::{
     node::{Node, Role},
 };
 
-/// A point in an arbitrary space.
-pub trait Point: IsClose {
-    /// Returns the distance between this point and rhs.
+/// A vertex from a [`Geometry`].
+pub trait Vertex: IsClose {
+    /// Returns the distance between this vertex and rhs.
     fn distance(&self, rhs: &Self) -> Self::Scalar;
 }
 
-/// An edge delimited by two endpoints in a [`Geometry`].
+/// An edge delimited by two vertices in a [`Geometry`].
 pub trait Edge<'a, T>
 where
-    T: Point,
+    T: Vertex,
 {
     /// Returns an edge from the given endpoints.
     fn new(from: &'a T, to: &'a T) -> Self;
@@ -50,23 +50,20 @@ pub trait RightHanded {
 
 /// A geometry in an arbitrary space.
 pub trait Geometry: Sized + RightHanded {
-    /// The type of point this geometry is made of.
-    type Point: Point;
+    /// The type of the vertices this geometry is made of.
+    type Vertex: Vertex;
 
-    /// The edge this geometry is made of.
-    type Edge<'a>: Edge<'a, Self::Point>
+    /// The type of the edges this geometry is made of.
+    type Edge<'a>: Edge<'a, Self::Vertex>
     where
         Self: 'a;
 
-    /// Tries to construct the geometry from the given raw data.
+    /// Tries to construct a geometry from the given raw data.
     fn from_raw(
         operands: Operands<Self>,
-        vertices: Vec<Self::Point>,
-        tolerance: &Tolerance<<Self::Point as IsClose>::Scalar>,
+        vertices: Vec<Self::Vertex>,
+        tolerance: &Tolerance<<Self::Vertex as IsClose>::Scalar>,
     ) -> Option<Self>;
-
-    /// Returns this geometry with the reversed winding.
-    fn reversed(self) -> Self;
 
     /// Returns the total amount of vertices in the geometry.
     fn total_vertices(&self) -> usize;
@@ -74,11 +71,14 @@ pub trait Geometry: Sized + RightHanded {
     /// Returns an ordered iterator over all the segmentss of this geometry.
     fn edges(&self) -> impl Iterator<Item = Self::Edge<'_>>;
 
+    /// Returns this geometry with the reversed winding.
+    fn reversed(self) -> Self;
+
     /// Returns the amount of times this geometry winds around the given point.
     fn winding(
         &self,
-        point: &Self::Point,
-        tolerance: &Tolerance<<Self::Point as IsClose>::Scalar>,
+        point: &Self::Vertex,
+        tolerance: &Tolerance<<Self::Vertex as IsClose>::Scalar>,
     ) -> isize;
 }
 
@@ -115,32 +115,32 @@ where
 
 impl<T> Shape<T>
 where
-    T: Geometry + Clone + IntoIterator<Item = T::Point>,
-    T::Point: Copy + PartialEq + PartialOrd,
-    <T::Point as IsClose>::Scalar: Copy + PartialOrd,
+    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
+    T::Vertex: Copy + PartialEq + PartialOrd,
+    <T::Vertex as IsClose>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of self and rhs.
-    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Point as IsClose>::Scalar>) -> Self {
+    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Geometry,
-            <T::Point as IsClose>::Scalar: Copy,
+            <T::Vertex as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Node<T>,
-                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+                node: &'a Node<T>,
+                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
             ) -> bool {
-                match vertex.role {
+                match node.role {
                     Role::Subject => {
-                        !ops.clip.contains(&vertex.point, tolerance)
-                            || ops.clip.is_boundary(&vertex.point, tolerance)
+                        !ops.clip.contains(&node.vertex, tolerance)
+                            || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
                     Role::Clip => {
-                        !ops.subject.contains(&vertex.point, tolerance)
-                            || ops.subject.is_boundary(&vertex.point, tolerance)
+                        !ops.subject.contains(&node.vertex, tolerance)
+                            || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
                 }
             }
@@ -158,28 +158,28 @@ where
     pub fn not(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
+        tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
         where
             T: Geometry,
-            <T::Point as IsClose>::Scalar: Copy,
+            <T::Vertex as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Node<T>,
-                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+                node: &'a Node<T>,
+                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
             ) -> bool {
-                match vertex.role {
+                match node.role {
                     Role::Subject => {
-                        !ops.clip.contains(&vertex.point, tolerance)
-                            && !ops.clip.is_boundary(&vertex.point, tolerance)
+                        !ops.clip.contains(&node.vertex, tolerance)
+                            && !ops.clip.is_boundary(&node.vertex, tolerance)
                     }
                     Role::Clip => {
-                        ops.subject.contains(&vertex.point, tolerance)
-                            && !ops.subject.is_boundary(&vertex.point, tolerance)
+                        ops.subject.contains(&node.vertex, tolerance)
+                            && !ops.subject.is_boundary(&node.vertex, tolerance)
                     }
                 }
             }
@@ -196,28 +196,28 @@ where
     pub fn and(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
+        tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for AndOperator<T>
         where
             T: Geometry,
-            <T::Point as IsClose>::Scalar: Copy,
+            <T::Vertex as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Node<T>,
-                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+                node: &'a Node<T>,
+                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
             ) -> bool {
-                match vertex.role {
+                match node.role {
                     Role::Subject => {
-                        ops.clip.contains(&vertex.point, tolerance)
-                            || ops.clip.is_boundary(&vertex.point, tolerance)
+                        ops.clip.contains(&node.vertex, tolerance)
+                            || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
                     Role::Clip => {
-                        ops.subject.contains(&vertex.point, tolerance)
-                            || ops.subject.is_boundary(&vertex.point, tolerance)
+                        ops.subject.contains(&node.vertex, tolerance)
+                            || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
                 }
             }
@@ -238,41 +238,41 @@ where
     /// Returns true if, and only if, the given point is in any of the outlines of this shape.
     pub(crate) fn is_boundary(
         &self,
-        point: &T::Point,
-        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+        vertex: &T::Vertex,
+        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> bool {
         self.polygons
             .iter()
             .flat_map(|polygon| polygon.edges())
-            .any(|segment| segment.contains(point, tolerance))
+            .any(|segment| segment.contains(vertex, tolerance))
     }
 }
 
 impl<T> Shape<T>
 where
     T: Geometry,
-    T::Point: Point,
-    <T::Point as IsClose>::Scalar: Copy,
+    T::Vertex: Vertex,
+    <T::Vertex as IsClose>::Scalar: Copy,
 {
     /// Returns the amount of times self winds around the given [`Point`].
     fn winding(
         &self,
-        point: &T::Point,
-        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+        vertex: &T::Vertex,
+        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> isize {
         self.polygons
             .iter()
-            .map(|polygon| polygon.winding(point, tolerance))
+            .map(|polygon| polygon.winding(vertex, tolerance))
             .sum()
     }
 
     /// Returns true if, and only if, self contains the given [`Point`].
     pub(crate) fn contains(
         &self,
-        point: &T::Point,
-        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+        vertex: &T::Vertex,
+        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> bool {
-        self.winding(point, tolerance) != 0
+        self.winding(vertex, tolerance) != 0
     }
 }
 

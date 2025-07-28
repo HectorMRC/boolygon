@@ -1,6 +1,6 @@
 use num_traits::Float;
 
-use crate::{IsClose, Tolerance};
+use crate::{IsClose, Tolerance, Vertex};
 
 /// A point in the plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,7 +17,7 @@ impl<T> From<[T; 2]> for Point<T> {
     }
 }
 
-impl<T> crate::Point for Point<T>
+impl<T> Vertex for Point<T>
 where
     T: Copy + Float,
 {

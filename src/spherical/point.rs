@@ -1,7 +1,7 @@
 use geocart::{Cartesian, Geographic, Latitude, Longitude};
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{IsClose, Tolerance};
+use crate::{IsClose, Tolerance, Vertex};
 
 /// The angle between a radial line and the polar axis.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -179,7 +179,7 @@ where
     }
 }
 
-impl<T> crate::Point for Point<T>
+impl<T> Vertex for Point<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {

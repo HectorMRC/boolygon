@@ -2,10 +2,10 @@ use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
     node::{Node, Role},
-    Edge, Geometry, IsClose, Point, Shape, Tolerance,
+    Edge, Geometry, IsClose, Shape, Tolerance, Vertex,
 };
 
-/// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
+/// The index of the first [`Node`] of a [`Geometry`] belonging to the clip or subject [`Shape`].
 #[derive(Debug)]
 enum Boundary {
     Clip(usize),
@@ -57,14 +57,11 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next?;
-        let vertex = self.graph.nodes[current].as_ref()?;
-        self.next = (vertex.next != self.start).then_some(vertex.next);
+        let node = self.graph.nodes[current].as_ref()?;
+        self.next = (node.next != self.start).then_some(node.next);
 
         Some(EnumeratedEdge {
-            edge: T::Edge::new(
-                &vertex.point,
-                &self.graph.nodes[vertex.next].as_ref()?.point,
-            ),
+            edge: T::Edge::new(&node.vertex, &self.graph.nodes[node.next].as_ref()?.vertex),
             index: current,
         })
     }
@@ -76,8 +73,8 @@ struct EdgeIntersection<T>
 where
     T: Geometry,
 {
-    /// The [`Point`] of intersection between the edges started by subject and clip.
-    point: T::Point,
+    /// The vertex of intersection between the edges started by subject and clip.
+    vertex: T::Vertex,
     /// The index of the starting vertex in the subject edge involved in this intersection.
     subject: usize,
     /// The index of the starting vertex in the clip edge involved in this intersection.
@@ -219,8 +216,8 @@ where
         self.nodes
             .iter()
             .enumerate()
-            .filter_map(|(index, slot)| slot.as_ref().map(|vertex| (index, vertex)))
-            .find(|(_, vertex)| f(vertex))
+            .filter_map(|(index, slot)| slot.as_ref().map(|node| (index, node)))
+            .find(|(_, node)| f(node))
             .map(|(start, _)| start)
     }
 
@@ -228,7 +225,7 @@ where
         self.nodes[index]
             .take()
             .iter()
-            .flat_map(|vertex| vertex.siblings.iter())
+            .flat_map(|node| node.siblings.iter())
             .for_each(|&sibling| self.purge(sibling));
     }
 }
@@ -239,14 +236,14 @@ where
 {
     graph: Graph<T>,
     polygons: Vec<Boundary>,
-    tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
+    tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
 }
 
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
 {
-    pub(super) fn new(tolerance: Tolerance<<T::Point as IsClose>::Scalar>) -> Self {
+    pub(super) fn new(tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>) -> Self {
         Self {
             graph: Default::default(),
             polygons: Default::default(),
@@ -258,8 +255,8 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    T::Point: Copy + PartialEq + PartialOrd,
-    <T::Point as IsClose>::Scalar: Copy + PartialOrd,
+    T::Vertex: Copy + PartialEq + PartialOrd,
+    <T::Vertex as IsClose>::Scalar: Copy + PartialOrd,
 {
     pub(super) fn build(mut self) -> Graph<T> {
         let intersections = self.intersections();
@@ -267,7 +264,7 @@ where
 
         for (edge, mut intersection_indexes) in intersections.by_edge {
             let &Node {
-                point: first,
+                vertex: first,
                 role,
                 next,
                 ..
@@ -278,22 +275,22 @@ where
             let last = self.graph.nodes[next]
                 .as_ref()
                 .expect("edge endpoint should exist")
-                .point;
+                .vertex;
 
             // Sorting the intersections by its distance to the edge starting point ensures each
             // intersection will "cut" the edge in order of appearance, preserving its original
             // direction.
             intersection_indexes.sort_by(|&a, &b| {
                 first
-                    .distance(&intersections.all[a].point)
-                    .partial_cmp(&first.distance(&intersections.all[b].point))
+                    .distance(&intersections.all[a].vertex)
+                    .partial_cmp(&first.distance(&intersections.all[b].vertex))
                     .unwrap_or(Ordering::Equal)
             });
 
             intersection_indexes
-                .chunk_by(|&a, &b| intersections.all[a].point == intersections.all[b].point)
+                .chunk_by(|&a, &b| intersections.all[a].vertex == intersections.all[b].vertex)
                 .fold(edge, |previous, chunk| {
-                    let intersection_point = intersections.all[chunk[0]].point;
+                    let intersection_point = intersections.all[chunk[0]].vertex;
 
                     let index = if intersection_point == first {
                         // If the intersection point equals the edge starting point there is
@@ -345,32 +342,32 @@ where
 
                     if [first, last].contains(&intersection_point) {
                         // If the intersection point is any of the endpoints of the edge, do not
-                        // create any vertex in the graph. Instead finds that endpoint and update
+                        // create any node in the graph. Instead finds that endpoint and update
                         // the siblings list.
                         self.graph.nodes[index]
                             .as_mut()
-                            .expect("endpoint vertex should exists")
+                            .expect("endpoint node should exists")
                             .siblings
                             .extend(siblings);
                     } else {
                         // Cut the edge and register the new vertex.
                         let next = self.graph.nodes[previous]
                             .as_ref()
-                            .expect("previous vertex should exist")
+                            .expect("previous node should exist")
                             .next;
 
                         self.graph.nodes[previous]
                             .as_mut()
-                            .expect("previous vertex should exist")
+                            .expect("previous node should exist")
                             .next = index;
 
                         self.graph.nodes[next]
                             .as_mut()
-                            .expect("next vertex should exist")
+                            .expect("next node should exist")
                             .previous = index;
 
                         self.graph.nodes.push(Some(Node {
-                            point: intersection_point,
+                            vertex: intersection_point,
                             role,
                             next,
                             previous,
@@ -389,7 +386,7 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    <T::Point as IsClose>::Scalar: Copy,
+    <T::Vertex as IsClose>::Scalar: Copy,
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {
@@ -403,7 +400,7 @@ where
                             .intersection(&clip_edge.edge, &self.tolerance)
                         {
                             intersections = intersections.with_intersection(EdgeIntersection {
-                                point: intersection,
+                                vertex: intersection,
                                 subject: subject_edge.index,
                                 clip: clip_edge.index,
                             });
@@ -419,7 +416,7 @@ where
 
 impl<T> GraphBuilder<T>
 where
-    T: Geometry + IntoIterator<Item = T::Point>,
+    T: Geometry + IntoIterator<Item = T::Vertex>,
 {
     pub(super) fn with_subject(self, shape: Shape<T>) -> Self {
         self.with_shape(shape, Boundary::Subject)
@@ -445,7 +442,7 @@ where
                 index += total_vertices;
 
                 self.graph.nodes.push(Some(Node {
-                    point,
+                    vertex: point,
                     role,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),

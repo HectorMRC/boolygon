@@ -9,9 +9,9 @@ use crate::{
 /// Determines the role of a [`Node`] during the clipping process.
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Role {
-    /// The vertex belongs to the subject shape.
+    /// The node belongs to the subject shape.
     Subject,
-    /// The vertex belongs to the clip shape.
+    /// The node belongs to the clip shape.
     Clip,
 }
 
@@ -20,8 +20,8 @@ pub(super) struct Node<T>
 where
     T: Geometry,
 {
-    /// The location of the node.
-    pub(super) point: T::Point,
+    /// The vertex being represented by this node.
+    pub(super) vertex: T::Vertex,
     /// The role of the node.
     pub(super) role: Role,
     /// The index of the node following this one.
@@ -45,7 +45,7 @@ pub(super) struct NodeIterator<'a, Op, T>
 where
     T: Geometry,
 {
-    pub(super) clipper: &'a Clipper<<T::Point as IsClose>::Scalar, Op, Shape<T>, Shape<T>>,
+    pub(super) clipper: &'a Clipper<<T::Vertex as IsClose>::Scalar, Op, Shape<T>, Shape<T>>,
     pub(super) graph: &'a mut Graph<T>,
     pub(super) next: Option<usize>,
     pub(super) init: usize,
@@ -54,8 +54,8 @@ where
 impl<Op, T> Iterator for NodeIterator<'_, Op, T>
 where
     T: Geometry,
-    T::Point: Copy + PartialEq,
-    <T::Point as IsClose>::Scalar: Copy,
+    T::Vertex: Copy + PartialEq,
+    <T::Vertex as IsClose>::Scalar: Copy,
     Op: Operator<T>,
 {
     type Item = Node<T>;
@@ -71,8 +71,8 @@ where
             return None;
         }
 
-        let vertex = self.graph.nodes[next].take()?;
-        self.next = self.clipper.select_path(self.graph, &vertex);
+        let node = self.graph.nodes[next].take()?;
+        self.next = self.clipper.select_path(self.graph, &node);
 
         if let Some(previous) = self
             .next
@@ -82,6 +82,6 @@ where
             self.graph.nodes[previous].take();
         }
 
-        Some(vertex)
+        Some(node)
     }
 }

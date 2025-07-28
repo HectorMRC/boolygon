@@ -79,7 +79,7 @@ impl<T> Geometry for Polygon<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    type Point = Point<T>;
+    type Vertex = Point<T>;
     type Edge<'a>
         = Arc<'a, T>
     where
@@ -87,7 +87,7 @@ where
 
     fn from_raw(
         operands: Operands<Self>,
-        vertices: Vec<Self::Point>,
+        vertices: Vec<Self::Vertex>,
         tolerance: &Tolerance<T>,
     ) -> Option<Self> {
         let closest_exterior_point = |arc: &Arc<'_, T>, theta: T| {
@@ -139,11 +139,6 @@ where
             .map(|exterior| Self { vertices, exterior })
     }
 
-    fn reversed(mut self) -> Self {
-        self.vertices.reverse();
-        self
-    }
-
     fn total_vertices(&self) -> usize {
         self.vertices.len()
     }
@@ -152,6 +147,11 @@ where
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(|(from, to)| Arc { from, to })
+    }
+
+    fn reversed(mut self) -> Self {
+        self.vertices.reverse();
+        self
     }
 
     fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {

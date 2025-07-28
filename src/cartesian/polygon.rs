@@ -89,19 +89,14 @@ impl<T> Geometry for Polygon<T>
 where
     T: Signed + Float,
 {
-    type Point = Point<T>;
+    type Vertex = Point<T>;
     type Edge<'a>
         = Segment<'a, T>
     where
         Self: 'a;
 
-    fn from_raw(_: Operands<Self>, vertices: Vec<Self::Point>, _: &Tolerance<T>) -> Option<Self> {
+    fn from_raw(_: Operands<Self>, vertices: Vec<Self::Vertex>, _: &Tolerance<T>) -> Option<Self> {
         Some(vertices.into())
-    }
-
-    fn reversed(mut self) -> Self {
-        self.vertices.reverse();
-        self
     }
 
     fn total_vertices(&self) -> usize {
@@ -112,6 +107,11 @@ where
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(|(from, to)| Segment { from, to })
+    }
+
+    fn reversed(mut self) -> Self {
+        self.vertices.reverse();
+        self
     }
 
     fn winding(&self, point: &Point<T>, _: &Tolerance<T>) -> isize {

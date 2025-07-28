@@ -29,12 +29,12 @@ pub(super) trait Operator<T>
 where
     T: Geometry,
 {
-    /// Returns true if, and only if, the given vertex belongs to the output of the clipping
+    /// Returns true if, and only if, the given node belongs to the output of the clipping
     /// operation.
     fn is_output<'a>(
         ops: Operands<'a, T>,
-        vertex: &'a Node<T>,
-        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
+        node: &'a Node<T>,
+        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
     ) -> bool;
 }
 
@@ -94,8 +94,8 @@ impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
     T: Copy + PartialOrd,
-    U: Geometry + Clone + IntoIterator<Item = U::Point>,
-    U::Point: IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
+    U: Geometry + Clone + IntoIterator<Item = U::Vertex>,
+    U::Vertex: IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
     Op: Operator<U>,
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
@@ -107,9 +107,9 @@ where
 
         let mut output = None;
         while let Some(position) =
-            graph.position_where(|vertex| Op::is_output((&self).into(), vertex, &self.tolerance))
+            graph.position_where(|node| Op::is_output((&self).into(), node, &self.tolerance))
         {
-            // By starting at the next vertex it is ensured there is a path to follow.
+            // By starting at the next node it is ensured there is a path to follow.
             let Some(position) = self.select_path(&graph, graph.nodes[position].as_ref()?) else {
                 graph.purge(position);
                 continue;
@@ -121,7 +121,7 @@ where
                 init: position,
                 next: None,
             }
-            .map(|vertex| vertex.point)
+            .map(|node| node.vertex)
             .collect();
 
             let Some(polygon) = U::from_raw((&self).into(), nodes, &self.tolerance) else {
@@ -142,15 +142,14 @@ impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
     T: Copy,
     U: Geometry,
-    U::Point: IsClose<Scalar = T>,
+    U::Vertex: IsClose<Scalar = T>,
     Op: Operator<U>,
 {
-    pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Node<U>) -> Option<usize> {
-        vertex
-            .siblings
+    pub(super) fn select_path(&self, graph: &Graph<U>, node: &Node<U>) -> Option<usize> {
+        node.siblings
             .iter()
             .filter_map(|&sibling| graph.nodes[sibling].as_ref())
-            .chain([vertex])
+            .chain([node])
             .rev()
             .find_map(|target| {
                 graph.nodes[target.next]
@@ -158,7 +157,7 @@ where
                     .is_some_and(|next| {
                         let subject = if next.is_intersection() {
                             &Node {
-                                point: U::Edge::new(&target.point, &next.point).midpoint(),
+                                vertex: U::Edge::new(&target.vertex, &next.vertex).midpoint(),
                                 role: next.role,
                                 previous: Default::default(),
                                 next: Default::default(),
