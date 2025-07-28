@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     graph::{Graph, GraphBuilder},
-    vertex::{Vertex, VerticesIterator},
+    node::{Node, NodeIterator},
     Edge, Geometry, IsClose, Shape, Tolerance,
 };
 
@@ -33,7 +33,7 @@ where
     /// operation.
     fn is_output<'a>(
         ops: Operands<'a, T>,
-        vertex: &'a Vertex<T>,
+        vertex: &'a Node<T>,
         tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> bool;
 }
@@ -110,13 +110,12 @@ where
             graph.position_where(|vertex| Op::is_output((&self).into(), vertex, &self.tolerance))
         {
             // By starting at the next vertex it is ensured there is a path to follow.
-            let Some(position) = self.select_path(&graph, graph.vertices[position].as_ref()?)
-            else {
+            let Some(position) = self.select_path(&graph, graph.nodes[position].as_ref()?) else {
                 graph.purge(position);
                 continue;
             };
 
-            let vertices = VerticesIterator {
+            let nodes = NodeIterator {
                 clipper: &self,
                 graph: &mut graph,
                 init: position,
@@ -125,7 +124,7 @@ where
             .map(|vertex| vertex.point)
             .collect();
 
-            let Some(polygon) = U::from_raw((&self).into(), vertices, &self.tolerance) else {
+            let Some(polygon) = U::from_raw((&self).into(), nodes, &self.tolerance) else {
                 continue;
             };
 
@@ -146,19 +145,19 @@ where
     U::Point: IsClose<Scalar = T>,
     Op: Operator<U>,
 {
-    pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Vertex<U>) -> Option<usize> {
+    pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Node<U>) -> Option<usize> {
         vertex
             .siblings
             .iter()
-            .filter_map(|&sibling| graph.vertices[sibling].as_ref())
+            .filter_map(|&sibling| graph.nodes[sibling].as_ref())
             .chain([vertex])
             .rev()
             .find_map(|target| {
-                graph.vertices[target.next]
+                graph.nodes[target.next]
                     .as_ref()
                     .is_some_and(|next| {
                         let subject = if next.is_intersection() {
-                            &Vertex {
+                            &Node {
                                 point: U::Edge::new(&target.point, &next.point).midpoint(),
                                 role: next.role,
                                 previous: Default::default(),

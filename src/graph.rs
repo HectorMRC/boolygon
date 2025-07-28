@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
-    vertex::{Role, Vertex},
+    node::{Node, Role},
     Edge, Geometry, IsClose, Point, Shape, Tolerance,
 };
 
@@ -57,13 +57,13 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let current = self.next?;
-        let vertex = self.graph.vertices[current].as_ref()?;
+        let vertex = self.graph.nodes[current].as_ref()?;
         self.next = (vertex.next != self.start).then_some(vertex.next);
 
         Some(EnumeratedEdge {
             edge: T::Edge::new(
                 &vertex.point,
-                &self.graph.vertices[vertex.next].as_ref()?.point,
+                &self.graph.nodes[vertex.next].as_ref()?.point,
             ),
             index: current,
         })
@@ -185,7 +185,7 @@ pub(super) struct Graph<T>
 where
     T: Geometry,
 {
-    pub(super) vertices: Vec<Option<Vertex<T>>>,
+    pub(super) nodes: Vec<Option<Node<T>>>,
 }
 
 impl<T> Default for Graph<T>
@@ -194,7 +194,7 @@ where
 {
     fn default() -> Self {
         Self {
-            vertices: Default::default(),
+            nodes: Default::default(),
         }
     }
 }
@@ -215,8 +215,8 @@ where
         }
     }
 
-    pub(super) fn position_where(&self, f: impl Fn(&Vertex<T>) -> bool) -> Option<usize> {
-        self.vertices
+    pub(super) fn position_where(&self, f: impl Fn(&Node<T>) -> bool) -> Option<usize> {
+        self.nodes
             .iter()
             .enumerate()
             .filter_map(|(index, slot)| slot.as_ref().map(|vertex| (index, vertex)))
@@ -225,7 +225,7 @@ where
     }
 
     pub(super) fn purge(&mut self, index: usize) {
-        self.vertices[index]
+        self.nodes[index]
             .take()
             .iter()
             .flat_map(|vertex| vertex.siblings.iter())
@@ -266,16 +266,16 @@ where
         let mut visited = PartialOrdBTreeMap::new();
 
         for (edge, mut intersection_indexes) in intersections.by_edge {
-            let &Vertex {
+            let &Node {
                 point: first,
                 role,
                 next,
                 ..
-            } = self.graph.vertices[edge]
+            } = self.graph.nodes[edge]
                 .as_ref()
                 .expect("edge vertex should exist");
 
-            let last = self.graph.vertices[next]
+            let last = self.graph.nodes[next]
                 .as_ref()
                 .expect("edge endpoint should exist")
                 .point;
@@ -307,7 +307,7 @@ where
                         next
                     } else {
                         // Otherwise, the intersection point is a new point somewhere between of the endpoints of the edge.
-                        self.graph.vertices.len()
+                        self.graph.nodes.len()
                     };
 
                     // Mark this intersection point as been visited by this edge. This will allow
@@ -335,7 +335,7 @@ where
                         .inspect(|&sibling| {
                             // While searching for siblings, update their siblings list by adding
                             // the index of this intersection.
-                            self.graph.vertices[sibling]
+                            self.graph.nodes[sibling]
                                 .as_mut()
                                 .expect("sibling should exist")
                                 .siblings
@@ -347,29 +347,29 @@ where
                         // If the intersection point is any of the endpoints of the edge, do not
                         // create any vertex in the graph. Instead finds that endpoint and update
                         // the siblings list.
-                        self.graph.vertices[index]
+                        self.graph.nodes[index]
                             .as_mut()
                             .expect("endpoint vertex should exists")
                             .siblings
                             .extend(siblings);
                     } else {
                         // Cut the edge and register the new vertex.
-                        let next = self.graph.vertices[previous]
+                        let next = self.graph.nodes[previous]
                             .as_ref()
                             .expect("previous vertex should exist")
                             .next;
 
-                        self.graph.vertices[previous]
+                        self.graph.nodes[previous]
                             .as_mut()
                             .expect("previous vertex should exist")
                             .next = index;
 
-                        self.graph.vertices[next]
+                        self.graph.nodes[next]
                             .as_mut()
                             .expect("next vertex should exist")
                             .previous = index;
 
-                        self.graph.vertices.push(Some(Vertex {
+                        self.graph.nodes.push(Some(Node {
                             point: intersection_point,
                             role,
                             next,
@@ -430,11 +430,11 @@ where
     }
 
     fn with_shape(mut self, shape: Shape<T>, boundary: impl Fn(usize) -> Boundary) -> Self {
-        self.graph.vertices.reserve(shape.total_vertices());
+        self.graph.nodes.reserve(shape.total_vertices());
         self.polygons.reserve(shape.polygons.len());
 
         for polygon in shape.polygons {
-            let offset = self.graph.vertices.len();
+            let offset = self.graph.nodes.len();
             let boundary = boundary(offset);
             let role = boundary.role();
 
@@ -444,7 +444,7 @@ where
             for (mut index, point) in polygon.into_iter().enumerate() {
                 index += total_vertices;
 
-                self.graph.vertices.push(Some(Vertex {
+                self.graph.nodes.push(Some(Node {
                     point,
                     role,
                     next: offset + ((index + 1) % total_vertices),

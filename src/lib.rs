@@ -1,7 +1,7 @@
 mod clipper;
 mod graph;
+mod node;
 mod tolerance;
-mod vertex;
 
 #[cfg(feature = "cartesian")]
 pub mod cartesian;
@@ -15,7 +15,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use self::{
     clipper::{Clipper, Operator},
-    vertex::{Role, Vertex},
+    node::{Node, Role},
 };
 
 /// A point in an arbitrary space.
@@ -130,7 +130,7 @@ where
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Vertex<T>,
+                vertex: &'a Node<T>,
                 tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
@@ -169,7 +169,7 @@ where
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Vertex<T>,
+                vertex: &'a Node<T>,
                 tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
@@ -207,7 +207,7 @@ where
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
-                vertex: &'a Vertex<T>,
+                vertex: &'a Node<T>,
                 tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
