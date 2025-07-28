@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
-    Distance, Edge, Geometry, Intersection, IsClose, Shape, Tolerance,
     vertex::{Role, Vertex},
+    Edge, Element, Geometry, IsClose, Shape, Tolerance,
 };
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
@@ -52,7 +52,6 @@ where
 impl<'a, T> Iterator for EnumeratedEdgesIterator<'a, T>
 where
     T: Geometry,
-    for<'b> T::Edge<'b>: Edge<'b, Endpoint = T::Point>,
 {
     type Item = EnumeratedEdge<'a, T>;
 
@@ -62,7 +61,7 @@ where
         self.next = (vertex.next != self.start).then_some(vertex.next);
 
         Some(EnumeratedEdge {
-            edge: <T::Edge<'_> as Edge>::new(
+            edge: T::Edge::new(
                 &vertex.point,
                 &self.graph.vertices[vertex.next].as_ref()?.point,
             ),
@@ -203,7 +202,6 @@ where
 impl<T> Graph<T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point>,
 {
     fn edges(&self, boundary: &Boundary) -> impl Iterator<Item = EnumeratedEdge<T>> {
         let start = match boundary {
@@ -241,14 +239,14 @@ where
 {
     graph: Graph<T>,
     polygons: Vec<Boundary>,
-    tolerance: Tolerance<<T::Point as Distance>::Distance>,
+    tolerance: Tolerance<<T::Point as Element>::Scalar>,
 }
 
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
 {
-    pub(super) fn new(tolerance: Tolerance<<T::Point as Distance>::Distance>) -> Self {
+    pub(super) fn new(tolerance: Tolerance<<T::Point as Element>::Scalar>) -> Self {
         Self {
             graph: Default::default(),
             polygons: Default::default(),
@@ -260,13 +258,9 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Intersection<Intersection = T::Point> + Edge<'a, Endpoint = T::Point>,
-    T::Point: Distance
-        + IsClose<Tolerance = Tolerance<<T::Point as Distance>::Distance>>
-        + Copy
-        + PartialEq
-        + PartialOrd,
-    <T::Point as Distance>::Distance: Copy + PartialOrd,
+    T::Point:
+        Element + IsClose<Scalar = <T::Point as Element>::Scalar> + Copy + PartialEq + PartialOrd,
+    <T::Point as Element>::Scalar: Copy + PartialOrd,
 {
     pub(super) fn build(mut self) -> Graph<T> {
         let intersections = self.intersections();
@@ -396,8 +390,7 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Intersection<Intersection = T::Point> + Edge<'a, Endpoint = T::Point>,
-    <T::Point as Distance>::Distance: Copy,
+    <T::Point as Element>::Scalar: Copy,
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {

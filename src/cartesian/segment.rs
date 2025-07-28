@@ -1,8 +1,8 @@
 use num_traits::{Float, Signed};
 
 use crate::{
-    Distance, Edge, Intersection, IsClose, Midpoint, Tolerance,
-    cartesian::{Point, determinant::Determinant},
+    cartesian::{determinant::Determinant, Point},
+    Edge, Element, IsClose, Tolerance,
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
@@ -14,28 +14,27 @@ pub struct Segment<'a, T> {
     pub to: &'a Point<T>,
 }
 
-impl<T> Midpoint for Segment<'_, T>
+impl<'a, T> Edge<'a, Point<T>> for Segment<'a, T>
 where
     T: Signed + Float,
 {
-    type Point = Point<T>;
+    fn new(from: &'a Point<T>, to: &'a Point<T>) -> Self {
+        Self { from, to }
+    }
 
-    fn midpoint(&self) -> Self::Point {
+    fn midpoint(&self) -> Point<T> {
         let two = T::one() + T::one();
         Point {
             x: (self.from.x + self.to.x) / two,
             y: (self.from.y + self.to.y) / two,
         }
     }
-}
 
-impl<T> Intersection for Segment<'_, T>
-where
-    T: Signed + Float,
-{
-    type Intersection = Point<T>;
+    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
+        (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
+    }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Intersection> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Point<T>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
@@ -68,24 +67,9 @@ where
     }
 }
 
-impl<'a, T> crate::Edge<'a> for Segment<'a, T>
-where
-    T: Signed + Float,
-{
-    type Endpoint = Point<T>;
-
-    fn new(from: &'a Self::Endpoint, to: &'a Self::Endpoint) -> Self {
-        Self { from, to }
-    }
-
-    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
-        (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
-    }
-}
-
 impl<T> Segment<'_, T>
 where
-    T: Signed + Float + IsClose<Tolerance = Tolerance<T>>,
+    T: Signed + Float + IsClose<Scalar = T>,
 {
     /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
     /// them, if any.
@@ -131,8 +115,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        Intersection,
-        cartesian::{Point, Segment, point::cartesian_point},
+        cartesian::{point::cartesian_point, Point, Segment},
+        Edge,
     };
 
     #[test]

@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 use crate::{
-    Distance, Edge, Geometry, Midpoint, Shape,
     clipper::{Clipper, Operator},
     graph::Graph,
+    Element, Geometry, Shape,
 };
 
 /// Determines the role of a [`Vertex`] during the clipping process.
@@ -45,7 +45,7 @@ pub(super) struct VerticesIterator<'a, Op, T>
 where
     T: Geometry,
 {
-    pub(super) clipper: &'a Clipper<<T::Point as Distance>::Distance, Op, Shape<T>, Shape<T>>,
+    pub(super) clipper: &'a Clipper<<T::Point as Element>::Scalar, Op, Shape<T>, Shape<T>>,
     pub(super) graph: &'a mut Graph<T>,
     pub(super) next: Option<usize>,
     pub(super) init: usize,
@@ -54,9 +54,8 @@ where
 impl<Op, T> Iterator for VerticesIterator<'_, Op, T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point> + Midpoint<Point = T::Point>,
     T::Point: Copy + PartialEq,
-    <T::Point as Distance>::Distance: Copy,
+    <T::Point as Element>::Scalar: Copy,
     Op: Operator<T>,
 {
     type Item = Vertex<T>;

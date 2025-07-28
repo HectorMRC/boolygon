@@ -1,15 +1,12 @@
 use std::cmp::Ordering;
 
 use geocart::{
-    Cartesian,
     transform::{Rotation, Transform},
+    Cartesian,
 };
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{
-    Edge, FromRaw, Geometry, Intersection, Midpoint, RightHanded, Tolerance, Winding,
-    clipper::Operands, spherical::Arc,
-};
+use crate::{clipper::Operands, spherical::Arc, Edge, Geometry, RightHanded, Tolerance};
 
 use super::Point;
 
@@ -78,47 +75,16 @@ where
     }
 }
 
-impl<T> Winding for Polygon<T>
-where
-    T: PartialOrd + Signed + Float + FloatConst + Euclid,
-{
-    type Point = Point<T>;
-
-    fn reversed(mut self) -> Self {
-        self.vertices.reverse();
-        self
-    }
-
-    fn winding(&self, point: &Self::Point, tolerance: &Tolerance<T>) -> isize {
-        // Returns true if, and only if, the point is on the left of the great circle containing
-        // the given arc.
-        let left_of = |arc: &Arc<'_, T>| {
-            let point = Cartesian::from(*point);
-            arc.normal().dot(&point).is_positive()
-        };
-
-        self.edges()
-            .filter(|segment| {
-                Arc::new(&self.exterior, point)
-                    .intersection(segment, tolerance)
-                    .is_some()
-            })
-            .fold(0, |wn, arc| {
-                if left_of(&arc) {
-                    wn + 1
-                } else if !left_of(&arc) {
-                    wn - 1
-                } else {
-                    wn
-                }
-            })
-    }
-}
-
-impl<T> FromRaw for Polygon<T>
+impl<T> Geometry for Polygon<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
+    type Point = Point<T>;
+    type Edge<'a>
+        = Arc<'a, T>
+    where
+        Self: 'a;
+
     fn from_raw(
         operands: Operands<Self>,
         vertices: Vec<Self::Point>,
@@ -172,16 +138,11 @@ where
             })
             .map(|exterior| Self { vertices, exterior })
     }
-}
 
-impl<T> Geometry for Polygon<T>
-where
-    T: Signed + Float + FloatConst + Euclid,
-{
-    type Edge<'a>
-        = Arc<'a, T>
-    where
-        Self: 'a;
+    fn reversed(mut self) -> Self {
+        self.vertices.reverse();
+        self
+    }
 
     fn total_vertices(&self) -> usize {
         self.vertices.len()
@@ -191,6 +152,31 @@ where
         self.vertices()
             .zip(self.vertices().skip(1))
             .map(|(from, to)| Arc { from, to })
+    }
+
+    fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
+        // Returns true if, and only if, the point is on the left of the great circle containing
+        // the given arc.
+        let left_of = |arc: &Arc<'_, T>| {
+            let point = Cartesian::from(*point);
+            arc.normal().dot(&point).is_positive()
+        };
+
+        self.edges()
+            .filter(|segment| {
+                Arc::new(&self.exterior, point)
+                    .intersection(segment, tolerance)
+                    .is_some()
+            })
+            .fold(0, |wn, arc| {
+                if left_of(&arc) {
+                    wn + 1
+                } else if !left_of(&arc) {
+                    wn - 1
+                } else {
+                    wn
+                }
+            })
     }
 }
 
@@ -239,8 +225,8 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
-        RightHanded, Tolerance, Winding,
         spherical::{Point, Polygon},
+        Geometry, RightHanded, Tolerance,
     };
 
     #[test]
@@ -506,52 +492,4 @@ mod tests {
             );
         });
     }
-
-    // #[test]
-    // fn shape_winding_number() {
-    //     struct Test {
-    //         name: &'static str,
-    //         shape: Shape<Polygon<f64>>,
-    //         point: Point<f64>,
-    //         want: isize,
-    //     }
-
-    //     vec![Test {
-    //         name: "outside shape with hole",
-    //         shape: Shape {
-    //             polygons: vec![
-    //                 spherical_polygon!(
-    //                     [FRAC_PI_2, 0.],
-    //                     [FRAC_PI_2, FRAC_PI_2],
-    //                     [FRAC_PI_2, PI],
-    //                     [FRAC_PI_2, 3. * FRAC_PI_2];
-    //                     [PI, 0.]
-    //                 ),
-    //                 spherical_polygon!(
-    //                     [FRAC_PI_4, 3. * FRAC_PI_2],
-    //                     [FRAC_PI_4, PI],
-    //                     [FRAC_PI_4, FRAC_PI_2],
-    //                     [FRAC_PI_4, 0.];
-    //                     [PI, 0.]
-    //                 ),
-    //             ],
-    //         },
-    //         point: [0., 0.].into(),
-    //         want: 0,
-    //     }]
-    //     .into_iter()
-    //     .for_each(|test| {
-    //         let tolerance = Tolerance {
-    //             relative: 1e-09.into(),
-    //             absolute: 0.0.into(),
-    //         };
-
-    //         let got = test.shape.winding(&test.point, &tolerance);
-    //         assert_eq!(
-    //             got, test.want,
-    //             "{}: got winding number = {got}, want = {}",
-    //             test.name, test.want
-    //         );
-    //     });
-    // }
 }

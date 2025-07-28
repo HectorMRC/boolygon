@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{Distance, Edge, Intersection, IsClose, Midpoint, Tolerance, spherical::Point};
+use crate::{spherical::Point, Edge, Element, IsClose, Tolerance};
 
 /// Reresents the arc between two consecutive vertices of a [`Polygon`].
 #[derive(Debug)]
@@ -12,13 +12,15 @@ pub struct Arc<'a, T> {
     pub(super) to: &'a Point<T>,
 }
 
-impl<T> Midpoint for Arc<'_, T>
+impl<'a, T> Edge<'a, Point<T>> for Arc<'a, T>
 where
-    T: PartialOrd + Signed + Float + FloatConst + Euclid,
+    T: Signed + Float + FloatConst + Euclid,
 {
-    type Point = Point<T>;
+    fn new(from: &'a Point<T>, to: &'a Point<T>) -> Self {
+        Self { from, to }
+    }
 
-    fn midpoint(&self) -> Self::Point {
+    fn midpoint(&self) -> Point<T> {
         if self.is_antipodal() {
             return Point {
                 polar_angle: (T::FRAC_PI_2() + self.from.polar_angle.into_inner()).into(),
@@ -30,15 +32,12 @@ where
             .normal()
             .into()
     }
-}
 
-impl<T> Intersection for Arc<'_, T>
-where
-    T: PartialOrd + Signed + Float + FloatConst + Euclid,
-{
-    type Intersection = Point<T>;
+    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
+        (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
+    }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Intersection> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Point<T>> {
         if self.length().is_zero() || rhs.length().is_zero() {
             return None;
         }
@@ -88,21 +87,6 @@ where
         }
 
         None
-    }
-}
-
-impl<'a, T> Edge<'a> for Arc<'a, T>
-where
-    T: Signed + Float + FloatConst + Euclid,
-{
-    type Endpoint = Point<T>;
-
-    fn new(from: &'a Self::Endpoint, to: &'a Self::Endpoint) -> Self {
-        Self { from, to }
-    }
-
-    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
-        (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 }
 

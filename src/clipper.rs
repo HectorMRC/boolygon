@@ -1,10 +1,9 @@
 use std::marker::PhantomData;
 
 use crate::{
-    Distance, Edge, FromRaw, Geometry, Intersection, IsClose, Midpoint, RightHanded, Shape,
-    Tolerance,
     graph::{Graph, GraphBuilder},
     vertex::{Vertex, VerticesIterator},
+    Edge, Element, Geometry, IsClose, Shape, Tolerance,
 };
 
 /// Marker for yet undefined generic parameters.
@@ -35,7 +34,7 @@ where
     fn is_output<'a>(
         ops: Operands<'a, T>,
         vertex: &'a Vertex<T>,
-        tolerance: &Tolerance<<T::Point as Distance>::Distance>,
+        tolerance: &Tolerance<<T::Point as Element>::Scalar>,
     ) -> bool;
 }
 
@@ -94,12 +93,8 @@ impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
 
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
-    U: RightHanded + Geometry + FromRaw + Clone + IntoIterator<Item = U::Point>,
-    for<'a> U::Edge<'a>: Edge<'a, Endpoint = U::Point>
-        + Midpoint<Point = U::Point>
-        + Intersection<Intersection = U::Point>,
-    U::Point:
-        Distance<Distance = T> + IsClose<Tolerance = Tolerance<T>> + Copy + PartialEq + PartialOrd,
+    U: Geometry + Clone + IntoIterator<Item = U::Point>,
+    U::Point: Element<Scalar = T> + IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
     T: Copy + PartialOrd,
     Op: Operator<U>,
 {
@@ -147,9 +142,8 @@ where
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
     U: Geometry,
-    for<'a> U::Edge<'a>: Edge<'a, Endpoint = U::Point> + Midpoint<Point = U::Point>,
-    U::Point: Distance<Distance = T>,
-    <U::Point as Distance>::Distance: Copy,
+    U::Point: Element<Scalar = T>,
+    <U::Point as Element>::Scalar: Copy,
     Op: Operator<U>,
 {
     pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Vertex<U>) -> Option<usize> {
@@ -165,8 +159,7 @@ where
                     .is_some_and(|next| {
                         let subject = if next.is_intersection() {
                             &Vertex {
-                                point: <U::Edge<'_> as Edge>::new(&target.point, &next.point)
-                                    .midpoint(),
+                                point: U::Edge::new(&target.point, &next.point).midpoint(),
                                 role: next.role,
                                 previous: Default::default(),
                                 next: Default::default(),

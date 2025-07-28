@@ -3,9 +3,9 @@ use std::cmp::Ordering;
 use num_traits::{Float, Signed};
 
 use crate::{
-    FromRaw, Geometry, RightHanded, Tolerance, Winding,
-    cartesian::{Point, Segment, determinant::Determinant},
+    cartesian::{determinant::Determinant, Point, Segment},
     clipper::Operands,
+    Geometry, RightHanded, Tolerance,
 };
 
 /// Represents a polygon in the plain.
@@ -85,13 +85,36 @@ where
     }
 }
 
-impl<T> Winding for Polygon<T>
+impl<T> Geometry for Polygon<T>
 where
     T: Signed + Float,
 {
     type Point = Point<T>;
+    type Edge<'a>
+        = Segment<'a, T>
+    where
+        Self: 'a;
 
-    fn winding(&self, point: &Self::Point, _: &Tolerance<T>) -> isize {
+    fn from_raw(_: Operands<Self>, vertices: Vec<Self::Point>, _: &Tolerance<T>) -> Option<Self> {
+        Some(vertices.into())
+    }
+
+    fn reversed(mut self) -> Self {
+        self.vertices.reverse();
+        self
+    }
+
+    fn total_vertices(&self) -> usize {
+        self.vertices.len()
+    }
+
+    fn edges(&self) -> impl Iterator<Item = Segment<'_, T>> {
+        self.vertices()
+            .zip(self.vertices().skip(1))
+            .map(|(from, to)| Segment { from, to })
+    }
+
+    fn winding(&self, point: &Point<T>, _: &Tolerance<T>) -> isize {
         // Returns true if, and only if, the point is on the left of the infinite line containing
         // the given segment.
         let left_of = |segment: &Segment<'_, T>| {
@@ -109,40 +132,6 @@ where
                 wn
             }
         })
-    }
-
-    fn reversed(mut self) -> Self {
-        self.vertices.reverse();
-        self
-    }
-}
-
-impl<T> FromRaw for Polygon<T>
-where
-    T: Signed + Float,
-{
-    fn from_raw(_: Operands<Self>, vertices: Vec<Self::Point>, _: &Tolerance<T>) -> Option<Self> {
-        Some(vertices.into())
-    }
-}
-
-impl<T> Geometry for Polygon<T>
-where
-    T: Signed + Float,
-{
-    type Edge<'a>
-        = Segment<'a, T>
-    where
-        Self: 'a;
-
-    fn total_vertices(&self) -> usize {
-        self.vertices.len()
-    }
-
-    fn edges(&self) -> impl Iterator<Item = Segment<'_, T>> {
-        self.vertices()
-            .zip(self.vertices().skip(1))
-            .map(|(from, to)| Segment { from, to })
     }
 }
 
@@ -178,8 +167,8 @@ pub use cartesian_polygon;
 #[cfg(test)]
 mod tests {
     use crate::{
-        RightHanded, Winding,
-        cartesian::{Polygon, point::Point},
+        cartesian::{point::Point, Polygon},
+        Geometry, RightHanded,
     };
 
     #[test]

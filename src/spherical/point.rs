@@ -38,11 +38,11 @@ where
 
 impl<T> IsClose for PolarAngle<T>
 where
-    T: IsClose<Tolerance = Tolerance<T>> + Copy,
+    T: IsClose<Scalar = T> + Copy,
 {
-    type Tolerance = Tolerance<T>;
+    type Scalar = T;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
+    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool {
         self.0.is_close(&rhs.0, tolerance)
     }
 }
@@ -96,11 +96,11 @@ where
 
 impl<T> IsClose for AzimuthalAngle<T>
 where
-    T: IsClose<Tolerance = Tolerance<T>> + Copy,
+    T: IsClose<Scalar = T> + Copy,
 {
-    type Tolerance = Tolerance<T>;
+    type Scalar = T;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
+    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool {
         self.0.is_close(&rhs.0, tolerance)
     }
 }
@@ -177,11 +177,11 @@ where
     }
 }
 
-impl<T> Distance for Point<T>
+impl<T> Element for Point<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    type Distance = T;
+    type Scalar = T;
 
     fn distance(&self, rhs: &Self) -> T {
         let from = Cartesian::from(*self);
@@ -201,11 +201,11 @@ where
 
 impl<T> IsClose for Point<T>
 where
-    T: IsClose<Tolerance = Tolerance<T>> + Copy,
+    T: IsClose<Scalar = T> + Copy,
 {
-    type Tolerance = Tolerance<T>;
+    type Scalar = T;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
+    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool {
         self.polar_angle.is_close(&rhs.polar_angle, tolerance)
             && self
                 .azimuthal_angle
@@ -213,4 +213,4 @@ where
     }
 }
 
-use crate::{Distance, IsClose, Tolerance};
+use crate::{Element, IsClose, Tolerance};
