@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
     node::{Node, Role},
-    Edge, Geometry, IsClose, Shape, Tolerance, Vertex,
+    Edge, Geometry, IsClose, Shape, Vertex,
 };
 
 /// The index of the first [`Node`] of a [`Geometry`] belonging to the clip or subject [`Shape`].
@@ -230,20 +230,20 @@ where
     }
 }
 
-pub(super) struct GraphBuilder<T>
+pub(super) struct GraphBuilder<'a, T>
 where
     T: Geometry,
 {
     graph: Graph<T>,
     polygons: Vec<Boundary>,
-    tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
+    tolerance: &'a <T::Vertex as IsClose>::Tolerance,
 }
 
-impl<T> GraphBuilder<T>
+impl<'a, T> GraphBuilder<'a, T>
 where
     T: Geometry,
 {
-    pub(super) fn new(tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>) -> Self {
+    pub(super) fn new(tolerance: &'a <T::Vertex as IsClose>::Tolerance) -> Self {
         Self {
             graph: Default::default(),
             polygons: Default::default(),
@@ -252,11 +252,11 @@ where
     }
 }
 
-impl<T> GraphBuilder<T>
+impl<T> GraphBuilder<'_, T>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq + PartialOrd,
-    <T::Vertex as IsClose>::Scalar: Copy + PartialOrd,
+    <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     pub(super) fn build(mut self) -> Graph<T> {
         let intersections = self.intersections();
@@ -383,10 +383,9 @@ where
     }
 }
 
-impl<T> GraphBuilder<T>
+impl<T> GraphBuilder<'_, T>
 where
     T: Geometry,
-    <T::Vertex as IsClose>::Scalar: Copy,
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {
@@ -397,7 +396,7 @@ where
                     for clip_edge in self.graph.edges(clip_polygon) {
                         if let Some(intersection) = subject_edge
                             .edge
-                            .intersection(&clip_edge.edge, &self.tolerance)
+                            .intersection(&clip_edge.edge, self.tolerance)
                         {
                             intersections = intersections.with_intersection(EdgeIntersection {
                                 vertex: intersection,
@@ -414,7 +413,7 @@ where
     }
 }
 
-impl<T> GraphBuilder<T>
+impl<T> GraphBuilder<'_, T>
 where
     T: Geometry + IntoIterator<Item = T::Vertex>,
 {

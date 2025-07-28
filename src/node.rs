@@ -45,7 +45,7 @@ pub(super) struct NodeIterator<'a, Op, T>
 where
     T: Geometry,
 {
-    pub(super) clipper: &'a Clipper<<T::Vertex as IsClose>::Scalar, Op, Shape<T>, Shape<T>>,
+    pub(super) clipper: &'a Clipper<Op, Shape<T>, Shape<T>, <T::Vertex as IsClose>::Tolerance>,
     pub(super) graph: &'a mut Graph<T>,
     pub(super) next: Option<usize>,
     pub(super) init: usize,
@@ -55,7 +55,6 @@ impl<Op, T> Iterator for NodeIterator<'_, Op, T>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq,
-    <T::Vertex as IsClose>::Scalar: Copy,
     Op: Operator<T>,
 {
     type Item = Node<T>;

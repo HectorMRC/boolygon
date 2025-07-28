@@ -69,7 +69,7 @@ where
 
 impl<T> Segment<'_, T>
 where
-    T: Signed + Float + IsClose<Scalar = T>,
+    T: Signed + Float,
 {
     /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
     /// them, if any.

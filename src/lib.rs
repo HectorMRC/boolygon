@@ -19,7 +19,10 @@ use self::{
 };
 
 /// A vertex from a [`Geometry`].
-pub trait Vertex: IsClose {
+pub trait Vertex {
+    /// The scalar type in this vertex's space.
+    type Scalar;
+
     /// Returns the distance between this vertex and rhs.
     fn distance(&self, rhs: &Self) -> Self::Scalar;
 }
@@ -27,7 +30,7 @@ pub trait Vertex: IsClose {
 /// An edge delimited by two vertices in a [`Geometry`].
 pub trait Edge<'a, T>
 where
-    T: Vertex,
+    T: Vertex + IsClose,
 {
     /// Returns an edge from the given endpoints.
     fn new(from: &'a T, to: &'a T) -> Self;
@@ -36,10 +39,10 @@ where
     fn midpoint(&self) -> T;
 
     /// Returns true if, and only if, the given point exists in this edge.
-    fn contains(&self, point: &T, tolerance: &Tolerance<T::Scalar>) -> bool;
+    fn contains(&self, point: &T, tolerance: &T::Tolerance) -> bool;
 
     /// Returns the intersection between this edge and rhs, if any.
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T::Scalar>) -> Option<T>;
+    fn intersection(&self, rhs: &Self, tolerance: &T::Tolerance) -> Option<T>;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.
@@ -51,7 +54,7 @@ pub trait RightHanded {
 /// A geometry in an arbitrary space.
 pub trait Geometry: Sized + RightHanded {
     /// The type of the vertices this geometry is made of.
-    type Vertex: Vertex;
+    type Vertex: Vertex + IsClose;
 
     /// The type of the edges this geometry is made of.
     type Edge<'a>: Edge<'a, Self::Vertex>
@@ -62,7 +65,7 @@ pub trait Geometry: Sized + RightHanded {
     fn from_raw(
         operands: Operands<Self>,
         vertices: Vec<Self::Vertex>,
-        tolerance: &Tolerance<<Self::Vertex as IsClose>::Scalar>,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Self>;
 
     /// Returns the total amount of vertices in the geometry.
@@ -78,7 +81,7 @@ pub trait Geometry: Sized + RightHanded {
     fn winding(
         &self,
         point: &Self::Vertex,
-        tolerance: &Tolerance<<Self::Vertex as IsClose>::Scalar>,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> isize;
 }
 
@@ -117,21 +120,20 @@ impl<T> Shape<T>
 where
     T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
     T::Vertex: Copy + PartialEq + PartialOrd,
-    <T::Vertex as IsClose>::Scalar: Copy + PartialOrd,
+    <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of self and rhs.
-    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>) -> Self {
+    pub fn or(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Geometry,
-            <T::Vertex as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 node: &'a Node<T>,
-                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+                tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
                     Role::Subject => {
@@ -155,22 +157,18 @@ where
     }
 
     /// Returns the difference of rhs on self.
-    pub fn not(
-        self,
-        rhs: Self,
-        tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
-    ) -> Option<Self> {
+    pub fn not(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
         where
             T: Geometry,
-            <T::Vertex as IsClose>::Scalar: Copy,
+            <T::Vertex as Vertex>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 node: &'a Node<T>,
-                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+                tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
                     Role::Subject => {
@@ -193,22 +191,18 @@ where
     }
 
     /// Returns the intersection of self and rhs.
-    pub fn and(
-        self,
-        rhs: Self,
-        tolerance: Tolerance<<T::Vertex as IsClose>::Scalar>,
-    ) -> Option<Self> {
+    pub fn and(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for AndOperator<T>
         where
             T: Geometry,
-            <T::Vertex as IsClose>::Scalar: Copy,
+            // <T::Vertex as IsClose>::Tolerance: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 node: &'a Node<T>,
-                tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+                tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
                     Role::Subject => {
@@ -239,7 +233,7 @@ where
     pub(crate) fn is_boundary(
         &self,
         vertex: &T::Vertex,
-        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+        tolerance: &<T::Vertex as IsClose>::Tolerance,
     ) -> bool {
         self.polygons
             .iter()
@@ -252,14 +246,9 @@ impl<T> Shape<T>
 where
     T: Geometry,
     T::Vertex: Vertex,
-    <T::Vertex as IsClose>::Scalar: Copy,
 {
     /// Returns the amount of times self winds around the given [`Point`].
-    fn winding(
-        &self,
-        vertex: &T::Vertex,
-        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
-    ) -> isize {
+    fn winding(&self, vertex: &T::Vertex, tolerance: &<T::Vertex as IsClose>::Tolerance) -> isize {
         self.polygons
             .iter()
             .map(|polygon| polygon.winding(vertex, tolerance))
@@ -270,7 +259,7 @@ where
     pub(crate) fn contains(
         &self,
         vertex: &T::Vertex,
-        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+        tolerance: &<T::Vertex as IsClose>::Tolerance,
     ) -> bool {
         self.winding(vertex, tolerance) != 0
     }

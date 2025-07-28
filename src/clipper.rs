@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     graph::{Graph, GraphBuilder},
     node::{Node, NodeIterator},
-    Edge, Geometry, IsClose, Shape, Tolerance,
+    Edge, Geometry, IsClose, Shape, Vertex,
 };
 
 /// Marker for yet undefined generic parameters.
@@ -15,8 +15,8 @@ pub struct Operands<'a, T> {
     pub clip: &'a Shape<T>,
 }
 
-impl<'a, T, U, Op> From<&'a Clipper<T, Op, Shape<U>, Shape<U>>> for Operands<'a, U> {
-    fn from(clipper: &'a Clipper<T, Op, Shape<U>, Shape<U>>) -> Self {
+impl<'a, U, Op, Tol> From<&'a Clipper<Op, Shape<U>, Shape<U>, Tol>> for Operands<'a, U> {
+    fn from(clipper: &'a Clipper<Op, Shape<U>, Shape<U>, Tol>) -> Self {
         Operands {
             subject: &clipper.subject,
             clip: &clipper.clip,
@@ -34,21 +34,21 @@ where
     fn is_output<'a>(
         ops: Operands<'a, T>,
         node: &'a Node<T>,
-        tolerance: &Tolerance<<T::Vertex as IsClose>::Scalar>,
+        tolerance: &<T::Vertex as IsClose>::Tolerance,
     ) -> bool;
 }
 
 /// Implements the clipping algorithm.                                                                                                                                   
-pub(super) struct Clipper<T, Operator, Subject, Clip> {
-    pub(super) tolerance: Tolerance<T>,
+pub(super) struct Clipper<Operator, Subject, Clip, Tolerance> {
+    pub(super) tolerance: Tolerance,
     operator: PhantomData<Operator>,
     subject: Subject,
     clip: Clip,
 }
 
-impl<T> Clipper<T, Unknown, Unknown, Unknown> {
+impl<Tol> Clipper<Unknown, Unknown, Unknown, Tol> {
     /// Returns a default clipper with the given tolerance.
-    pub fn new(tolerance: Tolerance<T>) -> Self {
+    pub fn new(tolerance: Tol) -> Self {
         Self {
             operator: PhantomData,
             subject: Unknown,
@@ -58,8 +58,8 @@ impl<T> Clipper<T, Unknown, Unknown, Unknown> {
     }
 }
 
-impl<T, Op, Sub, Clip> Clipper<T, Op, Sub, Clip> {
-    pub fn with_operator<Operator>(self) -> Clipper<T, Operator, Sub, Clip> {
+impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
+    pub fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             subject: self.subject,
@@ -69,8 +69,8 @@ impl<T, Op, Sub, Clip> Clipper<T, Op, Sub, Clip> {
     }
 }
 
-impl<T, Op, Clip> Clipper<T, Op, Unknown, Clip> {
-    pub fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<T, Op, Shape<U>, Clip> {
+impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
+    pub fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<Op, Shape<U>, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             subject: subject.into(),
@@ -80,8 +80,8 @@ impl<T, Op, Clip> Clipper<T, Op, Unknown, Clip> {
     }
 }
 
-impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
-    pub fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<T, Op, Sub, Shape<U>> {
+impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
+    pub fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Op, Sub, Shape<U>, Tol> {
         Clipper {
             operator: PhantomData,
             subject: self.subject,
@@ -91,16 +91,16 @@ impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
     }
 }
 
-impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
+impl<U, Op, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
 where
-    T: Copy + PartialOrd,
     U: Geometry + Clone + IntoIterator<Item = U::Vertex>,
-    U::Vertex: IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
+    U::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
+    <U::Vertex as Vertex>::Scalar: Copy + PartialOrd,
     Op: Operator<U>,
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
     pub fn execute(self) -> Option<Shape<U>> {
-        let mut graph = GraphBuilder::new(self.tolerance)
+        let mut graph = GraphBuilder::new(&self.tolerance)
             .with_subject(self.subject.clone())
             .with_clip(self.clip.clone())
             .build();
@@ -138,11 +138,10 @@ where
     }
 }
 
-impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
+impl<U, Op, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
 where
-    T: Copy,
     U: Geometry,
-    U::Vertex: IsClose<Scalar = T>,
+    U::Vertex: IsClose<Tolerance = Tol>,
     Op: Operator<U>,
 {
     pub(super) fn select_path(&self, graph: &Graph<U>, node: &Node<U>) -> Option<usize> {

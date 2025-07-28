@@ -21,6 +21,8 @@ impl<T> Vertex for Point<T>
 where
     T: Copy + Float,
 {
+    type Scalar = T;
+
     fn distance(&self, rhs: &Self) -> Self::Scalar {
         ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
     }
@@ -28,11 +30,11 @@ where
 
 impl<T> IsClose for Point<T>
 where
-    T: IsClose<Scalar = T> + Copy,
+    T: IsClose<Tolerance = Tolerance<T>>,
 {
-    type Scalar = T;
+    type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool {
+    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
         self.x.is_close(&rhs.x, tolerance) && self.y.is_close(&rhs.y, tolerance)
     }
 }

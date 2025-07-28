@@ -31,20 +31,20 @@ pub struct Tolerance<T> {
 
 /// A value whose equality depends on a tolerance.
 pub trait IsClose {
-    type Scalar;
+    type Tolerance;
 
     /// Returns true if, and only if, self and rhs are close enough given a tolerance;
     /// otherwise returns false.
-    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool;
+    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool;
 }
 
 impl<T> IsClose for T
 where
     T: Float,
 {
-    type Scalar = T;
+    type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Tolerance<Self::Scalar>) -> bool {
+    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
         (*self - *rhs).abs()
             <= Self::max(
                 tolerance.relative.0 * Self::max(self.abs(), rhs.abs()),
