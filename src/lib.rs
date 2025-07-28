@@ -8,10 +8,10 @@ pub mod cartesian;
 #[cfg(feature = "spherical")]
 pub mod spherical;
 
-use std::{fmt::Debug, marker::PhantomData};
-
 pub use self::clipper::Operands;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
+
+use std::{fmt::Debug, marker::PhantomData};
 
 use self::{
     clipper::{Clipper, Operator},
