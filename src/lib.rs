@@ -77,10 +77,10 @@ pub trait Geometry: Sized + RightHanded {
     /// Returns this geometry with the reversed winding.
     fn reversed(self) -> Self;
 
-    /// Returns the amount of times this geometry winds around the given point.
+    /// Returns the amount of times this geometry winds around the given vertex.
     fn winding(
         &self,
-        point: &Self::Vertex,
+        vertex: &Self::Vertex,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> isize;
 }
