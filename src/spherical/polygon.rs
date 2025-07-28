@@ -15,7 +15,7 @@ use super::Point;
 pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  
     pub vertices: Vec<Point<T>>,
-    /// A point within this polygon.
+    /// A point outside this polygon.
     pub exterior: Point<T>,
 }
 
