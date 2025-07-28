@@ -18,89 +18,87 @@ use self::{
     vertex::{Role, Vertex},
 };
 
-/// A geometry whose orientation is defined by the right-hand rule.
+/// A [`Geometry`] whose orientation is defined by the right-hand rule.
 pub trait RightHanded {
-    /// Returns true if, and only if, self is oriented clockwise.
+    /// Returns true if, and only if, this geometry is oriented clockwise.
     fn is_clockwise(&self) -> bool;
 }
 
-/// A point whose distance to other points is defined.
-pub trait Metric {
-    /// The scalar type representing the distance.
-    type Scalar;
+/// A type whose distance to other instances of itself is defined.
+pub trait Distance {
+    /// The distance type.
+    type Distance;
 
-    /// Returns the distance between this point and rhs.
-    fn distance(&self, rhs: &Self) -> Self::Scalar;
+    /// Returns the distance between self and rhs.
+    fn distance(&self, rhs: &Self) -> Self::Distance;
 }
 
-/// A segment that can intersect with other instances of its type.
-pub trait Secant {
-    /// The point of intersection.
-    type Point: Metric;
+/// An [`Edge`] that can intersect with other instances of itself.
+pub trait Intersection {
+    /// The intersection type.
+    type Intersection: Distance;
 
-    /// Returns the point of intersection between this segment and rhs, if any.
+    /// Returns the intersection between self and rhs, if any.
     fn intersection(
         &self,
         rhs: &Self,
-        tolerance: &Tolerance<<Self::Point as Metric>::Scalar>,
-    ) -> Option<Self::Point>;
+        tolerance: &Tolerance<<Self::Intersection as Distance>::Distance>,
+    ) -> Option<Self::Intersection>;
 }
 
-/// A segment whose midpoint is defined.
+/// An [`Edge`] whose midpoint is defined.
 pub trait Midpoint {
     /// The midpoint type.
     type Point;
 
-    /// Returns the middle point between the endpoints of this segment.
+    /// Returns the middle point of this edge.
     fn midpoint(&self) -> Self::Point;
 }
 
-/// A geometry that may wind around points.
-pub trait Wind {
-    /// The point whose winding number can be inferred.
-    type Point: Metric;
+/// A [`Geometry`] that winds around points in its space.
+pub trait Winding {
+    /// The type of point this geometry winds around.
+    type Point: Distance;
 
     /// Returns this geometry with the reversed winding.
     fn reversed(self) -> Self;
 
-    /// Returns the amount of time this geometry winds around the given point.
+    /// Returns the amount of times this geometry winds around the given point.
     fn winding(
         &self,
         point: &Self::Point,
-        tolerance: &Tolerance<<Self::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<Self::Point as Distance>::Distance>,
     ) -> isize;
 }
 
+/// An edge delimited by two endpoints in a [`Geometry`].
 pub trait Edge<'a> {
-    /// The enpoint type of the segment.
-    type Endpoint: Metric;
+    /// The enpoint type.
+    type Endpoint: Distance;
 
-    /// Returns a segment from the given endpoints.
+    /// Returns a edge from the given endpoints.
     fn new(from: &'a Self::Endpoint, to: &'a Self::Endpoint) -> Self;
 
-    /// Returns true if, and only if, the given point exists in this segment.
+    /// Returns true if, and only if, the given point exists in this edge.
     fn contains(
         &self,
         point: &Self::Endpoint,
-        tolerance: &Tolerance<<Self::Endpoint as Metric>::Scalar>,
+        tolerance: &Tolerance<<Self::Endpoint as Distance>::Distance>,
     ) -> bool;
 }
 
-/// Construction from a geometric operation given the operands and resulting vertices.
-pub trait FromRaw
-where
-    Self: Sized + Geometry,
-{
-    /// Tries to construct a geometry from the given iterator of vertices.
+/// A [`Geometry`] that can be constructed from clipper's raw data.
+pub trait FromRaw: Sized + Geometry {
+    /// Tries to construct the geometry from the given raw data.
     fn from_raw(
         operands: Operands<Self>,
         vertices: Vec<Self::Point>,
-        tolerance: &Tolerance<<Self::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<Self::Point as Distance>::Distance>,
     ) -> Option<Self>;
 }
 
 /// A geometry in an arbitrary space.
-pub trait Geometry: Wind {
+pub trait Geometry: Winding {
     /// The type of edge in this geometry.
     type Edge<'a>: Edge<'a>
     where
@@ -122,7 +120,7 @@ pub struct Shape<T> {
 
 impl<T> From<T> for Shape<T>
 where
-    T: RightHanded + Wind,
+    T: RightHanded + Winding,
 {
     fn from(value: T) -> Self {
         Self::new(value)
@@ -147,29 +145,30 @@ where
 impl<T> Shape<T>
 where
     T: RightHanded + Geometry + FromRaw + Clone + IntoIterator<Item = T::Point>,
-    for<'a> T::Edge<'a>:
-        Edge<'a, Endpoint = T::Point> + Midpoint<Point = T::Point> + Secant<Point = T::Point>,
-    T::Point: Metric
+    for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point>
+        + Midpoint<Point = T::Point>
+        + Intersection<Intersection = T::Point>,
+    T::Point: Distance
         + Copy
-        + IsClose<Tolerance = Tolerance<<T::Point as Metric>::Scalar>>
+        + IsClose<Tolerance = Tolerance<<T::Point as Distance>::Distance>>
         + PartialEq
         + PartialOrd,
-    <T::Point as Metric>::Scalar: Copy + PartialOrd,
+    <T::Point as Distance>::Distance: Copy + PartialOrd,
 {
     /// Returns the union of self and rhs.
-    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Point as Metric>::Scalar>) -> Self {
+    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Point as Distance>::Distance>) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Geometry,
             for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point>,
-            <T::Point as Metric>::Scalar: Copy,
+            <T::Point as Distance>::Distance: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+                tolerance: &Tolerance<<T::Point as Distance>::Distance>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -196,7 +195,7 @@ where
     pub fn not(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: Tolerance<<T::Point as Distance>::Distance>,
     ) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
@@ -204,12 +203,12 @@ where
         where
             T: Geometry,
             for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point>,
-            <T::Point as Metric>::Scalar: Copy,
+            <T::Point as Distance>::Distance: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+                tolerance: &Tolerance<<T::Point as Distance>::Distance>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -235,7 +234,7 @@ where
     pub fn and(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: Tolerance<<T::Point as Distance>::Distance>,
     ) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
@@ -243,12 +242,12 @@ where
         where
             T: Geometry,
             for<'a> T::Edge<'a>: Edge<'a, Endpoint = T::Point>,
-            <T::Point as Metric>::Scalar: Copy,
+            <T::Point as Distance>::Distance: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+                tolerance: &Tolerance<<T::Point as Distance>::Distance>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -280,12 +279,11 @@ where
     pub(crate) fn is_boundary(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<T::Point as Distance>::Distance>,
     ) -> bool {
         self.polygons
             .iter()
-            .map(|polygon| polygon.edges())
-            .flatten()
+            .flat_map(|polygon| polygon.edges())
             .any(|segment| segment.contains(point, tolerance))
     }
 }
@@ -293,18 +291,18 @@ where
 impl<T> Shape<T>
 where
     T: Geometry,
-    T::Point: Metric,
-    <T::Point as Metric>::Scalar: Copy,
+    T::Point: Distance,
+    <T::Point as Distance>::Distance: Copy,
 {
     /// Returns the amount of times self winds around the given [`Point`].
     fn winding(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<T::Point as Distance>::Distance>,
     ) -> isize {
         self.polygons
             .iter()
-            .map(|polygon| polygon.winding(point, &tolerance))
+            .map(|polygon| polygon.winding(point, tolerance))
             .sum()
     }
 
@@ -312,7 +310,7 @@ where
     pub(crate) fn contains(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<T::Point as Distance>::Distance>,
     ) -> bool {
         self.winding(point, tolerance) != 0
     }
@@ -320,7 +318,7 @@ where
 
 impl<T> Shape<T>
 where
-    T: RightHanded + Wind,
+    T: RightHanded + Winding,
 {
     /// Creates a new shape from the given polygon.
     pub fn new(value: impl Into<T>) -> Self {
@@ -338,7 +336,7 @@ where
 
 impl<T> Shape<T>
 where
-    T: Wind,
+    T: Winding,
 {
     /// Returns  a new shape with the inverted winding.
     fn inverted_winding(self) -> Self {
@@ -361,9 +359,6 @@ where
     }
 
     pub(crate) fn edges(&self) -> impl Iterator<Item = T::Edge<'_>> {
-        self.polygons
-            .iter()
-            .map(|polygon| polygon.edges())
-            .flatten()
+        self.polygons.iter().flat_map(|polygon| polygon.edges())
     }
 }

@@ -3,9 +3,9 @@ use std::cmp::Ordering;
 use num_traits::{Float, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point, Segment},
+    FromRaw, Geometry, RightHanded, Tolerance, Winding,
+    cartesian::{Point, Segment, determinant::Determinant},
     clipper::Operands,
-    FromRaw, Geometry, RightHanded, Tolerance, Wind,
 };
 
 /// Represents a polygon in the plain.
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl<T> Wind for Polygon<T>
+impl<T> Winding for Polygon<T>
 where
     T: Signed + Float,
 {
@@ -178,8 +178,8 @@ pub use cartesian_polygon;
 #[cfg(test)]
 mod tests {
     use crate::{
-        cartesian::{point::Point, Polygon},
-        RightHanded, Wind,
+        RightHanded, Winding,
+        cartesian::{Polygon, point::Point},
     };
 
     #[test]

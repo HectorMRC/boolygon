@@ -3,13 +3,13 @@ mod point;
 mod polygon;
 mod segment;
 
-pub use self::point::{cartesian_point, Point};
-pub use self::polygon::{cartesian_polygon, Polygon};
+pub use self::point::{Point, cartesian_point};
+pub use self::polygon::{Polygon, cartesian_polygon};
 pub use self::segment::Segment;
 
 #[cfg(test)]
 mod tests {
-    use crate::{cartesian::Polygon, cartesian_polygon, Shape};
+    use crate::{Shape, cartesian::Polygon, cartesian_polygon};
 
     #[test]
     fn union() {

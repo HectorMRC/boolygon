@@ -50,7 +50,7 @@ impl<T> Determinant<T> {
 mod tests {
     use crate::cartesian::{
         determinant::Determinant,
-        point::{cartesian_point, Point},
+        point::{Point, cartesian_point},
     };
 
     #[test]

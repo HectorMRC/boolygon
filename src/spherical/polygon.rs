@@ -1,14 +1,14 @@
 use std::cmp::Ordering;
 
 use geocart::{
-    transform::{Rotation, Transform},
     Cartesian,
+    transform::{Rotation, Transform},
 };
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
 use crate::{
-    clipper::Operands, spherical::Arc, Edge, FromRaw, Geometry, Midpoint, RightHanded, Secant,
-    Tolerance, Wind,
+    Edge, FromRaw, Geometry, Intersection, Midpoint, RightHanded, Tolerance, Winding,
+    clipper::Operands, spherical::Arc,
 };
 
 use super::Point;
@@ -78,7 +78,7 @@ where
     }
 }
 
-impl<T> Wind for Polygon<T>
+impl<T> Winding for Polygon<T>
 where
     T: PartialOrd + Signed + Float + FloatConst + Euclid,
 {
@@ -160,7 +160,7 @@ where
                     .polygons
                     .iter()
                     .map(|polygon| polygon.exterior)
-                    .find(|exterior| !operands.clip.contains(&exterior, tolerance))
+                    .find(|exterior| !operands.clip.contains(exterior, tolerance))
             })
             .or_else(|| {
                 operands
@@ -168,7 +168,7 @@ where
                     .polygons
                     .iter()
                     .map(|polygon| polygon.exterior)
-                    .find(|exterior| !operands.subject.contains(&exterior, tolerance))
+                    .find(|exterior| !operands.subject.contains(exterior, tolerance))
             })
             .map(|exterior| Self { vertices, exterior })
     }
@@ -239,8 +239,8 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
+        RightHanded, Tolerance, Winding,
         spherical::{Point, Polygon},
-        RightHanded, Tolerance, Wind,
     };
 
     #[test]

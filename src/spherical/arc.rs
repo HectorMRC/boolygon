@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{spherical::Point, Edge, IsClose, Metric, Midpoint, Secant, Tolerance};
+use crate::{Distance, Edge, Intersection, IsClose, Midpoint, Tolerance, spherical::Point};
 
 /// Reresents the arc between two consecutive vertices of a [`Polygon`].
 #[derive(Debug)]
@@ -32,13 +32,13 @@ where
     }
 }
 
-impl<T> Secant for Arc<'_, T>
+impl<T> Intersection for Arc<'_, T>
 where
     T: PartialOrd + Signed + Float + FloatConst + Euclid,
 {
-    type Point = Point<T>;
+    type Intersection = Point<T>;
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Point> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Intersection> {
         if self.length().is_zero() || rhs.length().is_zero() {
             return None;
         }
@@ -59,19 +59,19 @@ where
             return self.co_great_circular_common_point(rhs, tolerance);
         }
 
-        if self.contains(&rhs.from, tolerance) {
+        if self.contains(rhs.from, tolerance) {
             return Some(*rhs.from);
         }
 
-        if self.contains(&rhs.to, tolerance) {
+        if self.contains(rhs.to, tolerance) {
             return Some(*rhs.to);
         }
 
-        if rhs.contains(&self.from, tolerance) {
+        if rhs.contains(self.from, tolerance) {
             return Some(*self.from);
         }
 
-        if rhs.contains(&self.to, tolerance) {
+        if rhs.contains(self.to, tolerance) {
             return Some(*self.to);
         }
 

@@ -1,8 +1,8 @@
 use num_traits::{Float, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point},
-    Edge, IsClose, Metric, Midpoint, Secant, Tolerance,
+    Distance, Edge, Intersection, IsClose, Midpoint, Tolerance,
+    cartesian::{Point, determinant::Determinant},
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].
@@ -29,13 +29,13 @@ where
     }
 }
 
-impl<T> Secant for Segment<'_, T>
+impl<T> Intersection for Segment<'_, T>
 where
     T: Signed + Float,
 {
-    type Point = Point<T>;
+    type Intersection = Point<T>;
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Point> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Intersection> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
@@ -131,8 +131,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        cartesian::{point::cartesian_point, Point, Segment},
-        Secant,
+        Intersection,
+        cartesian::{Point, Segment, point::cartesian_point},
     };
 
     #[test]

@@ -177,11 +177,11 @@ where
     }
 }
 
-impl<T> Metric for Point<T>
+impl<T> Distance for Point<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    type Scalar = T;
+    type Distance = T;
 
     fn distance(&self, rhs: &Self) -> T {
         let from = Cartesian::from(*self);
@@ -213,4 +213,4 @@ where
     }
 }
 
-use crate::{IsClose, Metric, Tolerance};
+use crate::{Distance, IsClose, Tolerance};

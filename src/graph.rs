@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
+    Distance, Edge, Geometry, Intersection, IsClose, Shape, Tolerance,
     vertex::{Role, Vertex},
-    Edge, Geometry, IsClose, Metric, Secant, Shape, Tolerance,
 };
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
@@ -73,7 +73,7 @@ where
 
 /// The intersection between two edges.
 #[derive(Debug)]
-struct Intersection<T>
+struct EdgeIntersection<T>
 where
     T: Geometry,
 {
@@ -86,15 +86,15 @@ where
 }
 
 /// All the intersections between the edges of a subject and clip [`Shape`]s.
-struct Intersections<T>
+struct EdgeIntersections<T>
 where
     T: Geometry,
 {
-    all: Vec<Intersection<T>>,
+    all: Vec<EdgeIntersection<T>>,
     by_edge: BTreeMap<usize, Vec<usize>>,
 }
 
-impl<T> Default for Intersections<T>
+impl<T> Default for EdgeIntersections<T>
 where
     T: Geometry,
 {
@@ -106,11 +106,11 @@ where
     }
 }
 
-impl<T> Intersections<T>
+impl<T> EdgeIntersections<T>
 where
     T: Geometry,
 {
-    fn with_intersection(mut self, intersection: Intersection<T>) -> Self {
+    fn with_intersection(mut self, intersection: EdgeIntersection<T>) -> Self {
         let index = self.all.len();
 
         match self.by_edge.get_mut(&intersection.subject) {
@@ -230,8 +230,7 @@ where
         self.vertices[index]
             .take()
             .iter()
-            .map(|vertex| vertex.siblings.iter())
-            .flatten()
+            .flat_map(|vertex| vertex.siblings.iter())
             .for_each(|&sibling| self.purge(sibling));
     }
 }
@@ -242,14 +241,14 @@ where
 {
     graph: Graph<T>,
     polygons: Vec<Boundary>,
-    tolerance: Tolerance<<T::Point as Metric>::Scalar>,
+    tolerance: Tolerance<<T::Point as Distance>::Distance>,
 }
 
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
 {
-    pub(super) fn new(tolerance: Tolerance<<T::Point as Metric>::Scalar>) -> Self {
+    pub(super) fn new(tolerance: Tolerance<<T::Point as Distance>::Distance>) -> Self {
         Self {
             graph: Default::default(),
             polygons: Default::default(),
@@ -261,13 +260,13 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Secant<Point = T::Point> + Edge<'a, Endpoint = T::Point>,
-    T::Point: Metric
-        + IsClose<Tolerance = Tolerance<<T::Point as Metric>::Scalar>>
+    for<'a> T::Edge<'a>: Intersection<Intersection = T::Point> + Edge<'a, Endpoint = T::Point>,
+    T::Point: Distance
+        + IsClose<Tolerance = Tolerance<<T::Point as Distance>::Distance>>
         + Copy
         + PartialEq
         + PartialOrd,
-    <T::Point as Metric>::Scalar: Copy + PartialOrd,
+    <T::Point as Distance>::Distance: Copy + PartialOrd,
 {
     pub(super) fn build(mut self) -> Graph<T> {
         let intersections = self.intersections();
@@ -397,12 +396,12 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    for<'a> T::Edge<'a>: Secant<Point = T::Point> + Edge<'a, Endpoint = T::Point>,
-    <T::Point as Metric>::Scalar: Copy,
+    for<'a> T::Edge<'a>: Intersection<Intersection = T::Point> + Edge<'a, Endpoint = T::Point>,
+    <T::Point as Distance>::Distance: Copy,
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
-    fn intersections(&self) -> Intersections<T> {
-        let mut intersections = Intersections::default();
+    fn intersections(&self) -> EdgeIntersections<T> {
+        let mut intersections = EdgeIntersections::default();
         for subject_polygon in self.polygons.iter().filter(|p| p.is_subject()) {
             for clip_polygon in self.polygons.iter().filter(|p| !p.is_subject()) {
                 for subject_edge in self.graph.edges(subject_polygon) {
@@ -411,7 +410,7 @@ where
                             .edge
                             .intersection(&clip_edge.edge, &self.tolerance)
                         {
-                            intersections = intersections.with_intersection(Intersection {
+                            intersections = intersections.with_intersection(EdgeIntersection {
                                 point: intersection,
                                 subject: subject_edge.index,
                                 clip: clip_edge.index,

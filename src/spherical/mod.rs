@@ -4,13 +4,13 @@ mod polygon;
 
 pub use self::arc::Arc;
 pub use self::point::Point;
-pub use self::polygon::{spherical_polygon, Polygon};
+pub use self::polygon::{Polygon, spherical_polygon};
 
 #[cfg(test)]
 mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
-    use crate::{spherical::Polygon, spherical_polygon, Shape, Tolerance};
+    use crate::{Shape, Tolerance, spherical::Polygon, spherical_polygon};
 
     #[test]
     fn union() {

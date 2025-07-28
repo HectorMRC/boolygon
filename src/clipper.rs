@@ -1,9 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::{
+    Distance, Edge, FromRaw, Geometry, Intersection, IsClose, Midpoint, RightHanded, Shape,
+    Tolerance,
     graph::{Graph, GraphBuilder},
     vertex::{Vertex, VerticesIterator},
-    Edge, FromRaw, Geometry, IsClose, Metric, Midpoint, RightHanded, Secant, Shape, Tolerance,
 };
 
 /// Marker for yet undefined generic parameters.
@@ -34,7 +35,7 @@ where
     fn is_output<'a>(
         ops: Operands<'a, T>,
         vertex: &'a Vertex<T>,
-        tolerance: &Tolerance<<T::Point as Metric>::Scalar>,
+        tolerance: &Tolerance<<T::Point as Distance>::Distance>,
     ) -> bool;
 }
 
@@ -94,10 +95,11 @@ impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
     U: RightHanded + Geometry + FromRaw + Clone + IntoIterator<Item = U::Point>,
-    for<'a> U::Edge<'a>:
-        Edge<'a, Endpoint = U::Point> + Midpoint<Point = U::Point> + Secant<Point = U::Point>,
+    for<'a> U::Edge<'a>: Edge<'a, Endpoint = U::Point>
+        + Midpoint<Point = U::Point>
+        + Intersection<Intersection = U::Point>,
     U::Point:
-        Metric<Scalar = T> + IsClose<Tolerance = Tolerance<T>> + Copy + PartialEq + PartialOrd,
+        Distance<Distance = T> + IsClose<Tolerance = Tolerance<T>> + Copy + PartialEq + PartialOrd,
     T: Copy + PartialOrd,
     Op: Operator<U>,
 {
@@ -146,8 +148,8 @@ impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
     U: Geometry,
     for<'a> U::Edge<'a>: Edge<'a, Endpoint = U::Point> + Midpoint<Point = U::Point>,
-    U::Point: Metric<Scalar = T>,
-    <U::Point as Metric>::Scalar: Copy,
+    U::Point: Distance<Distance = T>,
+    <U::Point as Distance>::Distance: Copy,
     Op: Operator<U>,
 {
     pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Vertex<U>) -> Option<usize> {
