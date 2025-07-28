@@ -18,19 +18,16 @@ use self::{
     vertex::{Role, Vertex},
 };
 
-/// An element of the [`Geometry`]'s space.
-pub trait Element {
-    /// The scalar type this element is made of.
-    type Scalar;
-
-    /// Returns the distance between this element and rhs.
+/// A point in an arbitrary space.
+pub trait Point: IsClose {
+    /// Returns the distance between this point and rhs.
     fn distance(&self, rhs: &Self) -> Self::Scalar;
 }
 
-/// An edge delimited by two points in a [`Geometry`].
+/// An edge delimited by two endpoints in a [`Geometry`].
 pub trait Edge<'a, T>
 where
-    T: Element,
+    T: Point,
 {
     /// Returns an edge from the given endpoints.
     fn new(from: &'a T, to: &'a T) -> Self;
@@ -39,10 +36,10 @@ where
     fn midpoint(&self) -> T;
 
     /// Returns true if, and only if, the given point exists in this edge.
-    fn contains(&self, point: &T, tolerance: &Tolerance<<T as Element>::Scalar>) -> bool;
+    fn contains(&self, point: &T, tolerance: &Tolerance<T::Scalar>) -> bool;
 
     /// Returns the intersection between this edge and rhs, if any.
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<<T as Element>::Scalar>) -> Option<T>;
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T::Scalar>) -> Option<T>;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.
@@ -54,7 +51,7 @@ pub trait RightHanded {
 /// A geometry in an arbitrary space.
 pub trait Geometry: Sized + RightHanded {
     /// The type of point this geometry is made of.
-    type Point: Element;
+    type Point: Point;
 
     /// The edge this geometry is made of.
     type Edge<'a>: Edge<'a, Self::Point>
@@ -65,7 +62,7 @@ pub trait Geometry: Sized + RightHanded {
     fn from_raw(
         operands: Operands<Self>,
         vertices: Vec<Self::Point>,
-        tolerance: &Tolerance<<Self::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<Self::Point as IsClose>::Scalar>,
     ) -> Option<Self>;
 
     /// Returns this geometry with the reversed winding.
@@ -81,7 +78,7 @@ pub trait Geometry: Sized + RightHanded {
     fn winding(
         &self,
         point: &Self::Point,
-        tolerance: &Tolerance<<Self::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<Self::Point as IsClose>::Scalar>,
     ) -> isize;
 }
 
@@ -119,23 +116,22 @@ where
 impl<T> Shape<T>
 where
     T: Geometry + Clone + IntoIterator<Item = T::Point>,
-    T::Point:
-        Element + Copy + IsClose<Scalar = <T::Point as Element>::Scalar> + PartialEq + PartialOrd,
-    <T::Point as Element>::Scalar: Copy + PartialOrd,
+    T::Point: Copy + PartialEq + PartialOrd,
+    <T::Point as IsClose>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of self and rhs.
-    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Point as Element>::Scalar>) -> Self {
+    pub fn or(self, rhs: Self, tolerance: Tolerance<<T::Point as IsClose>::Scalar>) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Geometry,
-            <T::Point as Element>::Scalar: Copy,
+            <T::Point as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -162,19 +158,19 @@ where
     pub fn not(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
         where
             T: Geometry,
-            <T::Point as Element>::Scalar: Copy,
+            <T::Point as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -200,19 +196,19 @@ where
     pub fn and(
         self,
         rhs: Self,
-        tolerance: Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for AndOperator<T>
         where
             T: Geometry,
-            <T::Point as Element>::Scalar: Copy,
+            <T::Point as IsClose>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
                 vertex: &'a Vertex<T>,
-                tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+                tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
             ) -> bool {
                 match vertex.role {
                     Role::Subject => {
@@ -243,7 +239,7 @@ where
     pub(crate) fn is_boundary(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> bool {
         self.polygons
             .iter()
@@ -255,14 +251,14 @@ where
 impl<T> Shape<T>
 where
     T: Geometry,
-    T::Point: Element,
-    <T::Point as Element>::Scalar: Copy,
+    T::Point: Point,
+    <T::Point as IsClose>::Scalar: Copy,
 {
     /// Returns the amount of times self winds around the given [`Point`].
     fn winding(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> isize {
         self.polygons
             .iter()
@@ -274,7 +270,7 @@ where
     pub(crate) fn contains(
         &self,
         point: &T::Point,
-        tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> bool {
         self.winding(point, tolerance) != 0
     }

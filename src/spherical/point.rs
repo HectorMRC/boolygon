@@ -1,6 +1,8 @@
 use geocart::{Cartesian, Geographic, Latitude, Longitude};
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
+use crate::{IsClose, Tolerance};
+
 /// The angle between a radial line and the polar axis.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct PolarAngle<T>(T);
@@ -177,12 +179,10 @@ where
     }
 }
 
-impl<T> Element for Point<T>
+impl<T> crate::Point for Point<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    type Scalar = T;
-
     fn distance(&self, rhs: &Self) -> T {
         let from = Cartesian::from(*self);
         let to = Cartesian::from(*rhs);
@@ -212,5 +212,3 @@ where
                 .is_close(&rhs.azimuthal_angle, tolerance)
     }
 }
-
-use crate::{Element, IsClose, Tolerance};

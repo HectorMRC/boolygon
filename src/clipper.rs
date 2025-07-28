@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     graph::{Graph, GraphBuilder},
     vertex::{Vertex, VerticesIterator},
-    Edge, Element, Geometry, IsClose, Shape, Tolerance,
+    Edge, Geometry, IsClose, Shape, Tolerance,
 };
 
 /// Marker for yet undefined generic parameters.
@@ -34,7 +34,7 @@ where
     fn is_output<'a>(
         ops: Operands<'a, T>,
         vertex: &'a Vertex<T>,
-        tolerance: &Tolerance<<T::Point as Element>::Scalar>,
+        tolerance: &Tolerance<<T::Point as IsClose>::Scalar>,
     ) -> bool;
 }
 
@@ -93,9 +93,9 @@ impl<T, Op, Sub> Clipper<T, Op, Sub, Unknown> {
 
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
-    U: Geometry + Clone + IntoIterator<Item = U::Point>,
-    U::Point: Element<Scalar = T> + IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
     T: Copy + PartialOrd,
+    U: Geometry + Clone + IntoIterator<Item = U::Point>,
+    U::Point: IsClose<Scalar = T> + Copy + PartialEq + PartialOrd,
     Op: Operator<U>,
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
@@ -141,9 +141,9 @@ where
 
 impl<T, U, Op> Clipper<T, Op, Shape<U>, Shape<U>>
 where
+    T: Copy,
     U: Geometry,
-    U::Point: Element<Scalar = T>,
-    <U::Point as Element>::Scalar: Copy,
+    U::Point: IsClose<Scalar = T>,
     Op: Operator<U>,
 {
     pub(super) fn select_path(&self, graph: &Graph<U>, vertex: &Vertex<U>) -> Option<usize> {

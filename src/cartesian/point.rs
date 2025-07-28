@@ -1,6 +1,6 @@
 use num_traits::Float;
 
-use crate::{Element, IsClose, Tolerance};
+use crate::{IsClose, Tolerance};
 
 /// A point in the plain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -17,12 +17,10 @@ impl<T> From<[T; 2]> for Point<T> {
     }
 }
 
-impl<T> Element for Point<T>
+impl<T> crate::Point for Point<T>
 where
     T: Copy + Float,
 {
-    type Scalar = T;
-
     fn distance(&self, rhs: &Self) -> Self::Scalar {
         ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
     }

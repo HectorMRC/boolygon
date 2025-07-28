@@ -2,7 +2,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     cartesian::{determinant::Determinant, Point},
-    Edge, Element, IsClose, Tolerance,
+    Edge, IsClose, Point as _, Tolerance,
 };
 
 /// Represents the straight line between two consecutive vertices of a [`Polygon`].

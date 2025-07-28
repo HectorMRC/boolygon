@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{spherical::Point, Edge, Element, IsClose, Tolerance};
+use crate::{spherical::Point, Edge, IsClose, Point as _, Tolerance};
 
 /// Reresents the arc between two consecutive vertices of a [`Polygon`].
 #[derive(Debug)]

@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
 
 use crate::{
     vertex::{Role, Vertex},
-    Edge, Element, Geometry, IsClose, Shape, Tolerance,
+    Edge, Geometry, IsClose, Point, Shape, Tolerance,
 };
 
 /// The index of the first [`Vertex`] of a [`Polygon`] belonging to the clip or subject [`Shape`].
@@ -239,14 +239,14 @@ where
 {
     graph: Graph<T>,
     polygons: Vec<Boundary>,
-    tolerance: Tolerance<<T::Point as Element>::Scalar>,
+    tolerance: Tolerance<<T::Point as IsClose>::Scalar>,
 }
 
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
 {
-    pub(super) fn new(tolerance: Tolerance<<T::Point as Element>::Scalar>) -> Self {
+    pub(super) fn new(tolerance: Tolerance<<T::Point as IsClose>::Scalar>) -> Self {
         Self {
             graph: Default::default(),
             polygons: Default::default(),
@@ -258,9 +258,8 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    T::Point:
-        Element + IsClose<Scalar = <T::Point as Element>::Scalar> + Copy + PartialEq + PartialOrd,
-    <T::Point as Element>::Scalar: Copy + PartialOrd,
+    T::Point: Copy + PartialEq + PartialOrd,
+    <T::Point as IsClose>::Scalar: Copy + PartialOrd,
 {
     pub(super) fn build(mut self) -> Graph<T> {
         let intersections = self.intersections();
@@ -390,7 +389,7 @@ where
 impl<T> GraphBuilder<T>
 where
     T: Geometry,
-    <T::Point as Element>::Scalar: Copy,
+    <T::Point as IsClose>::Scalar: Copy,
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {
