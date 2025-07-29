@@ -389,16 +389,12 @@ mod tests {
                         vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
                     ],
                 },
-                want: Some(Shape::new(cartesian_polygon!(
-                    [2., 4.],
-                    [2., 3.],
-                    [3., 3.],
-                    [3., 2.],
-                    [4., 2.],
-                    [4., 3.],
-                    [3., 3.],
-                    [3., 4.]
-                ))),
+                want: Some(Shape {
+                    boundaries: vec![
+                        cartesian_polygon!([2., 4.], [2., 3.], [3., 3.], [3., 4.]),
+                        cartesian_polygon!([3., 2.], [4., 2.], [4., 3.], [3., 3.]),
+                    ],
+                }),
             },
         ]
         .into_iter()

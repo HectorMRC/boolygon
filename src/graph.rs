@@ -190,6 +190,7 @@ where
         }
     }
 
+    /// Returns the index of the first node in the graph satifying the given closure.
     pub(super) fn position_where(&self, f: impl Fn(&Node<T>) -> bool) -> Option<usize> {
         self.nodes
             .iter()
@@ -199,12 +200,13 @@ where
             .map(|(start, _)| start)
     }
 
-    pub(super) fn purge(&mut self, index: usize) {
-        self.nodes[index]
-            .take()
+    /// Returns an iterator of indexes in the graph containing successors of the given node.
+    pub(super) fn successors(&self, node: &Node<T>) -> impl Iterator<Item = usize> {
+        node.siblings
             .iter()
-            .flat_map(|node| node.siblings.iter())
-            .for_each(|&sibling| self.purge(sibling));
+            .filter_map(|&sibling| self.nodes[sibling].as_ref())
+            .map(|sibling| sibling.next)
+            .chain([node.next])
     }
 }
 

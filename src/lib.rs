@@ -164,7 +164,6 @@ where
         impl<T> Operator<T> for NotOperator<T>
         where
             T: Geometry,
-            <T::Vertex as Vertex>::Scalar: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,
@@ -199,7 +198,6 @@ where
         impl<T> Operator<T> for AndOperator<T>
         where
             T: Geometry,
-            // <T::Vertex as IsClose>::Tolerance: Copy,
         {
             fn is_output<'a>(
                 ops: Operands<'a, T>,

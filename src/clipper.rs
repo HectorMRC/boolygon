@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     graph::{Graph, GraphBuilder},
-    node::{Node, NodeIterator},
+    node::{BoundaryCollector, Node, NodeIterator},
     Edge, Geometry, IsClose, Shape, Vertex,
 };
 
@@ -119,19 +119,14 @@ where
         while let Some(position) =
             graph.position_where(|node| Op::is_output((&self).into(), node, &self.tolerance))
         {
-            // By starting at the next node it is ensured there is a path to follow.
-            let Some(position) = self.select_path(&graph, graph.nodes[position].as_ref()?) else {
-                graph.purge(position);
-                continue;
-            };
-
-            let nodes = NodeIterator {
+            let Some(nodes) = BoundaryCollector::from(NodeIterator {
                 clipper: &self,
                 graph: &mut graph,
                 next: Some(position),
-            }
-            .map(|node| node.vertex)
-            .collect();
+            })
+            .collect() else {
+                continue;
+            };
 
             let Some(boundary) = U::from_raw((&self).into(), nodes, &self.tolerance) else {
                 continue;
