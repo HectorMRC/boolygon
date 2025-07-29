@@ -33,8 +33,6 @@ where
     pub(super) role: Role,
     /// The index of the node following this one.
     pub(super) next: usize,
-    /// The index of the node previous to this one.
-    pub(super) previous: usize,
     /// Vertices from the oposite shape located at the same point.
     pub(super) siblings: BTreeSet<usize>,
 }

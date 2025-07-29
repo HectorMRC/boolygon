@@ -347,16 +347,10 @@ where
                             .expect("previous node should exist")
                             .next = index;
 
-                        self.graph.nodes[next]
-                            .as_mut()
-                            .expect("next node should exist")
-                            .previous = index;
-
                         self.graph.nodes.push(Some(Node {
                             vertex: intersection_point,
                             role,
                             next,
-                            previous,
                             siblings,
                         }));
                     }
@@ -422,14 +416,11 @@ where
             self.boundaries.push(role);
 
             let total_vertices = boundary.total_vertices();
-            for (mut index, point) in boundary.into_iter().enumerate() {
-                index += total_vertices;
-
+            for (index, point) in boundary.into_iter().enumerate() {
                 self.graph.nodes.push(Some(Node {
                     vertex: point,
                     role,
                     next: offset + ((index + 1) % total_vertices),
-                    previous: offset + ((index - 1) % total_vertices),
                     siblings: BTreeSet::new(),
                 }));
             }
