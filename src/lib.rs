@@ -74,7 +74,7 @@ pub trait Geometry: Sized + RightHanded {
     /// Returns an ordered iterator over all the segmentss of this geometry.
     fn edges(&self) -> impl Iterator<Item = Self::Edge<'_>>;
 
-    /// Returns this geometry with the reversed winding.
+    /// Returns this geometry with the reversed orientation.
     fn reversed(self) -> Self;
 
     /// Returns the amount of times this geometry winds around the given vertex.

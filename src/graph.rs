@@ -9,6 +9,7 @@ use crate::{
     Edge, Geometry, IsClose, Shape, Vertex,
 };
 
+/// An edge in the [`Graph`] and the position of the [`Node`] containing the first endpoint.
 #[derive(Debug)]
 struct EnumeratedEdge<'a, T>
 where
@@ -18,6 +19,7 @@ where
     index: usize,
 }
 
+/// An iterator of [`EnumeratedEdge`] that stops yilding items when the same [`Node`] in the [`Graph`] is visited twice.
 struct EnumeratedEdgesIterator<'a, T>
 where
     T: Geometry,
@@ -106,6 +108,7 @@ where
     }
 }
 
+/// The key for the [`PartialOrdBTreeMap`].
 #[derive(Debug, PartialEq)]
 struct PartialOrdKey<T>(T);
 
@@ -134,6 +137,7 @@ impl<T> From<T> for PartialOrdKey<T> {
     }
 }
 
+/// A [`BTreeMap`] that accepts keys that only implements [`PartialOrd`].
 #[derive(Debug)]
 struct PartialOrdBTreeMap<K, V>(BTreeMap<PartialOrdKey<K>, V>);
 
@@ -156,6 +160,7 @@ impl<K, V> PartialOrdBTreeMap<K, V> {
     }
 }
 
+/// A graph of vertices and its relations.
 pub(super) struct Graph<T>
 where
     T: Geometry,
@@ -210,6 +215,7 @@ where
     }
 }
 
+/// A builder for [`Graph`].
 pub(super) struct GraphBuilder<'a, T>
 where
     T: Geometry,

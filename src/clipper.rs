@@ -58,7 +58,7 @@ impl Default for Clipper<Unknown, Unknown, Unknown, Unknown> {
 }
 
 impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
-    pub fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip, Tol> {
+    pub(super) fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -69,7 +69,7 @@ impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
 }
 
 impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
-    pub fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<Op, Shape<U>, Clip, Tol> {
+    pub(super) fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<Op, Shape<U>, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -80,7 +80,7 @@ impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
 }
 
 impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
-    pub fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Op, Sub, Shape<U>, Tol> {
+    pub(super) fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Op, Sub, Shape<U>, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -91,7 +91,7 @@ impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
 }
 
 impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
-    pub fn with_tolerance<Tol>(self, tolerance: Tol) -> Clipper<Op, Sub, Clip, Tol> {
+    pub(super) fn with_tolerance<Tol>(self, tolerance: Tol) -> Clipper<Op, Sub, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             subject: self.subject,
@@ -109,7 +109,7 @@ where
     Op: Operator<U>,
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
-    pub fn execute(self) -> Option<Shape<U>> {
+    pub(super) fn execute(self) -> Option<Shape<U>> {
         let mut graph = GraphBuilder::new(&self.tolerance)
             .with_subject(self.subject.clone())
             .with_clip(self.clip.clone())
