@@ -8,7 +8,7 @@ use crate::{
     Geometry, RightHanded, Tolerance,
 };
 
-/// Represents a polygon in the plain.
+/// A polygon in the plain.
 #[derive(Debug, Clone)]
 pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  

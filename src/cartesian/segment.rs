@@ -5,7 +5,7 @@ use crate::{
     Edge, IsClose, Tolerance, Vertex as _,
 };
 
-/// Represents the straight line between two consecutive vertices of a [`Polygon`].
+/// The straight line between two endpoints.
 #[derive(Debug)]
 pub struct Segment<'a, T> {
     /// The first point in the segment.

@@ -10,7 +10,7 @@ use crate::{clipper::Operands, spherical::Arc, Edge, Geometry, RightHanded, Tole
 
 use super::Point;
 
-/// Represents a spherical polygon.
+/// A spherical polygon.
 #[derive(Debug, Clone)]
 pub struct Polygon<T> {
     /// The ordered list of vertices describing the polygon.  

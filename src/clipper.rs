@@ -9,7 +9,7 @@ use crate::{
 /// Marker for yet undefined generic parameters.
 pub struct Unknown;
 
-/// References to both operand, the subject and clip shapes, of a clipping operation.
+/// The subject and clip operands of a clipping operation.
 pub struct Operands<'a, T> {
     pub subject: &'a Shape<T>,
     pub clip: &'a Shape<T>,
@@ -24,7 +24,7 @@ impl<'a, U, Op, Tol> From<&'a Clipper<Op, Shape<U>, Shape<U>, Tol>> for Operands
     }
 }
 
-/// Represents the operation to perform by the clipping algorithm.
+/// The operation to perform by the clipping algorithm.
 pub(super) trait Operator<T>
 where
     T: Geometry,
