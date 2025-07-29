@@ -46,14 +46,13 @@ pub(super) struct Clipper<Operator, Subject, Clip, Tolerance> {
     clip: Clip,
 }
 
-impl<Tol> Clipper<Unknown, Unknown, Unknown, Tol> {
-    /// Returns a default clipper with the given tolerance.
-    pub fn new(tolerance: Tol) -> Self {
+impl Default for Clipper<Unknown, Unknown, Unknown, Unknown> {
+    fn default() -> Self {
         Self {
             operator: PhantomData,
+            tolerance: Unknown,
             subject: Unknown,
             clip: Unknown,
-            tolerance,
         }
     }
 }
@@ -62,9 +61,9 @@ impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
     pub fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip, Tol> {
         Clipper {
             operator: PhantomData,
+            tolerance: self.tolerance,
             subject: self.subject,
             clip: self.clip,
-            tolerance: self.tolerance,
         }
     }
 }
@@ -73,9 +72,9 @@ impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
     pub fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<Op, Shape<U>, Clip, Tol> {
         Clipper {
             operator: PhantomData,
+            tolerance: self.tolerance,
             subject: subject.into(),
             clip: self.clip,
-            tolerance: self.tolerance,
         }
     }
 }
@@ -84,9 +83,20 @@ impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
     pub fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Op, Sub, Shape<U>, Tol> {
         Clipper {
             operator: PhantomData,
+            tolerance: self.tolerance,
             subject: self.subject,
             clip: clip.into(),
-            tolerance: self.tolerance,
+        }
+    }
+}
+
+impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
+    pub fn with_tolerance<Tol>(self, tolerance: Tol) -> Clipper<Op, Sub, Clip, Tol> {
+        Clipper {
+            operator: PhantomData,
+            subject: self.subject,
+            clip: self.clip,
+            tolerance,
         }
     }
 }

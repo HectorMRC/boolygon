@@ -148,8 +148,9 @@ where
             }
         }
 
-        Clipper::new(tolerance)
+        Clipper::default()
             .with_operator::<OrOperator<T>>()
+            .with_tolerance(tolerance)
             .with_subject(self)
             .with_clip(rhs)
             .execute()
@@ -183,8 +184,9 @@ where
             }
         }
 
-        Clipper::new(tolerance)
+        Clipper::default()
             .with_operator::<NotOperator<T>>()
+            .with_tolerance(tolerance)
             .with_clip(rhs.inverted_winding())
             .with_subject(self)
             .execute()
@@ -217,8 +219,9 @@ where
             }
         }
 
-        Clipper::new(tolerance)
+        Clipper::default()
             .with_operator::<AndOperator<T>>()
+            .with_tolerance(tolerance)
             .with_subject(self)
             .with_clip(rhs)
             .execute()
