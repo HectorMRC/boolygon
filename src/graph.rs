@@ -1,35 +1,13 @@
-use std::{cmp::Ordering, collections::BTreeMap, fmt::Debug};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+};
 
 use crate::{
     node::{Node, Role},
     Edge, Geometry, IsClose, Shape, Vertex,
 };
-
-/// The index of the first [`Node`] of a [`Geometry`] belonging to the clip or subject [`Shape`].
-#[derive(Debug)]
-enum Boundary {
-    Clip(usize),
-    Subject(usize),
-}
-
-impl From<&Boundary> for Role {
-    fn from(boundary: &Boundary) -> Self {
-        match boundary {
-            Boundary::Subject(_) => Role::Subject,
-            Boundary::Clip(_) => Role::Clip,
-        }
-    }
-}
-
-impl Boundary {
-    fn is_subject(&self) -> bool {
-        matches!(self, Boundary::Subject(_))
-    }
-
-    fn role(&self) -> Role {
-        self.into()
-    }
-}
 
 #[derive(Debug)]
 struct EnumeratedEdge<'a, T>
@@ -200,9 +178,9 @@ impl<T> Graph<T>
 where
     T: Geometry,
 {
-    fn edges(&self, boundary: &Boundary) -> impl Iterator<Item = EnumeratedEdge<T>> {
+    fn edges(&self, boundary: &Role) -> impl Iterator<Item = EnumeratedEdge<T>> {
         let start = match boundary {
-            Boundary::Clip(index) | Boundary::Subject(index) => *index,
+            Role::Clip(index) | Role::Subject(index) => *index,
         };
 
         EnumeratedEdgesIterator {
@@ -235,7 +213,7 @@ where
     T: Geometry,
 {
     graph: Graph<T>,
-    polygons: Vec<Boundary>,
+    boundaries: Vec<Role>,
     tolerance: &'a <T::Vertex as IsClose>::Tolerance,
 }
 
@@ -246,7 +224,7 @@ where
     pub(super) fn new(tolerance: &'a <T::Vertex as IsClose>::Tolerance) -> Self {
         Self {
             graph: Default::default(),
-            polygons: Default::default(),
+            boundaries: Default::default(),
             tolerance,
         }
     }
@@ -336,7 +314,7 @@ where
                                 .as_mut()
                                 .expect("sibling should exist")
                                 .siblings
-                                .push(index)
+                                .insert(index);
                         })
                         .collect();
 
@@ -390,10 +368,10 @@ where
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {
         let mut intersections = EdgeIntersections::default();
-        for subject_polygon in self.polygons.iter().filter(|p| p.is_subject()) {
-            for clip_polygon in self.polygons.iter().filter(|p| !p.is_subject()) {
-                for subject_edge in self.graph.edges(subject_polygon) {
-                    for clip_edge in self.graph.edges(clip_polygon) {
+        for subject_boundary in self.boundaries.iter().filter(|p| p.is_subject()) {
+            for clip_boundary in self.boundaries.iter().filter(|p| !p.is_subject()) {
+                for subject_edge in self.graph.edges(subject_boundary) {
+                    for clip_edge in self.graph.edges(clip_boundary) {
                         if let Some(intersection) = subject_edge
                             .edge
                             .intersection(&clip_edge.edge, self.tolerance)
@@ -418,26 +396,25 @@ where
     T: Geometry + IntoIterator<Item = T::Vertex>,
 {
     pub(super) fn with_subject(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, Boundary::Subject)
+        self.with_shape(shape, Role::Subject)
     }
 
     pub(super) fn with_clip(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, Boundary::Clip)
+        self.with_shape(shape, Role::Clip)
     }
 
-    fn with_shape(mut self, shape: Shape<T>, boundary: impl Fn(usize) -> Boundary) -> Self {
+    fn with_shape(mut self, shape: Shape<T>, role: impl Fn(usize) -> Role) -> Self {
         self.graph.nodes.reserve(shape.total_vertices());
-        self.polygons.reserve(shape.polygons.len());
+        self.boundaries.reserve(shape.boundaries.len());
 
-        for polygon in shape.polygons {
+        for boundary in shape.boundaries {
             let offset = self.graph.nodes.len();
-            let boundary = boundary(offset);
-            let role = boundary.role();
+            let role = role(offset);
 
-            self.polygons.push(boundary);
+            self.boundaries.push(role);
 
-            let total_vertices = polygon.total_vertices();
-            for (mut index, point) in polygon.into_iter().enumerate() {
+            let total_vertices = boundary.total_vertices();
+            for (mut index, point) in boundary.into_iter().enumerate() {
                 index += total_vertices;
 
                 self.graph.nodes.push(Some(Node {
@@ -445,7 +422,7 @@ where
                     role,
                     next: offset + ((index + 1) % total_vertices),
                     previous: offset + ((index - 1) % total_vertices),
-                    siblings: Vec::new(),
+                    siblings: BTreeSet::new(),
                 }));
             }
         }

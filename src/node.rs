@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::BTreeSet, fmt::Debug};
 
 use crate::{
     clipper::{Clipper, Operator},
@@ -10,9 +10,15 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub(super) enum Role {
     /// The node belongs to the subject shape.
-    Subject,
+    Subject(usize),
     /// The node belongs to the clip shape.
-    Clip,
+    Clip(usize),
+}
+
+impl Role {
+    pub(super) fn is_subject(&self) -> bool {
+        matches!(self, Role::Subject(_))
+    }
 }
 
 #[derive(Debug)]
@@ -29,7 +35,7 @@ where
     /// The index of the node previous to this one.
     pub(super) previous: usize,
     /// Vertices from the oposite shape located at the same point.
-    pub(super) siblings: Vec<usize>,
+    pub(super) siblings: BTreeSet<usize>,
 }
 
 impl<T> Node<T>
@@ -48,7 +54,6 @@ where
     pub(super) clipper: &'a Clipper<Op, Shape<T>, Shape<T>, <T::Vertex as IsClose>::Tolerance>,
     pub(super) graph: &'a mut Graph<T>,
     pub(super) next: Option<usize>,
-    pub(super) init: usize,
 }
 
 impl<Op, T> Iterator for NodeIterator<'_, Op, T>
@@ -60,17 +65,7 @@ where
     type Item = Node<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let next = self.next.unwrap_or(self.init);
-        if self.graph.nodes[next]
-            .as_ref()?
-            .siblings
-            .contains(&self.init)
-        {
-            // The polygon is already closed.
-            return None;
-        }
-
-        let node = self.graph.nodes[next].take()?;
+        let node = self.graph.nodes[self.next?].take()?;
         self.next = self.clipper.select_path(self.graph, &node);
 
         if let Some(previous) = self

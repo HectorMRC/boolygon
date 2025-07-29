@@ -3,13 +3,13 @@ mod point;
 mod polygon;
 mod segment;
 
-pub use self::point::{Point, cartesian_point};
-pub use self::polygon::{Polygon, cartesian_polygon};
+pub use self::point::{cartesian_point, Point};
+pub use self::polygon::{cartesian_polygon, Polygon};
 pub use self::segment::Segment;
 
 #[cfg(test)]
 mod tests {
-    use crate::{Shape, cartesian::Polygon, cartesian_polygon};
+    use crate::{cartesian::Polygon, cartesian_polygon, Shape};
 
     #[test]
     fn union() {
@@ -76,7 +76,7 @@ mod tests {
                     [6., 10.]
                 )),
                 want: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[6., 6.], [10., 6.], [10., 10.], [6., 10.]].into(),
                     ],
@@ -97,7 +97,7 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
@@ -108,7 +108,7 @@ mod tests {
             Test {
                 name: "subject with hole excluding clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
@@ -120,7 +120,7 @@ mod tests {
                     [1.5, 2.5]
                 )),
                 want: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                         vec![[1.5, 1.5], [2.5, 1.5], [2.5, 2.5], [1.5, 2.5]].into(),
@@ -185,7 +185,7 @@ mod tests {
                 subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
                 clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
@@ -200,14 +200,14 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
                 },
                 clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
                     ],
@@ -216,7 +216,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
@@ -238,19 +238,19 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip with hole",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
                 },
                 clip: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
                         vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
                     ],
                 },
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![
                             [0., 0.],
                             [4., 0.],
@@ -344,14 +344,14 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
                 },
                 clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
@@ -360,7 +360,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
@@ -378,13 +378,13 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip with hole",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
                 },
                 clip: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
                         vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
                     ],

@@ -4,13 +4,13 @@ mod polygon;
 
 pub use self::arc::Arc;
 pub use self::point::Point;
-pub use self::polygon::{Polygon, spherical_polygon};
+pub use self::polygon::{spherical_polygon, Polygon};
 
 #[cfg(test)]
 mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
-    use crate::{Shape, Tolerance, spherical::Polygon, spherical_polygon};
+    use crate::{spherical::Polygon, spherical_polygon, Shape, Tolerance};
 
     #[test]
     fn union() {
@@ -60,7 +60,7 @@ mod tests {
                     [0., 0.]
                 )),
                 want: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
                             [FRAC_PI_2, 0.],
@@ -121,7 +121,7 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -156,7 +156,7 @@ mod tests {
             Test {
                 name: "subject with hole excluding clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -181,7 +181,7 @@ mod tests {
                     [PI, 0.]
                 )),
                 want: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -302,7 +302,7 @@ mod tests {
                     [PI, PI]
                 )),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
                             [FRAC_PI_2, 0.],
@@ -321,7 +321,7 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -346,7 +346,7 @@ mod tests {
                     [PI, 0.]
                 )),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -367,7 +367,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -404,7 +404,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip with hole",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -422,7 +422,7 @@ mod tests {
                     ],
                 },
                 clip: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
                             [FRAC_PI_2, 0.],
@@ -440,7 +440,7 @@ mod tests {
                     ],
                 },
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_4, 0.],
                             [FRAC_PI_4, 3. * FRAC_PI_2],
@@ -567,7 +567,7 @@ mod tests {
             Test {
                 name: "subject with hole enclosing clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -592,7 +592,7 @@ mod tests {
                     [PI, 0.]
                 )),
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_4 + FRAC_PI_8, 0.],
                             [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
@@ -613,7 +613,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -650,7 +650,7 @@ mod tests {
             Test {
                 name: "subject with hole intersecting clip with hole",
                 subject: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
@@ -668,7 +668,7 @@ mod tests {
                     ],
                 },
                 clip: Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
                             [FRAC_PI_2, 0.],
@@ -686,7 +686,7 @@ mod tests {
                     ],
                 },
                 want: Some(Shape {
-                    polygons: vec![
+                    boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_4],

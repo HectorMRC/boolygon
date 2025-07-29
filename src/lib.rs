@@ -85,11 +85,11 @@ pub trait Geometry: Sized + RightHanded {
     ) -> isize;
 }
 
-/// A combination of disjoint polygons.
+/// A combination of disjoint boundaries.
 #[derive(Debug, Clone)]
 pub struct Shape<T> {
-    /// The list of non-crossing polygons.
-    pub(crate) polygons: Vec<T>,
+    /// The list of non-crossing boundaries.
+    pub(crate) boundaries: Vec<T>,
 }
 
 impl<T> From<T> for Shape<T>
@@ -106,13 +106,13 @@ where
     T: PartialEq + Clone,
 {
     fn eq(&self, other: &Self) -> bool {
-        if self.polygons.len() != other.polygons.len() {
+        if self.boundaries.len() != other.boundaries.len() {
             return false;
         }
 
-        self.polygons
+        self.boundaries
             .iter()
-            .all(|a| other.polygons.iter().any(|b| a.eq(b)))
+            .all(|a| other.boundaries.iter().any(|b| a.eq(b)))
     }
 }
 
@@ -122,7 +122,7 @@ where
     T::Vertex: Copy + PartialEq + PartialOrd,
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
-    /// Returns the union of self and rhs.
+    /// Returns the union of this shape and rhs.
     pub fn or(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
@@ -136,11 +136,11 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
-                    Role::Subject => {
+                    Role::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                             || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip => {
+                    Role::Clip(_) => {
                         !ops.subject.contains(&node.vertex, tolerance)
                             || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
@@ -157,7 +157,7 @@ where
             .expect("union should always return a shape")
     }
 
-    /// Returns the difference of rhs on self.
+    /// Returns the difference of rhs on this shape.
     pub fn not(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
@@ -172,11 +172,11 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
-                    Role::Subject => {
+                    Role::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                             && !ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip => {
+                    Role::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                             && !ops.subject.is_boundary(&node.vertex, tolerance)
                     }
@@ -192,7 +192,7 @@ where
             .execute()
     }
 
-    /// Returns the intersection of self and rhs.
+    /// Returns the intersection of this shape and rhs.
     pub fn and(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
@@ -207,11 +207,11 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.role {
-                    Role::Subject => {
+                    Role::Subject(_) => {
                         ops.clip.contains(&node.vertex, tolerance)
                             || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip => {
+                    Role::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                             || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
@@ -232,15 +232,15 @@ impl<T> Shape<T>
 where
     T: Geometry,
 {
-    /// Returns true if, and only if, the given point is in any of the outlines of this shape.
+    /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.
     pub(crate) fn is_boundary(
         &self,
         vertex: &T::Vertex,
         tolerance: &<T::Vertex as IsClose>::Tolerance,
     ) -> bool {
-        self.polygons
+        self.boundaries
             .iter()
-            .flat_map(|polygon| polygon.edges())
+            .flat_map(|boundary| boundary.edges())
             .any(|segment| segment.contains(vertex, tolerance))
     }
 }
@@ -250,15 +250,15 @@ where
     T: Geometry,
     T::Vertex: Vertex,
 {
-    /// Returns the amount of times self winds around the given [`Point`].
+    /// Returns the amount of times this shape winds around the given [`Vertex`].
     fn winding(&self, vertex: &T::Vertex, tolerance: &<T::Vertex as IsClose>::Tolerance) -> isize {
-        self.polygons
+        self.boundaries
             .iter()
-            .map(|polygon| polygon.winding(vertex, tolerance))
+            .map(|boundary| boundary.winding(vertex, tolerance))
             .sum()
     }
 
-    /// Returns true if, and only if, self contains the given [`Point`].
+    /// Returns true if, and only if, the given [`Vertex`] lies inside this shape.
     pub(crate) fn contains(
         &self,
         vertex: &T::Vertex,
@@ -272,15 +272,15 @@ impl<T> Shape<T>
 where
     T: Geometry,
 {
-    /// Creates a new shape from the given polygon.
+    /// Creates a new shape from the given boundary.
     pub fn new(value: impl Into<T>) -> Self {
-        let polygon = value.into();
+        let boundary = value.into();
 
         Self {
-            polygons: vec![if polygon.is_clockwise() {
-                polygon.reversed()
+            boundaries: vec![if boundary.is_clockwise() {
+                boundary.reversed()
             } else {
-                polygon
+                boundary
             }],
         }
     }
@@ -293,7 +293,7 @@ where
     /// Returns  a new shape with the inverted winding.
     fn inverted_winding(self) -> Self {
         Self {
-            polygons: self.polygons.into_iter().map(T::reversed).collect(),
+            boundaries: self.boundaries.into_iter().map(T::reversed).collect(),
         }
     }
 }
@@ -302,15 +302,15 @@ impl<T> Shape<T>
 where
     T: Geometry,
 {
-    /// Returns the amount of vertices in the shape.
+    /// Returns the amount of vertices in this shape.
     pub(crate) fn total_vertices(&self) -> usize {
-        self.polygons
+        self.boundaries
             .iter()
-            .map(|polygon| polygon.total_vertices())
+            .map(|boundary| boundary.total_vertices())
             .sum()
     }
 
     pub(crate) fn edges(&self) -> impl Iterator<Item = T::Edge<'_>> {
-        self.polygons.iter().flat_map(|polygon| polygon.edges())
+        self.boundaries.iter().flat_map(|boundary| boundary.edges())
     }
 }

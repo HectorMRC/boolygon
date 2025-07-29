@@ -128,19 +128,18 @@ where
             let nodes = NodeIterator {
                 clipper: &self,
                 graph: &mut graph,
-                init: position,
-                next: None,
+                next: Some(position),
             }
             .map(|node| node.vertex)
             .collect();
 
-            let Some(polygon) = U::from_raw((&self).into(), nodes, &self.tolerance) else {
+            let Some(boundary) = U::from_raw((&self).into(), nodes, &self.tolerance) else {
                 continue;
             };
 
             match output.as_mut() {
-                None => output = Some(Shape::new(polygon)),
-                Some(shape) => shape.polygons.push(polygon),
+                None => output = Some(Shape::new(boundary)),
+                Some(shape) => shape.boundaries.push(boundary),
             };
         }
 

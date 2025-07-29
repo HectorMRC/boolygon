@@ -123,7 +123,7 @@ where
             .or_else(|| {
                 operands
                     .subject
-                    .polygons
+                    .boundaries
                     .iter()
                     .map(|polygon| polygon.exterior)
                     .find(|exterior| !operands.clip.contains(exterior, tolerance))
@@ -131,7 +131,7 @@ where
             .or_else(|| {
                 operands
                     .clip
-                    .polygons
+                    .boundaries
                     .iter()
                     .map(|polygon| polygon.exterior)
                     .find(|exterior| !operands.subject.contains(exterior, tolerance))
