@@ -68,7 +68,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         let node = self.graph.nodes[self.next?].take()?;
-        self.next = self.clipper.select_path(self.graph, &node);
+        self.next = self.clipper.successor(self.graph, &node);
         Some(node)
     }
 }
@@ -119,10 +119,12 @@ where
         } else if let Some(next) = self.iterator.next {
             self.closed = self.terminal.contains(&next);
         } else {
-            self.closed = self
-                .iterator
-                .graph
-                .successors(&node)
+            self.closed = node
+                .siblings
+                .iter()
+                .filter_map(|&sibling| self.iterator.graph.nodes[sibling].as_ref())
+                .map(|sibling| sibling.next)
+                .chain([node.next])
                 .any(|node| self.terminal.contains(&node));
         };
 

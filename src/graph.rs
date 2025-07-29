@@ -19,7 +19,8 @@ where
     index: usize,
 }
 
-/// An iterator of [`EnumeratedEdge`] that stops yilding items when the same [`Node`] in the [`Graph`] is visited twice.
+/// An iterator of [`EnumeratedEdge`] that stops yielding items when the same [`Node`] in the
+/// [`Graph`] is visited twice.
 struct EnumeratedEdgesIterator<'a, T>
 where
     T: Geometry,
@@ -204,15 +205,6 @@ where
             .find(|(_, node)| f(node))
             .map(|(start, _)| start)
     }
-
-    /// Returns an iterator of indexes in the graph containing the successors of the given node.
-    pub(super) fn successors(&self, node: &Node<T>) -> impl Iterator<Item = usize> {
-        node.siblings
-            .iter()
-            .filter_map(|&sibling| self.nodes[sibling].as_ref())
-            .map(|sibling| sibling.next)
-            .chain([node.next])
-    }
 }
 
 /// A builder for [`Graph`].
@@ -289,7 +281,8 @@ where
                         // graph is the index of the final point.
                         next
                     } else {
-                        // Otherwise, the intersection point is a new point somewhere between of the endpoints of the edge.
+                        // Otherwise, the intersection point is a new point somewhere between of
+                        // the endpoints of the edge.
                         self.graph.nodes.len()
                     };
 

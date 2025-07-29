@@ -69,7 +69,10 @@ impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
 }
 
 impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
-    pub(super) fn with_subject<U>(self, subject: impl Into<Shape<U>>) -> Clipper<Op, Shape<U>, Clip, Tol> {
+    pub(super) fn with_subject<U>(
+        self,
+        subject: impl Into<Shape<U>>,
+    ) -> Clipper<Op, Shape<U>, Clip, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -148,7 +151,9 @@ where
     U::Vertex: IsClose<Tolerance = Tol>,
     Op: Operator<U>,
 {
-    pub(super) fn select_path(&self, graph: &Graph<U>, node: &Node<U>) -> Option<usize> {
+    /// Returns the index of the first node in the graph that is suitable to be successor of the
+    /// given one; if any
+    pub(super) fn successor(&self, graph: &Graph<U>, node: &Node<U>) -> Option<usize> {
         node.siblings
             .iter()
             .filter_map(|&sibling| graph.nodes[sibling].as_ref())
