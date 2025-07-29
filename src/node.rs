@@ -125,7 +125,6 @@ where
                 .iterator
                 .graph
                 .successors(&node)
-                .chain([node.next])
                 .any(|node| self.terminal.contains(&node));
         };
 
