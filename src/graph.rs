@@ -200,7 +200,7 @@ where
             .map(|(start, _)| start)
     }
 
-    /// Returns an iterator of indexes in the graph containing successors of the given node.
+    /// Returns an iterator of indexes in the graph containing the successors of the given node.
     pub(super) fn successors(&self, node: &Node<T>) -> impl Iterator<Item = usize> {
         node.siblings
             .iter()
