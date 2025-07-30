@@ -23,21 +23,29 @@ pub trait Vertex {
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
-pub trait Edge<'a, T>
-where
-    T: Vertex + IsClose,
-{
+pub trait Edge<'a> {
+    /// The endpoint type of the edge.
+    type Vertex: Vertex + IsClose;
+
     /// Returns an edge from the given endpoints.
-    fn new(from: &'a T, to: &'a T) -> Self;
+    fn new(from: &'a Self::Vertex, to: &'a Self::Vertex) -> Self;
 
     /// Returns the middle point of this edge.
-    fn midpoint(&self) -> T;
+    fn midpoint(&self) -> Self::Vertex;
 
     /// Returns true if, and only if, the given point exists in this edge.
-    fn contains(&self, point: &T, tolerance: &T::Tolerance) -> bool;
+    fn contains(
+        &self,
+        point: &Self::Vertex,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> bool;
 
     /// Returns the intersection between this edge and rhs, if any.
-    fn intersection(&self, rhs: &Self, tolerance: &T::Tolerance) -> Option<T>;
+    fn intersection(
+        &self,
+        rhs: &Self,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> Option<Self::Vertex>;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.
@@ -52,7 +60,7 @@ pub trait Geometry: Sized + RightHanded {
     type Vertex: Vertex + IsClose;
 
     /// The type of the edges this geometry is made of.
-    type Edge<'a>: Edge<'a, Self::Vertex>
+    type Edge<'a>: Edge<'a, Vertex = Self::Vertex>
     where
         Self: 'a;
 

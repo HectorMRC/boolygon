@@ -12,15 +12,17 @@ pub struct Arc<'a, T> {
     pub(super) to: &'a Point<T>,
 }
 
-impl<'a, T> Edge<'a, Point<T>> for Arc<'a, T>
+impl<'a, T> Edge<'a> for Arc<'a, T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    fn new(from: &'a Point<T>, to: &'a Point<T>) -> Self {
+    type Vertex = Point<T>;
+
+    fn new(from: &'a Self::Vertex, to: &'a Self::Vertex) -> Self {
         Self { from, to }
     }
 
-    fn midpoint(&self) -> Point<T> {
+    fn midpoint(&self) -> Self::Vertex {
         if self.is_antipodal() {
             return Point {
                 polar_angle: (T::FRAC_PI_2() + self.from.polar_angle.into_inner()).into(),
@@ -33,11 +35,11 @@ where
             .into()
     }
 
-    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
+    fn contains(&self, point: &Self::Vertex, tolerance: &Tolerance<T>) -> bool {
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Point<T>> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
         if self.length().is_zero() || rhs.length().is_zero() {
             return None;
         }

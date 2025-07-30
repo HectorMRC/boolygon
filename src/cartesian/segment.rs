@@ -14,15 +14,17 @@ pub struct Segment<'a, T> {
     pub to: &'a Point<T>,
 }
 
-impl<'a, T> Edge<'a, Point<T>> for Segment<'a, T>
+impl<'a, T> Edge<'a> for Segment<'a, T>
 where
     T: Signed + Float,
 {
-    fn new(from: &'a Point<T>, to: &'a Point<T>) -> Self {
+    type Vertex = Point<T>;
+
+    fn new(from: &'a Self::Vertex, to: &'a Self::Vertex) -> Self {
         Self { from, to }
     }
 
-    fn midpoint(&self) -> Point<T> {
+    fn midpoint(&self) -> Self::Vertex {
         let two = T::one() + T::one();
         Point {
             x: (self.from.x + self.to.x) / two,
@@ -30,11 +32,11 @@ where
         }
     }
 
-    fn contains(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> bool {
+    fn contains(&self, point: &Self::Vertex, tolerance: &Tolerance<T>) -> bool {
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Point<T>> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
