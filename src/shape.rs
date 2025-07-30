@@ -150,23 +150,6 @@ where
 impl<T> Shape<T>
 where
     T: Geometry,
-{
-    /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.
-    pub(crate) fn is_boundary(
-        &self,
-        vertex: &T::Vertex,
-        tolerance: &<T::Vertex as IsClose>::Tolerance,
-    ) -> bool {
-        self.boundaries
-            .iter()
-            .flat_map(|boundary| boundary.edges())
-            .any(|segment| segment.contains(vertex, tolerance))
-    }
-}
-
-impl<T> Shape<T>
-where
-    T: Geometry,
     T::Vertex: Vertex,
 {
     /// Returns the amount of times this shape winds around the given [`Vertex`].
@@ -203,24 +186,19 @@ where
             }],
         }
     }
-}
 
-impl<T> Shape<T>
-where
-    T: Geometry,
-{
-    /// Returns  a new shape with the inverted winding.
-    fn inverted_winding(self) -> Self {
-        Self {
-            boundaries: self.boundaries.into_iter().map(T::reversed).collect(),
-        }
+    /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.
+    pub(crate) fn is_boundary(
+        &self,
+        vertex: &T::Vertex,
+        tolerance: &<T::Vertex as IsClose>::Tolerance,
+    ) -> bool {
+        self.boundaries
+            .iter()
+            .flat_map(|boundary| boundary.edges())
+            .any(|segment| segment.contains(vertex, tolerance))
     }
-}
 
-impl<T> Shape<T>
-where
-    T: Geometry,
-{
     /// Returns the amount of vertices in this shape.
     pub(crate) fn total_vertices(&self) -> usize {
         self.boundaries
@@ -231,5 +209,12 @@ where
 
     pub(crate) fn edges(&self) -> impl Iterator<Item = T::Edge<'_>> {
         self.boundaries.iter().flat_map(|boundary| boundary.edges())
+    }
+
+    /// Returns  a new shape with the inverted winding.
+    fn inverted_winding(self) -> Self {
+        Self {
+            boundaries: self.boundaries.into_iter().map(T::reversed).collect(),
+        }
     }
 }
