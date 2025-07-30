@@ -3,6 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use crate::{
     clipper::{Clipper, Operator},
     node::{Node, Role},
+    polyline::Polyline,
     Edge, Geometry, IsClose, Operands, Vertex,
 };
 
@@ -185,6 +186,11 @@ where
                 boundary
             }],
         }
+    }
+
+    /// Returns all the shapes resulting from cutting this shape throughout the given [`Polyline`].
+    pub fn cut(self, path: Polyline<T::Vertex>) -> Vec<Self> {
+        todo!()
     }
 
     /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.

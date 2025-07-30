@@ -1,6 +1,7 @@
 mod clipper;
 mod graph;
 mod node;
+mod polyline;
 mod shape;
 mod tolerance;
 
@@ -10,6 +11,7 @@ pub mod cartesian;
 pub mod spherical;
 
 pub use self::clipper::Operands;
+pub use self::polyline::Polyline;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
