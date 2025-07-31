@@ -8,7 +8,7 @@ readme = "./README.md"
 repository = "https://github.com/HectorMRC/boolygon"
 
 [dependencies]
-geocart = { git = "https://github.com/hectormrc/geocart", branch = "main", default-features = false, optional = true }
+geocart = { version = "0.1.1", git = "https://github.com/hectormrc/geocart", branch = "main", default-features = false, optional = true }
 num-traits = "0.2.19"
 
 [features]
