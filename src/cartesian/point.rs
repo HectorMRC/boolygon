@@ -38,13 +38,3 @@ where
         self.x.is_close(&rhs.x, tolerance) && self.y.is_close(&rhs.y, tolerance)
     }
 }
-
-/// A constructor macro for the cartesian [`Point`].
-#[macro_export]
-macro_rules! cartesian_point {
-    ($x:expr, $y:expr) => {
-        Point { x: $x, y: $y }
-    };
-}
-
-pub use cartesian_point;

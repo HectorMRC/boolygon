@@ -56,8 +56,8 @@ where
             .iter()
             .enumerate()
             .min_by(|(_, a), (_, b)| {
-                match a.polar_angle.partial_cmp(&b.polar_angle) {
-                    Some(Ordering::Equal) => b.azimuthal_angle.partial_cmp(&a.azimuthal_angle),
+                match a.inclination.partial_cmp(&b.inclination) {
+                    Some(Ordering::Equal) => b.azimuth.partial_cmp(&a.azimuth),
                     other => other,
                 }
                 .unwrap_or(Ordering::Equal)

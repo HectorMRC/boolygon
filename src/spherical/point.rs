@@ -4,10 +4,41 @@ use num_traits::{Euclid, Float, FloatConst, Signed};
 use crate::{IsClose, Tolerance, Vertex};
 
 /// The angle between a radial line and the polar axis.
+///
+/// ## Definition
+/// Since the inclination (or polar angle) of a point on a unit sphere is the smallest angle
+/// between the radial line to that point and the positive polar axis, the angle must be in the
+/// range __\[0, π\]__.
+/// Any other value must be computed in order to set its equivalent inside the range.
+///
+/// ### Overflow
+/// Overflowing any of both boundaries of the inclination range behaves like moving away from 
+/// that boundary and getting closer to the opposite one.
+///
+/// ## Example
+/// ```
+/// use std::f64::consts::FRAC_PI_2;
+///
+/// use boolygon::{spherical::Inclination, Tolerance, IsClose};
+///
+/// let overflowing_polar = Inclination::from(3. * FRAC_PI_2);
+/// let equivalent_polar = Inclination::from(FRAC_PI_2);
+///
+/// // due precision error both values may not be exactly the same  
+/// let tolerance = Tolerance {
+///     relative: 1e-9.into(),
+///     ..Default::default()
+/// };
+///
+/// assert!(
+///     overflowing_polar.is_close(&equivalent_polar, &tolerance),
+///     "the overflowing inclination should be close to the equivalent one"
+/// );
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct PolarAngle<T>(T);
+pub struct Inclination<T>(T);
 
-impl<T> From<T> for PolarAngle<T>
+impl<T> From<T> for Inclination<T>
 where
     T: Float + FloatConst,
 {
@@ -20,7 +51,7 @@ where
     }
 }
 
-impl<T> From<Latitude<T>> for PolarAngle<T>
+impl<T> From<Latitude<T>> for Inclination<T>
 where
     T: Signed + FloatConst,
 {
@@ -29,16 +60,16 @@ where
     }
 }
 
-impl<T> From<PolarAngle<T>> for Latitude<T>
+impl<T> From<Inclination<T>> for Latitude<T>
 where
     T: Signed + Float + FloatConst,
 {
-    fn from(angle: PolarAngle<T>) -> Self {
+    fn from(angle: Inclination<T>) -> Self {
         (-angle.into_inner() + T::FRAC_PI_2()).into()
     }
 }
 
-impl<T> IsClose for PolarAngle<T>
+impl<T> IsClose for Inclination<T>
 where
     T: IsClose<Tolerance = Tolerance<T>>,
 {
@@ -49,7 +80,7 @@ where
     }
 }
 
-impl<T> PolarAngle<T> {
+impl<T> Inclination<T> {
     /// Returns the inner value.
     pub fn into_inner(self) -> T {
         self.0
@@ -57,10 +88,41 @@ impl<T> PolarAngle<T> {
 }
 
 /// The angle of rotation of a radial line around the polar axis.
+///
+/// ## Definition
+/// Since the azimuth (or azimuthal angle) of a point on a unit sphere is the positive right-handed
+/// angle of the radial line to that point around the polar axis, the angle must be in the range
+/// __\[0, 2π\)__.
+/// Any other value will be computed in order to set its equivalent inside that range.
+///
+/// ### Overflow
+/// Both boundaries of the azimuth range are consecutive, which means that overflowing one is the 
+/// same as continuing from the other one in the same direction.
+///
+/// ## Example
+/// ```
+/// use std::f64::consts::PI;
+///
+/// use boolygon::{spherical::Azimuth, Tolerance, IsClose};
+///
+/// let overflowing_azimuth = Azimuth::from(3. * PI);
+/// let equivalent_azimuth = Azimuth::from(PI);
+///
+/// // due precision error both values may not be exactly the same  
+/// let tolerance = Tolerance {
+///     relative: 1e-9.into(),
+///     ..Default::default()
+/// };
+///
+/// assert!(
+///     overflowing_azimuth.is_close(&equivalent_azimuth, &tolerance),
+///     "the overflowing azimuth should be close to the equivalent one"
+/// );
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct AzimuthalAngle<T>(T);
+pub struct Azimuth<T>(T);
 
-impl<T> From<T> for AzimuthalAngle<T>
+impl<T> From<T> for Azimuth<T>
 where
     T: Float + FloatConst,
 {
@@ -78,7 +140,7 @@ where
     }
 }
 
-impl<T> From<Longitude<T>> for AzimuthalAngle<T>
+impl<T> From<Longitude<T>> for Azimuth<T>
 where
     T: Float + FloatConst,
 {
@@ -87,16 +149,16 @@ where
     }
 }
 
-impl<T> From<AzimuthalAngle<T>> for Longitude<T>
+impl<T> From<Azimuth<T>> for Longitude<T>
 where
     T: Signed + Float + FloatConst + Euclid,
 {
-    fn from(angle: AzimuthalAngle<T>) -> Self {
+    fn from(angle: Azimuth<T>) -> Self {
         angle.into_inner().into()
     }
 }
 
-impl<T> IsClose for AzimuthalAngle<T>
+impl<T> IsClose for Azimuth<T>
 where
     T: IsClose<Tolerance = Tolerance<T>>,
 {
@@ -107,20 +169,20 @@ where
     }
 }
 
-impl<T> AzimuthalAngle<T> {
+impl<T> Azimuth<T> {
     /// Returns the inner value.
     pub fn into_inner(self) -> T {
         self.0
     }
 }
 
-/// A point on the surface of an unit sphere.
+/// A point on the surface of a unit sphere.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Point<T> {
     /// The angle between the radial line to this point and the polar axis.
-    pub polar_angle: PolarAngle<T>,
+    pub inclination: Inclination<T>,
     /// The angle of rotation of the radial line to this point around the polar axis.
-    pub azimuthal_angle: AzimuthalAngle<T>,
+    pub azimuth: Azimuth<T>,
 }
 
 impl<T> From<Point<T>> for Geographic<T>
@@ -129,8 +191,8 @@ where
 {
     fn from(point: Point<T>) -> Self {
         Self {
-            latitude: point.polar_angle.into(),
-            longitude: point.azimuthal_angle.into(),
+            latitude: point.inclination.into(),
+            longitude: point.azimuth.into(),
             altitude: T::one().into(),
         }
     }
@@ -150,10 +212,10 @@ where
     T: PartialOrd + Signed + Float + FloatConst + Euclid,
     U: Into<T>,
 {
-    fn from([polar, azimuthal]: [U; 2]) -> Self {
+    fn from([inclination, azimuth]: [U; 2]) -> Self {
         Self {
-            polar_angle: polar.into().into(),
-            azimuthal_angle: azimuthal.into().into(),
+            inclination: inclination.into().into(),
+            azimuth: azimuth.into().into(),
         }
     }
 }
@@ -164,8 +226,8 @@ where
 {
     fn from(point: Geographic<T>) -> Self {
         Self {
-            polar_angle: point.latitude.into(),
-            azimuthal_angle: point.longitude.into(),
+            inclination: point.latitude.into(),
+            azimuth: point.longitude.into(),
         }
     }
 }
@@ -185,19 +247,10 @@ where
 {
     type Scalar = T;
 
+    /// Returns the [great-circle distance](https://en.wikipedia.org/wiki/Great-circle_distance)
+    /// from this point to rhs.
     fn distance(&self, rhs: &Self) -> T {
-        let from = Cartesian::from(*self);
-        let to = Cartesian::from(*rhs);
-
-        // The perimeter of a unit circle is 2π; hence, the longitude of an arc is equivalent to
-        // the angle between its endpoints.
-        //
-        // The formula for the angle (in radians) between two vectors is the arccosine of the
-        // division between the dot product and the product of the magnitudes.
-        //
-        // Being both vectors normalized (magnitude = 1), the formula gets simplified as the
-        // arccosine of the dot product.
-        from.dot(&to).acos()
+        Geographic::from(*self).distance(&(*rhs).into())
     }
 }
 
@@ -208,9 +261,110 @@ where
     type Tolerance = Tolerance<T>;
 
     fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        self.polar_angle.is_close(&rhs.polar_angle, tolerance)
+        self.inclination.is_close(&rhs.inclination, tolerance)
             && self
-                .azimuthal_angle
-                .is_close(&rhs.azimuthal_angle, tolerance)
+                .azimuth
+                .is_close(&rhs.azimuth, tolerance)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::{FRAC_PI_2, PI, TAU};
+
+    use crate::{
+        spherical::{Azimuth, Inclination},
+        IsClose, Tolerance,
+    };
+
+    #[test]
+    fn inclination_must_not_exceed_boundaries() {
+        struct Test {
+            name: &'static str,
+            input: f64,
+            output: f64,
+        }
+
+        vec![
+            Test {
+                name: "angle within range must not change",
+                input: PI,
+                output: PI,
+            },
+            Test {
+                name: "2π radians must equals zero",
+                input: TAU,
+                output: 0.,
+            },
+            Test {
+                name: "negative angle must change",
+                input: -FRAC_PI_2,
+                output: FRAC_PI_2,
+            },
+            Test {
+                name: "overflowing angle must change",
+                input: 3. * FRAC_PI_2,
+                output: FRAC_PI_2,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let inclination = Inclination::from(test.input).into_inner();
+
+            let tolerance = Tolerance {
+                relative: 1e-9.into(),
+                ..Default::default()
+            };
+
+            assert!(
+                inclination.is_close(&test.output, &tolerance),
+                "{}: got inclination = {}, want {}",
+                test.name,
+                inclination,
+                test.output
+            );
+        });
+    }
+
+    #[test]
+    fn azimuth_must_not_exceed_boundaries() {
+        struct Test {
+            name: &'static str,
+            input: f64,
+            output: f64,
+        }
+
+        vec![
+            Test {
+                name: "angle within range must not change",
+                input: PI,
+                output: PI,
+            },
+            Test {
+                name: "2π radians must equals zero",
+                input: TAU,
+                output: 0.,
+            },
+            Test {
+                name: "negative angle must change",
+                input: -FRAC_PI_2,
+                output: TAU - FRAC_PI_2,
+            },
+            Test {
+                name: "overflowing angle must change",
+                input: TAU + FRAC_PI_2,
+                output: FRAC_PI_2,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let azimuth = Azimuth::from(test.input).into_inner();
+
+            assert_eq!(
+                azimuth, test.output,
+                "{}: got azimuth = {}, want {}",
+                test.name, azimuth, test.output
+            );
+        });
     }
 }

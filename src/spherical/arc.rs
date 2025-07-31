@@ -25,8 +25,8 @@ where
     fn midpoint(&self) -> Self::Vertex {
         if self.is_antipodal() {
             return Point {
-                polar_angle: (T::FRAC_PI_2() + self.from.polar_angle.into_inner()).into(),
-                azimuthal_angle: (T::FRAC_PI_2() + self.from.azimuthal_angle.into_inner()).into(),
+                inclination: (T::FRAC_PI_2() + self.from.inclination.into_inner()).into(),
+                azimuth: (T::FRAC_PI_2() + self.from.azimuth.into_inner()).into(),
             };
         }
 

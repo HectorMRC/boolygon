@@ -117,16 +117,16 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        cartesian::{point::cartesian_point, Point, Segment},
+        cartesian::{Point, Segment},
         Edge,
     };
 
     #[test]
     fn segment_intersection() {
-        struct Test {
-            name: &'static str,
-            segment: Segment<'static, f64>,
-            rhs: Segment<'static, f64>,
+        struct Test<'a> {
+            name: &'a str,
+            segment: Segment<'a, f64>,
+            rhs: Segment<'a, f64>,
             want: Option<Point<f64>>,
         }
 
@@ -134,158 +134,158 @@ mod tests {
             Test {
                 name: "crossing segments",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 4.),
-                    to: &cartesian_point!(4., 0.),
+                    from: &[0., 4.].into(),
+                    to: &[4., 0.].into(),
                 },
-                want: Some(cartesian_point!(2., 2.)),
+                want: Some([2., 2.].into()),
             },
             Test {
                 name: "segments starting at the same point",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(-4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[-4., 4.].into(),
                 },
-                want: Some(cartesian_point!(0., 0.)),
+                want: Some([0., 0.].into()),
             },
             Test {
                 name: "connected segments",
                 segment: Segment {
-                    from: &cartesian_point!(4., 4.),
-                    to: &cartesian_point!(0., 0.),
+                    from: &[4., 4.].into(),
+                    to: &[0., 0.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(-4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[-4., 4.].into(),
                 },
-                want: Some(cartesian_point!(0., 0.)),
+                want: Some([0., 0.].into()),
             },
             Test {
                 name: "collinear segments with common point",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(-4., -4.),
-                    to: &cartesian_point!(0., 0.),
+                    from: &[-4., -4.].into(),
+                    to: &[0., 0.].into(),
                 },
-                want: Some(cartesian_point!(0., 0.)),
+                want: Some([0., 0.].into()),
             },
             Test {
                 name: "collinear segments with no common point",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(-4., -4.),
-                    to: &cartesian_point!(-2., -2.),
+                    from: &[-4., -4.].into(),
+                    to: &[-2., -2.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "segments ending at the same point",
                 segment: Segment {
-                    from: &cartesian_point!(4., 4.),
-                    to: &cartesian_point!(0., 0.),
+                    from: &[4., 4.].into(),
+                    to: &[0., 0.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(-4., 4.),
-                    to: &cartesian_point!(0., 0.),
+                    from: &[-4., 4.].into(),
+                    to: &[0., 0.].into(),
                 },
-                want: Some(cartesian_point!(0., 0.)),
+                want: Some([0., 0.].into()),
             },
             Test {
                 name: "parallel segments",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 4.),
-                    to: &cartesian_point!(4., 8.),
+                    from: &[0., 4.].into(),
+                    to: &[4., 8.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "coincident segments when rhs is shorter",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(2., 2.),
+                    from: &[0., 0.].into(),
+                    to: &[2., 2.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "coincident segments when rhs is larger",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(8., 8.),
+                    from: &[0., 0.].into(),
+                    to: &[8., 8.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "segment inside rhs",
                 segment: Segment {
-                    from: &cartesian_point!(1., 1.),
-                    to: &cartesian_point!(3., 3.),
+                    from: &[1., 1.].into(),
+                    to: &[3., 3.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "rhs inside segment",
                 segment: Segment {
-                    from: &cartesian_point!(0., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(1., 1.),
-                    to: &cartesian_point!(3., 3.),
+                    from: &[1., 1.].into(),
+                    to: &[3., 3.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "non-crossing segments",
                 segment: Segment {
-                    from: &cartesian_point!(4., 4.),
-                    to: &cartesian_point!(8., 8.),
+                    from: &[4., 4.].into(),
+                    to: &[8., 8.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(0., 4.),
-                    to: &cartesian_point!(4., 0.),
+                    from: &[0., 4.].into(),
+                    to: &[4., 0.].into(),
                 },
                 want: None,
             },
             Test {
                 name: "perpendicular segments",
                 segment: Segment {
-                    from: &cartesian_point!(4., 0.),
-                    to: &cartesian_point!(4., 4.),
+                    from: &[4., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &cartesian_point!(2., 2.),
-                    to: &cartesian_point!(6., 2.),
+                    from: &[2., 2.].into(),
+                    to: &[6., 2.].into(),
                 },
-                want: Some(cartesian_point!(4., 2.)),
+                want: Some([4., 2.].into()),
             },
         ]
         .into_iter()

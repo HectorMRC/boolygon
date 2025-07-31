@@ -48,10 +48,7 @@ impl<T> Determinant<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::cartesian::{
-        determinant::Determinant,
-        point::{Point, cartesian_point},
-    };
+    use crate::cartesian::{determinant::Determinant, point::Point};
 
     #[test]
     fn determinant_of_vectors() {
@@ -64,29 +61,17 @@ mod tests {
         vec![
             Test {
                 name: "clockwise vectors",
-                points: [
-                    cartesian_point!(0., 1.),
-                    cartesian_point!(0., 0.),
-                    cartesian_point!(-1., 0.),
-                ],
+                points: [[0., 1.].into(), [0., 0.].into(), [-1., 0.].into()],
                 want: Determinant(-1.),
             },
             Test {
                 name: "counter-clockwise vectors",
-                points: [
-                    cartesian_point!(0., 1.),
-                    cartesian_point!(0., 0.),
-                    cartesian_point!(1., 0.),
-                ],
+                points: [[0., 1.].into(), [0., 0.].into(), [1., 0.].into()],
                 want: Determinant(1.),
             },
             Test {
                 name: "colinear vectors",
-                points: [
-                    cartesian_point!(4., 4.),
-                    cartesian_point!(2., 2.),
-                    cartesian_point!(0., 0.),
-                ],
+                points: [[4., 4.].into(), [2., 2.].into(), [0., 0.].into()],
                 want: Determinant(0.),
             },
         ]

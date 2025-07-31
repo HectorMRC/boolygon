@@ -3,7 +3,7 @@ mod point;
 mod polygon;
 mod segment;
 
-pub use self::point::{cartesian_point, Point};
+pub use self::point::Point;
 pub use self::polygon::{cartesian_polygon, Polygon};
 pub use self::segment::Segment;
 

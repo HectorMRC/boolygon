@@ -38,7 +38,7 @@ where
     ) -> bool;
 }
 
-/// Implements the clipping algorithm.                                                                                                                                   
+/// Implements the clipping algorithm.                                                                                                                                    
 pub(super) struct Clipper<Operator, Subject, Clip, Tolerance> {
     pub(super) tolerance: Tolerance,
     operator: PhantomData<Operator>,
@@ -152,12 +152,14 @@ where
     Op: Operator<U>,
 {
     /// Returns the index of the first node in the graph that is suitable to be successor of the
-    /// given one; if any
+    /// given one, if any.
     pub(super) fn successor(&self, graph: &Graph<U>, node: &Node<U>) -> Option<usize> {
         node.siblings
             .iter()
             .filter_map(|&sibling| graph.nodes[sibling].as_ref())
             .chain([node])
+            // The following rev makes sure node.next is evaluated first. This is needed to avoid
+            // it to become unreachable once the current node is removed from the graph.
             .rev()
             .find_map(|target| {
                 graph.nodes[target.next]
