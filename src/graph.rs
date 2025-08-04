@@ -5,7 +5,8 @@ use std::{
 };
 
 use crate::{
-    node::{Node, Role},
+    clipper::Unknown,
+    node::{Node, Role, Status},
     Edge, Geometry, IsClose, Shape, Vertex,
 };
 
@@ -19,7 +20,7 @@ where
     index: usize,
 }
 
-/// An iterator of [`EnumeratedEdge`] that stops yielding items when the same [`Node`] in the
+/// An iterator of [`EnumeratedEdge`] that stops yielding items when the same edge in the
 /// [`Graph`] is visited twice.
 struct EnumeratedEdgesIterator<'a, T>
 where
@@ -208,16 +209,18 @@ where
 }
 
 /// A builder for [`Graph`].
-pub(super) struct GraphBuilder<'a, T>
+pub(super) struct GraphBuilder<'a, T, S, C>
 where
     T: Geometry,
 {
     graph: Graph<T>,
     boundaries: Vec<Role>,
     tolerance: &'a <T::Vertex as IsClose>::Tolerance,
+    subject: S,
+    clip: C,
 }
 
-impl<'a, T> GraphBuilder<'a, T>
+impl<'a, T> GraphBuilder<'a, T, Unknown, Unknown>
 where
     T: Geometry,
 {
@@ -226,11 +229,13 @@ where
             graph: Default::default(),
             boundaries: Default::default(),
             tolerance,
+            subject: Unknown,
+            clip: Unknown,
         }
     }
 }
 
-impl<T> GraphBuilder<'_, T>
+impl<T> GraphBuilder<'_, T, &Shape<T>, &Shape<T>>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq + PartialOrd,
@@ -340,10 +345,17 @@ where
                             .expect("previous node should exist")
                             .next = index;
 
+                        self.graph.nodes[next]
+                            .as_mut()
+                            .expect("next node should exist")
+                            .previous = index;
+
                         self.graph.nodes.push(Some(Node {
                             vertex: intersection_point,
                             role,
+                            previous,
                             next,
+                            status: Default::default(),
                             siblings,
                         }));
                     }
@@ -352,11 +364,47 @@ where
                 });
         }
 
+        for boundary in self.boundaries {
+            let is_inside = |shape: &Shape<T>, vertex: usize| {
+                shape.contains(
+                    &self.graph.nodes[vertex]
+                        .as_ref()
+                        .expect("node should exist")
+                        .vertex,
+                    self.tolerance,
+                )
+            };
+
+            let previous_status = if match boundary {
+                Role::Subject(start) => is_inside(self.clip, start),
+                Role::Clip(start) => is_inside(self.subject, start),
+            } {
+                Status::Exit
+            } else {
+                Status::Entry
+            };
+
+            self.graph
+                .nodes
+                .iter_mut()
+                .filter_map(|node| node.as_mut())
+                .filter(|node| node.role == boundary && !node.siblings.is_empty())
+                .fold(previous_status, |previous_status, node| {
+                    node.status = match previous_status {
+                        Status::None => Status::None,
+                        Status::Entry => Status::Exit,
+                        Status::Exit => Status::Entry,
+                    };
+
+                    node.status
+                });
+        }
+
         self.graph
     }
 }
 
-impl<T> GraphBuilder<'_, T>
+impl<T> GraphBuilder<'_, T, &Shape<T>, &Shape<T>>
 where
     T: Geometry,
 {
@@ -386,18 +434,45 @@ where
     }
 }
 
-impl<T> GraphBuilder<'_, T>
+impl<'a, T, S, C> GraphBuilder<'a, T, S, C>
+where
+    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
+{
+    pub(super) fn with_subject(
+        self,
+        subject: &'a Shape<T>,
+    ) -> GraphBuilder<'a, T, &'a Shape<T>, C> {
+        GraphBuilder {
+            graph: self.graph,
+            boundaries: self.boundaries,
+            tolerance: self.tolerance,
+            clip: self.clip,
+            subject,
+        }
+        .with_shape(subject.clone(), Role::Subject)
+    }
+}
+
+impl<'a, T, S, C> GraphBuilder<'a, T, S, C>
+where
+    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
+{
+    pub(super) fn with_clip(self, clip: &'a Shape<T>) -> GraphBuilder<'a, T, S, &'a Shape<T>> {
+        GraphBuilder {
+            graph: self.graph,
+            boundaries: self.boundaries,
+            tolerance: self.tolerance,
+            subject: self.subject,
+            clip,
+        }
+        .with_shape(clip.clone(), Role::Clip)
+    }
+}
+
+impl<T, S, C> GraphBuilder<'_, T, S, C>
 where
     T: Geometry + IntoIterator<Item = T::Vertex>,
 {
-    pub(super) fn with_subject(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, Role::Subject)
-    }
-
-    pub(super) fn with_clip(self, shape: Shape<T>) -> Self {
-        self.with_shape(shape, Role::Clip)
-    }
-
     fn with_shape(mut self, shape: Shape<T>, role: impl Fn(usize) -> Role) -> Self {
         self.graph.nodes.reserve(shape.total_vertices());
         self.boundaries.reserve(shape.boundaries.len());
@@ -409,11 +484,16 @@ where
             self.boundaries.push(role);
 
             let total_vertices = boundary.total_vertices();
-            for (index, point) in boundary.into_iter().enumerate() {
+            for (mut index, point) in boundary.into_iter().enumerate() {
+                // Avoid usize overflow when index == 0.
+                index += total_vertices;
+
                 self.graph.nodes.push(Some(Node {
                     vertex: point,
                     role,
+                    previous: offset + ((index - 1) % total_vertices),
                     next: offset + ((index + 1) % total_vertices),
+                    status: Default::default(),
                     siblings: BTreeSet::new(),
                 }));
             }

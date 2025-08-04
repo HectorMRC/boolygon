@@ -114,8 +114,8 @@ where
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
     pub(super) fn execute(self) -> Option<Shape<U>> {
         let mut graph = GraphBuilder::new(&self.tolerance)
-            .with_subject(self.subject.clone())
-            .with_clip(self.clip.clone())
+            .with_subject(&self.subject)
+            .with_clip(&self.clip)
             .build();
 
         let mut boundaries = Vec::new();
@@ -170,7 +170,9 @@ where
                             &Node {
                                 vertex: U::Edge::new(&target.vertex, &next.vertex).midpoint(),
                                 role: next.role,
+                                previous: Default::default(),
                                 next: Default::default(),
+                                status: next.status,
                                 siblings: Default::default(),
                             }
                         } else {

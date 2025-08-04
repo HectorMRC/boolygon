@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Determines the role of a [`Node`] during the clipping process.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Role {
     /// The node belongs to the subject shape.
     Subject(usize),
@@ -21,6 +21,18 @@ impl Role {
     }
 }
 
+/// Determines if at this node the shape is entering or exiting the oposite one.
+#[derive(Debug, Default, Clone, Copy)]
+pub(super) enum Status {
+    /// The node is not an entry nor an exit.
+    #[default]
+    None,
+    /// At this node the shape is entering to the oposite one.
+    Entry,
+    /// At this node the shape is exiting from the oposite one.
+    Exit,
+}
+
 /// A vertex and its metadata inside a graph.
 #[derive(Debug)]
 pub(super) struct Node<T>
@@ -31,8 +43,12 @@ where
     pub(super) vertex: T::Vertex,
     /// The role of the node.
     pub(super) role: Role,
+    /// The index of the node previous to this one.
+    pub(super) previous: usize,
     /// The index of the node following this one.
     pub(super) next: usize,
+    /// The status of the shape at this node.
+    pub(super) status: Status,
     /// Vertices from the oposite shape located at the same point.
     pub(super) siblings: BTreeSet<usize>,
 }
