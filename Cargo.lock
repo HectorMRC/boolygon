@@ -19,7 +19,7 @@ dependencies = [
 [[package]]
 name = "geocart"
 version = "0.1.1"
-source = "git+https://github.com/hectormrc/geocart?branch=main#bba949b44c5842af613fa10cff9f949fbcb29e67"
+source = "git+https://github.com/hectormrc/geocart?branch=main#94ec00881d3077239ab7e8e4377a09caf6f8a3c6"
 dependencies = [
  "num-traits",
 ]
