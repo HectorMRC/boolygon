@@ -45,12 +45,10 @@ where
             (0..len).any(|padding| double[padding..padding + len] == self.vertices)
         };
 
-        if is_rotation(&double) {
-            return true;
-        }
-
-        double.reverse();
         is_rotation(&double)
+
+        // double.reverse();
+        // is_rotation(&double)
     }
 }
 
@@ -206,7 +204,39 @@ mod tests {
                 want: 0,
             },
             Test {
-                name: "inside self-crossing polygon",
+                name: "inside clockwise side of self-crossing polygon",
+                polygon: vec![
+                    [1., 0.],
+                    [-1., 0.],
+                    [-1., 1.],
+                    [1., 1.],
+                    [1., 0.],
+                    [-1., 0.],
+                    [-1., -1.],
+                    [1., -1.],
+                ]
+                .into(),
+                point: [0., 0.5].into(),
+                want: -1,
+            },
+            Test {
+                name: "inside counter-clockwise side of self-crossing polygon",
+                polygon: vec![
+                    [1., 0.],
+                    [-1., 0.],
+                    [-1., 1.],
+                    [1., 1.],
+                    [1., 0.],
+                    [-1., 0.],
+                    [-1., -1.],
+                    [1., -1.],
+                ]
+                .into(),
+                point: [0., -0.5].into(),
+                want: 1,
+            },
+            Test {
+                name: "inside self-crossing polygon with holes",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -224,7 +254,7 @@ mod tests {
                 want: 2,
             },
             Test {
-                name: "outside self-crossing polygon",
+                name: "outside self-crossing polygon with holes",
                 polygon: vec![
                     [8., 0.],
                     [8., 6.],
@@ -289,6 +319,21 @@ mod tests {
                 .into(),
                 want: false,
             },
+            Test {
+                name: "self-crossing clockwise polygon",
+                polygon: vec![
+                    [1., 0.],
+                    [1., 1.],
+                    [-1., 1.],
+                    [-1., 0.],
+                    [1., 0.],
+                    [1., -1.],
+                    [-1., -1.],
+                    [-1., 0.],
+                ]
+                .into(),
+                want: true,
+            },
         ]
         .into_iter()
         .for_each(|test| {
@@ -318,16 +363,16 @@ mod tests {
                 want: true,
             },
             Test {
-                name: "with different orientation",
-                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
-                right: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
-                want: true,
-            },
-            Test {
                 name: "starting at different vertex",
                 left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 right: vec![[4., 4.], [0., 4.], [0., 0.], [4., 0.]].into(),
                 want: true,
+            },
+            Test {
+                name: "with different orientation",
+                left: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                right: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
+                want: false,
             },
             Test {
                 name: "different polygons",

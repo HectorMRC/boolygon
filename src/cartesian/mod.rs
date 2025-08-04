@@ -127,6 +127,35 @@ mod tests {
                     ],
                 },
             },
+            Test {
+                name: "clipping clockwise side from self-crossing subject",
+                subject: Shape::new(cartesian_polygon!(
+                    [1., 0.],
+                    [1., 1.],
+                    [-1., 1.],
+                    [-1., 0.],
+                    [1., 0.],
+                    [1., -1.],
+                    [-1., -1.],
+                    [-1., 0.]
+                )),
+                clip: Shape::new(cartesian_polygon!(
+                    [0.75, -0.25],
+                    [-0.75, -0.25],
+                    [-0.75, -0.75],
+                    [0.75, -0.75]
+                )),
+                want: Shape::new(cartesian_polygon!(
+                    [1., 0.],
+                    [1., 1.],
+                    [-1., 1.],
+                    [-1., 0.],
+                    [1., 0.],
+                    [1., -1.],
+                    [-1., -1.],
+                    [-1., 0.]
+                )),
+            },
         ]
         .into_iter()
         .for_each(|test| {
@@ -209,7 +238,7 @@ mod tests {
                 want: Some(Shape {
                     boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
-                        vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
+                        vec![[1., 1.], [1., 3.], [3., 3.], [3., 1.]].into(),
                     ],
                 }),
             },
@@ -268,6 +297,45 @@ mod tests {
                     ],
                 }),
             },
+            // Test {
+            //     name: "clipping clockwise side from self-crossing subject",
+            //     subject: Shape::new(cartesian_polygon!(
+            //         [1., 0.],
+            //         [1., 1.],
+            //         [-1., 1.],
+            //         [-1., 0.],
+            //         [1., 0.],
+            //         [1., -1.],
+            //         [-1., -1.],
+            //         [-1., 0.]
+            //     )),
+            //     clip: Shape::new(cartesian_polygon!(
+            //         [0.75, -0.25],
+            //         [-0.75, -0.25],
+            //         [-0.75, -0.75],
+            //         [0.75, -0.75]
+            //     )),
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             cartesian_polygon!(
+            //                 [1., 0.],
+            //                 [1., 1.],
+            //                 [-1., 1.],
+            //                 [-1., 0.],
+            //                 [1., 0.],
+            //                 [1., -1.],
+            //                 [-1., -1.],
+            //                 [-1., 0.]
+            //             ),
+            //             cartesian_polygon!(
+            //                 [0.75, -0.25],
+            //                 [-0.75, -0.25],
+            //                 [-0.75, -0.75],
+            //                 [0.75, -0.75]
+            //             ),
+            //         ],
+            //     }),
+            // },
         ]
         .into_iter()
         .for_each(|test| {
@@ -395,6 +463,31 @@ mod tests {
                         cartesian_polygon!([3., 2.], [4., 2.], [4., 3.], [3., 3.]),
                     ],
                 }),
+            },
+            Test {
+                name: "clipping clockwise side from self-crossing subject",
+                subject: Shape::new(cartesian_polygon!(
+                    [1., 0.],
+                    [1., 1.],
+                    [-1., 1.],
+                    [-1., 0.],
+                    [1., 0.],
+                    [1., -1.],
+                    [-1., -1.],
+                    [-1., 0.]
+                )),
+                clip: Shape::new(cartesian_polygon!(
+                    [0.75, -0.25],
+                    [-0.75, -0.25],
+                    [-0.75, -0.75],
+                    [0.75, -0.75]
+                )),
+                want: Some(Shape::new(cartesian_polygon!(
+                    [0.75, -0.25],
+                    [-0.75, -0.25],
+                    [-0.75, -0.75],
+                    [0.75, -0.75]
+                ))),
             },
         ]
         .into_iter()

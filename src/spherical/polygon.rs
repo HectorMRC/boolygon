@@ -65,7 +65,7 @@ where
             .map(|(mut position, &min)| {
                 // Avoids usize overflow when position = 0.
                 position += self.vertices.len();
-                
+
                 let before = Cartesian::from(self.vertices[(position - 1) % self.vertices.len()]);
                 let after = Cartesian::from(self.vertices[(position + 1) % self.vertices.len()]);
                 let min = Cartesian::from(min);

@@ -12,7 +12,7 @@ use crate::{IsClose, Tolerance, Vertex};
 /// Any other value must be computed in order to set its equivalent inside the range.
 ///
 /// ### Overflow
-/// Overflowing any of both boundaries of the inclination range behaves like moving away from 
+/// Overflowing any of both boundaries of the inclination range behaves like moving away from
 /// that boundary and getting closer to the opposite one.
 ///
 /// ## Example
@@ -96,7 +96,7 @@ impl<T> Inclination<T> {
 /// Any other value will be computed in order to set its equivalent inside that range.
 ///
 /// ### Overflow
-/// Both boundaries of the azimuth range are consecutive, which means that overflowing one is the 
+/// Both boundaries of the azimuth range are consecutive, which means that overflowing one is the
 /// same as continuing from the other one in the same direction.
 ///
 /// ## Example
@@ -262,9 +262,7 @@ where
 
     fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
         self.inclination.is_close(&rhs.inclination, tolerance)
-            && self
-                .azimuth
-                .is_close(&rhs.azimuth, tolerance)
+            && self.azimuth.is_close(&rhs.azimuth, tolerance)
     }
 }
 

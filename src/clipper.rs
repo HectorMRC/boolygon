@@ -118,7 +118,7 @@ where
             .with_clip(self.clip.clone())
             .build();
 
-        let mut output = None;
+        let mut boundaries = Vec::new();
         while let Some(position) =
             graph.position_where(|node| Op::is_output((&self).into(), node, &self.tolerance))
         {
@@ -135,13 +135,14 @@ where
                 continue;
             };
 
-            match output.as_mut() {
-                None => output = Some(Shape::new(boundary)),
-                Some(shape) => shape.boundaries.push(boundary),
-            };
+            boundaries.push(boundary);
         }
 
-        output
+        if boundaries.is_empty() {
+            return None;
+        }
+
+        Some(Shape { boundaries })
     }
 }
 

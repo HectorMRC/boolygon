@@ -3,7 +3,7 @@ mod point;
 mod polygon;
 
 pub use self::arc::Arc;
-pub use self::point::{Point, Inclination, Azimuth};
+pub use self::point::{Azimuth, Inclination, Point};
 pub use self::polygon::{spherical_polygon, Polygon};
 
 #[cfg(test)]
