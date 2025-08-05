@@ -80,22 +80,16 @@ where
         rhs: &Segment<'_, T>,
         tolerance: &Tolerance<T>,
     ) -> Option<Point<T>> {
-        if (self.from.is_close(rhs.from, tolerance)
-            && !self.contains(rhs.to, tolerance)
-            && !rhs.contains(self.to, tolerance))
-            || (self.from.is_close(rhs.to, tolerance)
-                && !self.contains(rhs.from, tolerance)
-                && !rhs.contains(self.to, tolerance))
+        if !rhs.contains(self.to, tolerance)
+            && (self.from.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
+                || self.from.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
         {
             return Some(*self.from);
         }
 
-        if (self.to.is_close(rhs.from, tolerance)
-            && !self.contains(rhs.to, tolerance)
-            && !rhs.contains(self.from, tolerance))
-            || (self.to.is_close(rhs.to, tolerance)
-                && !self.contains(rhs.from, tolerance)
-                && !rhs.contains(self.from, tolerance))
+        if !rhs.contains(self.from, tolerance)
+            && (self.to.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
+                || self.to.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
         {
             return Some(*self.to);
         }
