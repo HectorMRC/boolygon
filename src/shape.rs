@@ -1,9 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    clipper::{Clipper, Operator},
-    node::{Node, Role},
-    Edge, Geometry, IsClose, Operands, Vertex,
+    clipper::{Clipper, Direction, Operator}, graph::{BoundaryRole, Intersection, Node}, Edge, Geometry, IsClose, Operands, Vertex
 };
 
 /// A combination of disjoint boundaries.
@@ -56,15 +54,26 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject => {
                         !ops.clip.contains(&node.vertex, tolerance)
-                            || ops.clip.is_boundary(&node.vertex, tolerance)
+                            
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip => {
                         !ops.subject.contains(&node.vertex, tolerance)
-                            || ops.subject.is_boundary(&node.vertex, tolerance)
+                            
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection else {
+                    return Direction::Forward;
+                };
+
+                match intersection {
+                    Intersection::Entry => Direction::Backward,
+                    Intersection::Exit => Direction::Forward,
                 }
             }
         }
@@ -91,15 +100,30 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject => {
                         !ops.clip.contains(&node.vertex, tolerance)
-                            && !ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip => {
                         ops.subject.contains(&node.vertex, tolerance)
-                            && !ops.subject.is_boundary(&node.vertex, tolerance)
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection else {
+                    return if node.boundary.is_subject() {
+                        Direction::Forward
+                    } else {
+                        Direction::Backward
+                    }
+                };
+
+                match (node.boundary, intersection) {
+                    (BoundaryRole::Subject, Intersection::Entry) => Direction::Backward,
+                    (BoundaryRole::Subject, Intersection::Exit) => Direction::Forward,
+                    (BoundaryRole::Clip, Intersection::Entry) => Direction::Forward,
+                    (BoundaryRole::Clip, Intersection::Exit) => Direction::Backward,
                 }
             }
         }
@@ -107,7 +131,7 @@ where
         Clipper::default()
             .with_operator::<NotOperator<T>>()
             .with_tolerance(tolerance)
-            .with_clip(rhs.inverted_winding())
+            .with_clip(rhs)
             .with_subject(self)
             .execute()
     }
@@ -125,15 +149,26 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject => {
                         ops.clip.contains(&node.vertex, tolerance)
-                            || ops.clip.is_boundary(&node.vertex, tolerance)
+                            
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip => {
                         ops.subject.contains(&node.vertex, tolerance)
-                            || ops.subject.is_boundary(&node.vertex, tolerance)
+                            
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection else {
+                    return Direction::Forward;
+                };
+
+                match intersection {
+                    Intersection::Entry => Direction::Forward,
+                    Intersection::Exit => Direction::Backward,
                 }
             }
         }
@@ -187,18 +222,6 @@ where
         }
     }
 
-    /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.
-    pub(crate) fn is_boundary(
-        &self,
-        vertex: &T::Vertex,
-        tolerance: &<T::Vertex as IsClose>::Tolerance,
-    ) -> bool {
-        self.boundaries
-            .iter()
-            .flat_map(|boundary| boundary.edges())
-            .any(|segment| segment.contains(vertex, tolerance))
-    }
-
     /// Returns the amount of vertices in this shape.
     pub(crate) fn total_vertices(&self) -> usize {
         self.boundaries
@@ -209,12 +232,5 @@ where
 
     pub(crate) fn edges(&self) -> impl Iterator<Item = T::Edge<'_>> {
         self.boundaries.iter().flat_map(|boundary| boundary.edges())
-    }
-
-    /// Returns  a new shape with the inverted winding.
-    fn inverted_winding(self) -> Self {
-        Self {
-            boundaries: self.boundaries.into_iter().map(T::reversed).collect(),
-        }
     }
 }

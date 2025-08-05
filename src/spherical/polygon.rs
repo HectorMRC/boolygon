@@ -97,32 +97,22 @@ where
             None
         };
 
-        let theta = T::PI() * tolerance.relative.into_inner();
+        let mut exterior = None;
+        let mut theta = T::PI() * tolerance.relative.into_inner();
 
-        operands
-            .subject
-            .edges()
-            .chain(operands.clip.edges())
-            .find_map(|arc| {
-                closest_exterior_point(&arc, theta).or_else(|| closest_exterior_point(&arc, -theta))
-            })
-            .or_else(|| {
-                operands
-                    .subject
-                    .boundaries
-                    .iter()
-                    .map(|polygon| polygon.exterior)
-                    .find(|exterior| !operands.clip.contains(exterior, tolerance))
-            })
-            .or_else(|| {
-                operands
-                    .clip
-                    .boundaries
-                    .iter()
-                    .map(|polygon| polygon.exterior)
-                    .find(|exterior| !operands.subject.contains(exterior, tolerance))
-            })
-            .map(|exterior| Self { vertices, exterior })
+        while exterior.is_none() && theta < T::FRAC_PI_8() {
+            exterior = operands
+                .subject
+                .edges()
+                .chain(operands.clip.edges())
+                .find_map(|arc| {
+                    closest_exterior_point(&arc, theta).or_else(|| closest_exterior_point(&arc, -theta))
+                });
+            
+            theta = theta + theta;
+        }
+
+        exterior.map(|exterior| Self { vertices, exterior })
     }
 
     fn total_vertices(&self) -> usize {
@@ -150,9 +140,10 @@ where
 
         self.edges()
             .filter(|segment| {
-                Arc::new(&self.exterior, point)
-                    .intersection(segment, tolerance)
-                    .is_some()
+                let intersection = Arc::new(&self.exterior, point)
+                    .intersection(segment, tolerance);
+                    
+                intersection.is_some()
             })
             .fold(0, |wn, arc| if left_of(&arc) { wn + 1 } else { wn - 1 })
     }
@@ -169,7 +160,7 @@ impl<T> IntoIterator for Polygon<T> {
 
 impl<T> Polygon<T> {
     /// Returns a polygon with the given vertices and exterior.
-    pub fn new<U>(exterior: U, vertices: Vec<U>) -> Self
+    pub fn new<U>(vertices: Vec<U>, exterior: U) -> Self
     where
         U: Into<Point<T>>,
     {
@@ -192,7 +183,7 @@ impl<T> Polygon<T> {
 #[macro_export]
 macro_rules! spherical_polygon {
     ($($vertices:expr),*; $exterior:expr) => {
-        Polygon::new($exterior, vec![$($vertices),*])
+        Polygon::new(vec![$($vertices),*], $exterior)
     };
 }
 

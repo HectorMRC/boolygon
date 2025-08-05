@@ -149,16 +149,6 @@ impl<T> Polygon<T> {
     }
 }
 
-/// A constructor macro for cartesian [`Polygon`]s.
-#[macro_export]
-macro_rules! cartesian_polygon {
-    ($($vertices:expr),*) => {
-        Polygon::from(vec![$($vertices),*])
-    };
-}
-
-pub use cartesian_polygon;
-
 #[cfg(test)]
 mod tests {
     use crate::{

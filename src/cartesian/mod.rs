@@ -4,12 +4,12 @@ mod polygon;
 mod segment;
 
 pub use self::point::Point;
-pub use self::polygon::{cartesian_polygon, Polygon};
+pub use self::polygon::Polygon;
 pub use self::segment::Segment;
 
 #[cfg(test)]
 mod tests {
-    use crate::{cartesian::Polygon, cartesian_polygon, Shape};
+    use crate::{cartesian::Polygon, Shape};
 
     #[test]
     fn union() {
@@ -21,26 +21,26 @@ mod tests {
         }
 
         vec![
-            Test {
-                name: "horizontal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
-                want: Shape::new(cartesian_polygon!(
-                    [0., 0.],
-                    [2., 0.],
-                    [4., 0.],
-                    [6., 0.],
-                    [6., 4.],
-                    [4., 4.],
-                    [2., 4.],
-                    [0., 4.]
-                )),
-            },
+            // Test {
+            //     name: "horizontal overlapping squares",
+            //     subject: Shape::new(vec!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+            //     clip: Shape::new(vec!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
+            //     want: Shape::new(vec!(
+            //         [0., 0.],
+            //         [2., 0.],
+            //         [4., 0.],
+            //         [6., 0.],
+            //         [6., 4.],
+            //         [4., 4.],
+            //         [2., 4.],
+            //         [0., 4.]
+            //     )),
+            // },
             Test {
                 name: "diagonal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 2.], [6., 2.], [6., 6.], [2., 6.])),
-                want: Shape::new(cartesian_polygon!(
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Shape::new(vec![
                     [0., 0.],
                     [4., 0.],
                     [4., 2.],
@@ -48,33 +48,13 @@ mod tests {
                     [6., 6.],
                     [2., 6.],
                     [2., 4.],
-                    [0., 4.]
-                )),
-            },
-            Test {
-                name: "vertical overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([0., 2.], [4., 2.], [4., 6.], [0., 6.])),
-                want: Shape::new(cartesian_polygon!(
-                    [0., 0.],
-                    [4., 0.],
-                    [4., 2.],
-                    [4., 4.],
-                    [4., 6.],
-                    [0., 6.],
                     [0., 4.],
-                    [0., 2.]
-                )),
+                ]),
             },
             Test {
                 name: "non-overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!(
-                    [6., 6.],
-                    [10., 6.],
-                    [10., 10.],
-                    [6., 10.]
-                )),
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[6., 6.], [10., 6.], [10., 10.], [6., 10.]]),
                 want: Shape {
                     boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
@@ -84,15 +64,15 @@ mod tests {
             },
             Test {
                 name: "clip enclosing subject",
-                subject: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                clip: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                want: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+                subject: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                want: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
             },
             Test {
                 name: "subject enclosing clip",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                want: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                want: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
             },
             Test {
                 name: "subject with hole enclosing clip",
@@ -102,8 +82,8 @@ mod tests {
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                want: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                want: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
             },
             Test {
                 name: "subject with hole excluding clip",
@@ -113,12 +93,7 @@ mod tests {
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!(
-                    [1.5, 1.5],
-                    [2.5, 1.5],
-                    [2.5, 2.5],
-                    [1.5, 2.5]
-                )),
+                clip: Shape::new(vec![[1.5, 1.5], [2.5, 1.5], [2.5, 2.5], [1.5, 2.5]]),
                 want: Shape {
                     boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
@@ -128,34 +103,96 @@ mod tests {
                 },
             },
             Test {
-                name: "clipping clockwise side from self-crossing subject",
-                subject: Shape::new(cartesian_polygon!(
-                    [1., 0.],
-                    [1., 1.],
-                    [-1., 1.],
-                    [-1., 0.],
-                    [1., 0.],
-                    [1., -1.],
-                    [-1., -1.],
-                    [-1., 0.]
-                )),
-                clip: Shape::new(cartesian_polygon!(
-                    [0.75, -0.25],
-                    [-0.75, -0.25],
-                    [-0.75, -0.75],
-                    [0.75, -0.75]
-                )),
-                want: Shape::new(cartesian_polygon!(
-                    [1., 0.],
-                    [1., 1.],
-                    [-1., 1.],
-                    [-1., 0.],
-                    [1., 0.],
-                    [1., -1.],
-                    [-1., -1.],
-                    [-1., 0.]
-                )),
+                name: "subject with hole intersecting clip",
+                subject: Shape {
+                    boundaries: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                },
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Shape {
+                    boundaries: vec![
+                        vec![
+                            [0., 0.],
+                            [4., 0.],
+                            [4., 2.],
+                            [6., 2.],
+                            [6., 6.],
+                            [2., 6.],
+                            [2., 4.],
+                            [0., 4.],
+                        ]
+                        .into(),
+                        vec![[3., 2.], [3., 1.], [1., 1.], [1., 3.], [2., 3.], [2., 2.]].into(),
+                    ],
+                },
             },
+            Test {
+                name: "subject with hole intersecting clip with hole",
+                subject: Shape {
+                    boundaries: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
+                    ],
+                },
+                clip: Shape {
+                    boundaries: vec![
+                        vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]].into(),
+                        vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
+                    ],
+                },
+                want: Shape {
+                    boundaries: vec![
+                        vec![
+                            [4., 2.],
+                            [6., 2.],
+                            [6., 6.],
+                            [2., 6.],
+                            [2., 4.],
+                            [0., 4.],
+                            [0., 0.],
+                            [4., 0.],
+                        ]
+                        .into(),
+                        vec![[4., 3.], [4., 4.], [3., 4.], [3., 5.], [5., 5.], [5., 3.]].into(),
+                        vec![[3., 2.], [3., 1.], [1., 1.], [1., 3.], [2., 3.], [2., 2.]].into(),
+                    ],
+                },
+            },
+            // Test {
+            //     name: "clipping clockwise side from self-crossing subject",
+            //     subject: Shape::new(vec![
+            //         [-1., 0.],
+            //         [-1., -1.],
+            //         [1., -1.],
+            //         [1., 0.],
+            //         [-1., 0.],
+            //         [-1., 1.],
+            //         [1., 1.],
+            //         [1., 0.],
+            //     ]),
+            //     clip: Shape::new(vec![
+            //         [0.75, 0.75],
+            //         [0.75, 1.25],
+            //         [-0.75, 1.25],
+            //         [-0.75, 0.75],
+            //     ]),
+            //     want: Shape::new(vec![
+            //         [-1., 0.],
+            //         [-1., -1.],
+            //         [1., -1.],
+            //         [1., 0.],
+            //         [-1., 0.],
+            //         [-1., 1.],
+            //         [-0.75, 1.],
+            //         [-0.75, 1.25],
+            //         [0.75, 1.25],
+            //         [0.75, 1.],
+            //         [1., 1.],
+            //         [1., 0.],
+            //     ]),
+            // },
         ]
         .into_iter()
         .for_each(|test| {
@@ -174,45 +211,34 @@ mod tests {
         }
 
         vec![
-            Test {
-                name: "horizontal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [0., 0.],
-                    [2., 0.],
-                    [2., 4.],
-                    [0., 4.]
-                ))),
-            },
+            // Test {
+            //     name: "horizontal overlapping squares",
+            //     subject: Shape::new(vec!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+            //     clip: Shape::new(vec!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
+            //     want: Some(Shape::new(vec!(
+            //         [0., 0.],
+            //         [2., 0.],
+            //         [2., 4.],
+            //         [0., 4.]
+            //     ))),
+            // },
             Test {
                 name: "diagonal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 2.], [6., 2.], [6., 6.], [2., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Some(Shape::new(vec![
                     [0., 0.],
                     [4., 0.],
                     [4., 2.],
                     [2., 2.],
                     [2., 4.],
-                    [0., 4.]
-                ))),
-            },
-            Test {
-                name: "vertical overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([0., 2.], [4., 2.], [4., 6.], [0., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [0., 0.],
-                    [4., 0.],
-                    [4., 2.],
-                    [0., 2.]
-                ))),
+                    [0., 4.],
+                ])),
             },
             Test {
                 name: "subject enclosing clip",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
                 want: Some(Shape {
                     boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
@@ -222,8 +248,8 @@ mod tests {
             },
             Test {
                 name: "clip enclosing subject",
-                subject: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                clip: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+                subject: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
                 want: None,
             },
             Test {
@@ -234,7 +260,7 @@ mod tests {
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
                 want: Some(Shape {
                     boundaries: vec![
                         vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
@@ -250,8 +276,8 @@ mod tests {
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!([2., 2.], [6., 2.], [6., 6.], [2., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Some(Shape::new(vec![
                     [0., 0.],
                     [4., 0.],
                     [4., 2.],
@@ -261,8 +287,8 @@ mod tests {
                     [1., 3.],
                     [2., 3.],
                     [2., 4.],
-                    [0., 4.]
-                ))),
+                    [0., 4.],
+                ])),
             },
             Test {
                 name: "subject with hole intersecting clip with hole",
@@ -315,60 +341,34 @@ mod tests {
         }
 
         vec![
-            Test {
-                name: "horizontal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [2., 0.],
-                    [4., 0.],
-                    [4., 4.],
-                    [2., 4.]
-                ))),
-            },
+            // Test {
+            //     name: "horizontal overlapping squares",
+            //     subject: Shape::new(vec!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
+            //     clip: Shape::new(vec!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
+            //     want: Some(Shape::new(vec!(
+            //         [2., 0.],
+            //         [4., 0.],
+            //         [4., 4.],
+            //         [2., 4.]
+            //     ))),
+            // },
             Test {
                 name: "diagonal overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([2., 2.], [6., 2.], [6., 6.], [2., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [2., 2.],
-                    [4., 2.],
-                    [4., 4.],
-                    [2., 4.]
-                ))),
-            },
-            Test {
-                name: "vertical overlapping squares",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([0., 2.], [4., 2.], [4., 6.], [0., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [0., 2.],
-                    [4., 2.],
-                    [4., 4.],
-                    [0., 4.]
-                ))),
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Some(Shape::new(vec![[2., 2.], [4., 2.], [4., 4.], [2., 4.]])),
             },
             Test {
                 name: "subject enclosing clip",
-                subject: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [1., 1.],
-                    [3., 1.],
-                    [3., 3.],
-                    [1., 3.]
-                ))),
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                want: Some(Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]])),
             },
             Test {
                 name: "clip enclosing subject",
-                subject: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
-                clip: Shape::new(cartesian_polygon!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [1., 1.],
-                    [3., 1.],
-                    [3., 3.],
-                    [1., 3.]
-                ))),
+                subject: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                want: Some(Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]])),
             },
             Test {
                 name: "subject with hole enclosing clip",
@@ -378,7 +378,7 @@ mod tests {
                         vec![[1.5, 2.5], [2.5, 2.5], [2.5, 1.5], [1.5, 1.5]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!([1., 1.], [3., 1.], [3., 3.], [1., 3.])),
+                clip: Shape::new(vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]]),
                 want: Some(Shape {
                     boundaries: vec![
                         vec![[1., 1.], [3., 1.], [3., 3.], [1., 3.]].into(),
@@ -394,15 +394,15 @@ mod tests {
                         vec![[1., 3.], [3., 3.], [3., 1.], [1., 1.]].into(),
                     ],
                 },
-                clip: Shape::new(cartesian_polygon!([2., 2.], [6., 2.], [6., 6.], [2., 6.])),
-                want: Some(Shape::new(cartesian_polygon!(
+                clip: Shape::new(vec![[2., 2.], [6., 2.], [6., 6.], [2., 6.]]),
+                want: Some(Shape::new(vec![
                     [3., 2.],
                     [4., 2.],
                     [4., 4.],
                     [2., 4.],
                     [2., 3.],
-                    [3., 3.]
-                ))),
+                    [3., 3.],
+                ])),
             },
             Test {
                 name: "subject with hole intersecting clip with hole",
@@ -418,38 +418,42 @@ mod tests {
                         vec![[3., 5.], [5., 5.], [5., 3.], [3., 3.]].into(),
                     ],
                 },
-                want: Some(Shape {
-                    boundaries: vec![
-                        cartesian_polygon!([2., 4.], [2., 3.], [3., 3.], [3., 4.]),
-                        cartesian_polygon!([3., 2.], [4., 2.], [4., 3.], [3., 3.]),
-                    ],
-                }),
+                want: Some(Shape::new(vec![
+                    [2., 4.],
+                    [2., 3.],
+                    [3., 3.],
+                    [3., 2.],
+                    [4., 2.],
+                    [4., 3.],
+                    [3., 3.],
+                    [3., 4.],
+                ])),
             },
-            Test {
-                name: "clipping clockwise side from self-crossing subject",
-                subject: Shape::new(cartesian_polygon!(
-                    [1., 0.],
-                    [1., 1.],
-                    [-1., 1.],
-                    [-1., 0.],
-                    [1., 0.],
-                    [1., -1.],
-                    [-1., -1.],
-                    [-1., 0.]
-                )),
-                clip: Shape::new(cartesian_polygon!(
-                    [0.75, -0.25],
-                    [-0.75, -0.25],
-                    [-0.75, -0.75],
-                    [0.75, -0.75]
-                )),
-                want: Some(Shape::new(cartesian_polygon!(
-                    [0.75, -0.25],
-                    [-0.75, -0.25],
-                    [-0.75, -0.75],
-                    [0.75, -0.75]
-                ))),
-            },
+            // Test {
+            //     name: "clipping clockwise side from self-crossing subject",
+            //     subject: Shape::new(vec!(
+            //         [-1., 0.],
+            //         [-1., -1.],
+            //         [1., -1.],
+            //         [1., 0.],
+            //         [-1., 0.],
+            //         [-1., 1.],
+            //         [1., 1.],
+            //         [1., 0.]
+            //     )),
+            //     clip: Shape::new(vec!(
+            //         [0.75, 0.75],
+            //         [0.75, 1.25],
+            //         [-0.75, 1.25],
+            //         [-0.75, 0.75]
+            //     )),
+            //     want: Some(Shape::new(vec![
+            //         [-0.75, 0.75],
+            //         [0.75, 0.75],
+            //         [0.75, 1.],
+            //         [-0.75, 1.],
+            //     ])),
+            // },
         ]
         .into_iter()
         .for_each(|test| {

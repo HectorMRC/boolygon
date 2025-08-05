@@ -36,19 +36,19 @@ where
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
+    fn intersection(&self, rhs: &Self, _: &Tolerance<T>) -> Option<Self::Vertex> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
             // When the two (infinte) lines are parallel or coincident, the determinant is zero.
-            return self.collinear_common_point(rhs, tolerance);
+            return None;
         }
 
         let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
-        // Predict if the division `t / determinant` will be in the range `[0,1]`
-        if t.abs() > determinant.abs() || !t.is_zero() && t.signum() != determinant.signum() {
+        // Predict if the division `t / determinant` will be in the range `(0,1)`
+        if t.abs() >= determinant.abs() || t.is_zero() || t.signum() != determinant.signum() {
             return None;
         }
 
@@ -57,8 +57,8 @@ where
         let u = -((self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x));
 
-        // Predict if the division `u / determinant` will be in the range `[0,1]`
-        if u.abs() > determinant.abs() || !u.is_zero() && u.signum() != determinant.signum() {
+        // Predict if the division `u / determinant` will be in the range `(0,1)`
+        if u.abs() >= determinant.abs() || u.is_zero() || u.signum() != determinant.signum() {
             return None;
         }
 
@@ -67,34 +67,9 @@ where
             y: self.from.y + t * (self.to.y - self.from.y),
         })
     }
-}
 
-impl<T> Segment<'_, T>
-where
-    T: Signed + Float,
-{
-    /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
-    /// them, if any.
-    fn collinear_common_point(
-        &self,
-        rhs: &Segment<'_, T>,
-        tolerance: &Tolerance<T>,
-    ) -> Option<Point<T>> {
-        if !rhs.contains(self.to, tolerance)
-            && (self.from.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
-                || self.from.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
-        {
-            return Some(*self.from);
-        }
-
-        if !rhs.contains(self.from, tolerance)
-            && (self.to.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
-                || self.to.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
-        {
-            return Some(*self.to);
-        }
-
-        None
+    fn start(&self) -> &Self::Vertex {
+        self.from
     }
 }
 
@@ -138,6 +113,18 @@ mod tests {
                 want: Some([2., 2.].into()),
             },
             Test {
+                name: "perpendicular segments",
+                segment: Segment {
+                    from: &[4., 0.].into(),
+                    to: &[4., 4.].into(),
+                },
+                rhs: Segment {
+                    from: &[2., 2.].into(),
+                    to: &[6., 2.].into(),
+                },
+                want: Some([4., 2.].into()),
+            },
+            Test {
                 name: "segments starting at the same point",
                 segment: Segment {
                     from: &[0., 0.].into(),
@@ -147,7 +134,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
-                want: Some([0., 0.].into()),
+                want: None,
             },
             Test {
                 name: "connected segments",
@@ -159,7 +146,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
-                want: Some([0., 0.].into()),
+                want: None,
             },
             Test {
                 name: "collinear segments with common point",
@@ -171,7 +158,7 @@ mod tests {
                     from: &[-4., -4.].into(),
                     to: &[0., 0.].into(),
                 },
-                want: Some([0., 0.].into()),
+                want: None,
             },
             Test {
                 name: "collinear segments with no common point",
@@ -195,7 +182,7 @@ mod tests {
                     from: &[-4., 4.].into(),
                     to: &[0., 0.].into(),
                 },
-                want: Some([0., 0.].into()),
+                want: None,
             },
             Test {
                 name: "parallel segments",
@@ -270,16 +257,16 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "perpendicular segments",
+                name: "perpendicular with endpoint in line",
                 segment: Segment {
-                    from: &[4., 0.].into(),
-                    to: &[4., 4.].into(),
+                    from: &[0., 0.].into(),
+                    to: &[4., 0.].into(),
                 },
                 rhs: Segment {
                     from: &[2., 2.].into(),
-                    to: &[6., 2.].into(),
+                    to: &[2., 0.].into(),
                 },
-                want: Some([4., 2.].into()),
+                want: None,
             },
         ]
         .into_iter()

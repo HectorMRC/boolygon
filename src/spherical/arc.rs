@@ -7,9 +7,9 @@ use crate::{spherical::Point, Edge, IsClose, Tolerance, Vertex as _};
 #[derive(Debug)]
 pub struct Arc<'a, T> {
     /// The first point in the segment.
-    pub(super) from: &'a Point<T>,
+    pub(crate) from: &'a Point<T>,
     /// The last point in the segment.
-    pub(super) to: &'a Point<T>,
+    pub(crate) to: &'a Point<T>,
 }
 
 impl<'a, T> Edge<'a> for Arc<'a, T>
@@ -36,14 +36,15 @@ where
     }
 
     fn contains(&self, point: &Self::Vertex, tolerance: &Tolerance<T>) -> bool {
-        (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
+        let from_distance = self.from.distance(point);
+        let to_distance = self.to.distance(point);
+        let total_length = from_distance + to_distance;
+        let actual_lenght = self.length();
+
+        total_length.is_close(&actual_lenght, tolerance)
     }
 
     fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
-        if self.length().is_zero() || rhs.length().is_zero() {
-            return None;
-        }
-
         if self.is_antipodal() {
             let point = self.midpoint();
             let first_half = Arc::new(self.from, &point);
@@ -90,6 +91,10 @@ where
 
         None
     }
+
+    fn start(&self) -> &Self::Vertex {
+        self.from
+    }
 }
 
 impl<T> Arc<'_, T>
@@ -97,7 +102,7 @@ where
     T: PartialOrd + Signed + Float + FloatConst + Euclid,
 {
     /// Returns the normal vector of the great circle containing the endpoints of self.
-    pub(super) fn normal(&self) -> Cartesian<T> {
+    pub(crate) fn normal(&self) -> Cartesian<T> {
         let from = Cartesian::from(*self.from);
         let to = Cartesian::from(*self.to);
         from.normal().cross(&to.normal()).normal()

@@ -1,6 +1,5 @@
 mod clipper;
 mod graph;
-mod node;
 mod shape;
 mod tolerance;
 
@@ -46,6 +45,9 @@ pub trait Edge<'a> {
         rhs: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Self::Vertex>;
+
+    /// Returns the starting endpoint of the edge.
+    fn start(&self) -> &Self::Vertex;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.
@@ -86,4 +88,12 @@ pub trait Geometry: Sized + RightHanded {
         vertex: &Self::Vertex,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> isize;
+
+    fn contains(
+        &self,
+        vertex: &Self::Vertex,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> bool {
+        self.winding(vertex, tolerance) != 0
+    }
 }
