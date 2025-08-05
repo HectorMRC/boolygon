@@ -297,45 +297,6 @@ mod tests {
                     ],
                 }),
             },
-            // Test {
-            //     name: "clipping clockwise side from self-crossing subject",
-            //     subject: Shape::new(cartesian_polygon!(
-            //         [1., 0.],
-            //         [1., 1.],
-            //         [-1., 1.],
-            //         [-1., 0.],
-            //         [1., 0.],
-            //         [1., -1.],
-            //         [-1., -1.],
-            //         [-1., 0.]
-            //     )),
-            //     clip: Shape::new(cartesian_polygon!(
-            //         [0.75, -0.25],
-            //         [-0.75, -0.25],
-            //         [-0.75, -0.75],
-            //         [0.75, -0.75]
-            //     )),
-            //     want: Some(Shape {
-            //         boundaries: vec![
-            //             cartesian_polygon!(
-            //                 [1., 0.],
-            //                 [1., 1.],
-            //                 [-1., 1.],
-            //                 [-1., 0.],
-            //                 [1., 0.],
-            //                 [1., -1.],
-            //                 [-1., -1.],
-            //                 [-1., 0.]
-            //             ),
-            //             cartesian_polygon!(
-            //                 [0.75, -0.25],
-            //                 [-0.75, -0.25],
-            //                 [-0.75, -0.75],
-            //                 [0.75, -0.75]
-            //             ),
-            //         ],
-            //     }),
-            // },
         ]
         .into_iter()
         .for_each(|test| {

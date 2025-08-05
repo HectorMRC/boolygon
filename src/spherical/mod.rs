@@ -54,9 +54,9 @@ mod tests {
                     [PI, PI]
                 )),
                 clip: Shape::new(spherical_polygon!(
-                    [PI, 0.],
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, 3. * FRAC_PI_2];
+                    [PI, 0.];
                     [0., 0.]
                 )),
                 want: Shape {
@@ -68,9 +68,9 @@ mod tests {
                             [PI, PI]
                         ),
                         spherical_polygon!(
-                            [PI, 0.],
+                            [FRAC_PI_2, 3. * FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI, 0.];
                             [0., 0.]
                         ),
                     ],
@@ -126,11 +126,11 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];
@@ -142,14 +142,14 @@ mod tests {
                     [FRAC_PI_4 + FRAC_PI_8, 0.],
                     [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
                     [FRAC_PI_4 + FRAC_PI_8, PI],
-                    [FRAC_PI_4 + FRAC_PI_8, PI + FRAC_PI_2];
+                    [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
                 want: Shape::new(spherical_polygon!(
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
             },
@@ -161,11 +161,11 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];
@@ -177,7 +177,7 @@ mod tests {
                     [FRAC_PI_8, 0.],
                     [FRAC_PI_8, FRAC_PI_2],
                     [FRAC_PI_8, PI],
-                    [FRAC_PI_8, PI + FRAC_PI_2];
+                    [FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
                 want: Shape {
@@ -186,11 +186,11 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];
@@ -200,7 +200,7 @@ mod tests {
                             [FRAC_PI_8, 0.],
                             [FRAC_PI_8, FRAC_PI_2],
                             [FRAC_PI_8, PI],
-                            [FRAC_PI_8, PI + FRAC_PI_2];
+                            [FRAC_PI_8, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                     ],
@@ -310,9 +310,9 @@ mod tests {
                             [PI, PI]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
+                            [FRAC_PI_8, FRAC_PI_4],
                             [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8],
-                            [FRAC_PI_8, FRAC_PI_4];
+                            [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8];
                             [PI, PI]
                         ),
                     ],
@@ -326,11 +326,11 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];
@@ -342,7 +342,7 @@ mod tests {
                     [FRAC_PI_4 + FRAC_PI_8, 0.],
                     [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
                     [FRAC_PI_4 + FRAC_PI_8, PI],
-                    [FRAC_PI_4 + FRAC_PI_8, PI + FRAC_PI_2];
+                    [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
                 want: Some(Shape {
@@ -351,14 +351,14 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4 + FRAC_PI_8, 0.],
-                            [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
+                            [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2],
                             [FRAC_PI_4 + FRAC_PI_8, PI],
-                            [FRAC_PI_4 + FRAC_PI_8, PI + FRAC_PI_2];
+                            [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
+                            [FRAC_PI_4 + FRAC_PI_8, 0.];
                             [PI, 0.]
                         ),
                     ],
@@ -572,11 +572,11 @@ mod tests {
                             [FRAC_PI_2, 0.],
                             [FRAC_PI_2, FRAC_PI_2],
                             [FRAC_PI_2, PI],
-                            [FRAC_PI_2, PI + FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];
@@ -588,7 +588,7 @@ mod tests {
                     [FRAC_PI_4 + FRAC_PI_8, 0.],
                     [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
                     [FRAC_PI_4 + FRAC_PI_8, PI],
-                    [FRAC_PI_4 + FRAC_PI_8, PI + FRAC_PI_2];
+                    [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
                 want: Some(Shape {
@@ -597,11 +597,11 @@ mod tests {
                             [FRAC_PI_4 + FRAC_PI_8, 0.],
                             [FRAC_PI_4 + FRAC_PI_8, FRAC_PI_2],
                             [FRAC_PI_4 + FRAC_PI_8, PI],
-                            [FRAC_PI_4 + FRAC_PI_8, PI + FRAC_PI_2];
+                            [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2];
                             [PI, 0.]
                         ),
                         spherical_polygon!(
-                            [FRAC_PI_4, PI + FRAC_PI_2],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
                             [FRAC_PI_4, PI],
                             [FRAC_PI_4, FRAC_PI_2],
                             [FRAC_PI_4, 0.];

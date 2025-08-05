@@ -46,9 +46,6 @@ where
         };
 
         is_rotation(&double)
-
-        // double.reverse();
-        // is_rotation(&double)
     }
 }
 

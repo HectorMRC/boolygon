@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use geocart::{
     transform::{Rotation, Transform},
     Cartesian,
@@ -38,11 +36,6 @@ where
             (0..len).any(|padding| double[padding..padding + len] == self.vertices)
         };
 
-        if is_rotation(&double) {
-            return true;
-        }
-
-        double.reverse();
         is_rotation(&double)
     }
 }
@@ -52,27 +45,19 @@ where
     T: Signed + Float + FloatConst + Euclid,
 {
     fn is_clockwise(&self) -> bool {
-        self.vertices
-            .iter()
-            .enumerate()
-            .min_by(|(_, a), (_, b)| {
-                match a.inclination.partial_cmp(&b.inclination) {
-                    Some(Ordering::Equal) => b.azimuth.partial_cmp(&a.azimuth),
-                    other => other,
-                }
-                .unwrap_or(Ordering::Equal)
-            })
-            .map(|(mut position, &min)| {
-                // Avoids usize overflow when position = 0.
-                position += self.vertices.len();
+        // Since the exterior point of the polygon is used as the observer, the actual orientation
+        // is inverted. That implies that if the product of the polygon's normal and its exterior
+        // is positive (counterclockwise from the observer's perspective), an observer inside
+        // perceives the polygon's orientation as clockwise.
 
-                let before = Cartesian::from(self.vertices[(position - 1) % self.vertices.len()]);
-                let after = Cartesian::from(self.vertices[(position + 1) % self.vertices.len()]);
-                let min = Cartesian::from(min);
-
-                before.dot(&min.cross(&after)).is_negative()
+        self.edges()
+            .fold(Cartesian::origin(), |normal, edge| {
+                let from = Cartesian::from(*edge.from);
+                let to = Cartesian::from(*edge.to);
+                normal + from.cross(&to)
             })
-            .unwrap_or_default()
+            .dot(&self.exterior.into())
+            > T::zero()
     }
 }
 
@@ -169,15 +154,7 @@ where
                     .intersection(segment, tolerance)
                     .is_some()
             })
-            .fold(0, |wn, arc| {
-                if left_of(&arc) {
-                    wn + 1
-                } else if !left_of(&arc) {
-                    wn - 1
-                } else {
-                    wn
-                }
-            })
+            .fold(0, |wn, arc| if left_of(&arc) { wn + 1 } else { wn - 1 })
     }
 }
 
@@ -268,7 +245,7 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [PI, 0.],
-                    [PI + FRAC_PI_2, 0.];
+                    [3. * FRAC_PI_2, 0.];
                     [FRAC_PI_4, 3. * FRAC_PI_2]
                 ),
                 point: [FRAC_PI_2, 3. * FRAC_PI_2].into(),
@@ -280,7 +257,7 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [PI, 0.],
-                    [PI + FRAC_PI_2, 0.];
+                    [3. * FRAC_PI_2, 0.];
                     [FRAC_PI_4, FRAC_PI_2]
                 ),
                 point: [FRAC_PI_2, FRAC_PI_2].into(),
@@ -352,7 +329,7 @@ mod tests {
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 ),
                 want: false,
@@ -360,11 +337,11 @@ mod tests {
             Test {
                 name: "equator as a clockwise polygon",
                 polygon: spherical_polygon!(
-                    [FRAC_PI_2, PI + FRAC_PI_2],
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
                     [FRAC_PI_2, PI],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, 0.];
-                    [0., 0.]
+                    [PI, 0.]
                 ),
                 want: true,
             },
@@ -387,6 +364,19 @@ mod tests {
                     [PI, PI]
                 ),
                 want: true,
+            },
+            Test {
+                name: "semi-corona",
+                polygon: spherical_polygon!(
+                    [FRAC_PI_4, 0.],
+                    [FRAC_PI_4, 3. * FRAC_PI_2],
+                    [FRAC_PI_4, PI],
+                    [FRAC_PI_2, PI],
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
+                    [FRAC_PI_2, 0.];
+                    [PI, 0.]
+                ),
+                want: false,
             },
         ]
         .into_iter()
@@ -416,32 +406,14 @@ mod tests {
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 ),
                 right: spherical_polygon!(
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
-                    [PI, 0.]
-                ),
-                want: true,
-            },
-            Test {
-                name: "with different orientation",
-                left: spherical_polygon!(
-                    [FRAC_PI_2, 0.],
-                    [FRAC_PI_2, FRAC_PI_2],
-                    [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
-                    [PI, 0.]
-                ),
-                right: spherical_polygon!(
-                    [FRAC_PI_2, PI + FRAC_PI_2],
-                    [FRAC_PI_2, PI],
-                    [FRAC_PI_2, FRAC_PI_2],
-                    [FRAC_PI_2, 0.];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 ),
                 want: true,
@@ -452,11 +424,11 @@ mod tests {
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 ),
                 right: spherical_polygon!(
-                    [FRAC_PI_2, PI + FRAC_PI_2],
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI];
@@ -465,16 +437,34 @@ mod tests {
                 want: true,
             },
             Test {
+                name: "with different orientation",
+                left: spherical_polygon!(
+                    [FRAC_PI_2, 0.],
+                    [FRAC_PI_2, FRAC_PI_2],
+                    [FRAC_PI_2, PI],
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
+                    [PI, 0.]
+                ),
+                right: spherical_polygon!(
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
+                    [FRAC_PI_2, PI],
+                    [FRAC_PI_2, FRAC_PI_2],
+                    [FRAC_PI_2, 0.];
+                    [PI, 0.]
+                ),
+                want: false,
+            },
+            Test {
                 name: "different polygons",
                 left: spherical_polygon!(
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
-                    [FRAC_PI_2, PI + FRAC_PI_2];
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 ),
                 right: spherical_polygon!(
-                    [FRAC_PI_2, PI + FRAC_PI_2],
+                    [FRAC_PI_2, 3. * FRAC_PI_2],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, PI];
