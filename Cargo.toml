@@ -11,6 +11,9 @@ repository = "https://github.com/HectorMRC/boolygon"
 geocart = { version = "0.1.1", git = "https://github.com/hectormrc/geocart", branch = "main", default-features = false, optional = true }
 num-traits = "0.2.19"
 
+[dev-dependencies]
+rand = "0.9.2"
+
 [features]
 default = ["cartesian", "spherical"]
 spherical = ["dep:geocart"]

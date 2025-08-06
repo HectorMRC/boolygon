@@ -233,10 +233,11 @@ where
 impl<T> GraphBuilder<'_, T>
 where
     T: Geometry,
-    T::Vertex: Copy + PartialEq + PartialOrd,
-    <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
+    T::Vertex: Copy + PartialOrd,
+    <T::Vertex as Vertex>::Scalar: PartialOrd,
 {
-    pub(super) fn build(mut self) -> Graph<T> {
+    /// Populates the graph with all the intersections.
+    fn with_intersections(mut self) -> Self {
         let intersections = self.intersections();
         let mut visited = PartialOrdBTreeMap::new();
 
@@ -340,9 +341,15 @@ where
                             .expect("previous node should exist")
                             .next = index;
 
+                        self.graph.nodes[next]
+                            .as_mut()
+                            .expect("next node should exist")
+                            .previous = index;
+
                         self.graph.nodes.push(Some(Node {
                             vertex: intersection_point,
                             role,
+                            previous,
                             next,
                             siblings,
                         }));
@@ -352,7 +359,14 @@ where
                 });
         }
 
-        self.graph
+        self
+    }
+
+    /// Builds the graph.
+    pub(super) fn build(self) -> Graph<T> {
+        self
+            .with_intersections()
+            .graph
     }
 }
 
@@ -409,10 +423,14 @@ where
             self.boundaries.push(role);
 
             let total_vertices = boundary.total_vertices();
-            for (index, point) in boundary.into_iter().enumerate() {
+            for (mut index, point) in boundary.into_iter().enumerate() {
+                // Avoid usize overflow when index == 0.
+                index += total_vertices;
+
                 self.graph.nodes.push(Some(Node {
                     vertex: point,
                     role,
+                    previous: offset + ((index - 1) % total_vertices),
                     next: offset + ((index + 1) % total_vertices),
                     siblings: BTreeSet::new(),
                 }));

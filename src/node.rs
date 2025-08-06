@@ -31,6 +31,8 @@ where
     pub(super) vertex: T::Vertex,
     /// The role of the node.
     pub(super) role: Role,
+    /// The index of the node previous to this one.
+    pub(super) previous: usize,
     /// The index of the node following this one.
     pub(super) next: usize,
     /// Vertices from the oposite shape located at the same point.

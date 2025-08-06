@@ -170,6 +170,7 @@ where
                             &Node {
                                 vertex: U::Edge::new(&target.vertex, &next.vertex).midpoint(),
                                 role: next.role,
+                                previous: Default::default(),
                                 next: Default::default(),
                                 siblings: Default::default(),
                             }
