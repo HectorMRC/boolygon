@@ -36,11 +36,12 @@ where
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, _: &Tolerance<T>) -> Option<Self::Vertex> {
+    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
             // When the two (infinte) lines are parallel or coincident, the determinant is zero.
+            // return self.collinear_common_point(rhs, tolerance);
             return None;
         }
 
@@ -70,6 +71,35 @@ where
 
     fn start(&self) -> &Self::Vertex {
         self.from
+    }
+}
+
+impl<T> Segment<'_, T>
+where
+    T: Signed + Float,
+{
+    /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
+    /// them, if any.
+    fn collinear_common_point(
+        &self,
+        rhs: &Segment<'_, T>,
+        tolerance: &Tolerance<T>,
+    ) -> Option<Point<T>> {
+        if !rhs.contains(self.to, tolerance)
+            && (self.from.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
+                || self.from.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
+        {
+            return Some(*self.from);
+        }
+
+        if !rhs.contains(self.from, tolerance)
+            && (self.to.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
+                || self.to.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
+        {
+            return Some(*self.to);
+        }
+
+        None
     }
 }
 
@@ -134,6 +164,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
+                // want: Some([0., 0.].into()),
                 want: None,
             },
             Test {
@@ -146,6 +177,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
+                // want: Some([0., 0.].into()),
                 want: None,
             },
             Test {
@@ -158,6 +190,7 @@ mod tests {
                     from: &[-4., -4.].into(),
                     to: &[0., 0.].into(),
                 },
+                // want: Some([0., 0.].into()),
                 want: None,
             },
             Test {
@@ -182,6 +215,7 @@ mod tests {
                     from: &[-4., 4.].into(),
                     to: &[0., 0.].into(),
                 },
+                // want: Some([0., 0.].into()),
                 want: None,
             },
             Test {
@@ -266,6 +300,7 @@ mod tests {
                     from: &[2., 2.].into(),
                     to: &[2., 0.].into(),
                 },
+                // want: Some([2., 0.].into()),
                 want: None,
             },
         ]

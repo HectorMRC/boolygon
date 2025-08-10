@@ -13,7 +13,7 @@ pub fn cartesian() {
     let clip = Shape::from(cartesian::Polygon::from(rng.random::<Sample>().to_vec()));
 
     let start = SystemTime::now();
-    subject.and(clip, Tolerance::default());
+    subject.or(clip, Tolerance::default());
     let end = SystemTime::now();
 
     println!(

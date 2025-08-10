@@ -56,7 +56,7 @@ where
         }
 
         let direction = self.normal().cross(&rhs.normal());
-        if direction.magnitude().is_zero() {
+         if direction.magnitude().is_zero() {
             // When two arcs lie on the same great circle, their normal vectors coincide.
             return self.co_great_circular_common_point(rhs, tolerance);
         }
@@ -77,15 +77,23 @@ where
             return Some(*self.to);
         }
 
+        let exclusive_contains = |arc: &Arc<'_, T>, intersection: &Point<T>| {
+            arc.contains(intersection, tolerance)
+                // && !arc.from.is_close(intersection, tolerance) 
+                // && !arc.to.is_close(intersection, tolerance)
+        };
+
         let lambda = T::one() / direction.magnitude();
 
         let intersection = (direction * lambda).into();
-        if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
+        if exclusive_contains(self, &intersection)
+            && exclusive_contains(rhs, &intersection) {
             return Some(intersection);
         }
 
         let intersection = (direction * -lambda).into();
-        if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
+        if exclusive_contains(self, &intersection)
+            && exclusive_contains(rhs, &intersection) {
             return Some(intersection);
         }
 
@@ -147,5 +155,204 @@ where
         let from = Cartesian::from(*self.from);
         let to = Cartesian::from(*self.to);
         from.dot(&to) == -T::one()
+    } 
+}
+
+#[cfg(test)]
+mod tests {
+    use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
+
+    use crate::{
+        spherical::{Arc, Point},
+        Edge, Tolerance,
+    };
+
+    #[test]
+    fn arc_intersection() {
+        struct Test<'a> {
+            name: &'a str,
+            arc: Arc<'a, f64>,
+            rhs: Arc<'a, f64>,
+            want: Option<Point<f64>>,
+        }
+
+        vec![
+            Test {
+                name: "perpendicular arcs",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_4, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
+                    to: &[FRAC_PI_4, FRAC_PI_4].into(),
+                },
+                want: Some([0.61547970867038715, 0.].into()),
+            },
+            Test {
+                name: "arcs starting at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                // want: None,
+                want: Some([0., 0.].into())
+            },
+            Test {
+                name: "connected arcs",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                // want: None,
+                want: Some([FRAC_PI_2, 0.].into())
+            },
+            Test {
+                name: "co-great-circular arcs with common point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[PI, 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                // want: None,
+                want: Some([FRAC_PI_2, 0.].into())
+            },
+            Test {
+                name: "co-great-circular arcs with no common point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[PI, 0.].into(),
+                    to: &[FRAC_PI_2, -PI].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "arcs ending at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, FRAC_PI_2].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                // want: None,
+                want: Some([FRAC_PI_2, 0.].into()),
+            },
+            Test {
+                name: "parallel arcs",
+                arc: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_4, 0.].into(),
+                    to: &[FRAC_PI_4, FRAC_PI_2].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "coincident arcs when rhs is shorter",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_4, 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "coincident arcs when rhs is larger",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "rhs inside arc",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_8, 0.].into(),
+                    to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "arc inside rhs",
+                arc: Arc {
+                    from: &[FRAC_PI_8, 0.].into(),
+                    to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "non-crossing arcs",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, PI].into(),
+                    to: &[PI, 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "perpendicular with endpoint in line",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_4, 0.].into(),
+                    to: &[FRAC_PI_4, FRAC_PI_4].into(),
+                },
+                // want: None,
+                want: Some([FRAC_PI_4, 0.].into())
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let tolerance = Tolerance {
+                relative: 1e-09.into(),
+                absolute: 0.0.into(),
+            };
+
+            let got = test.arc.intersection(&test.rhs, &tolerance);
+            
+            assert_eq!(
+                got, test.want,
+                "{}: got intersection point = {got:?}, want = {:?}",
+                test.name, test.want
+            );
+        });
     }
 }

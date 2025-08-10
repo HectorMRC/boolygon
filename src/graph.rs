@@ -1,4 +1,7 @@
-use std::{cmp::Ordering, collections::{BTreeMap, BTreeSet}};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BTreeSet},
+};
 
 use crate::{Edge, Geometry, IsClose, Shape, Vertex};
 
@@ -6,15 +9,15 @@ use crate::{Edge, Geometry, IsClose, Shape, Vertex};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BoundaryRole {
     /// The boundary belongs to the subject shape.
-    Subject,
+    Subject(usize),
     /// The boundary belongs to the clip shape.
-    Clip,
+    Clip(usize),
 }
 
 impl BoundaryRole {
     /// Returns true if, and only if, the boundary belongs to the subject shape.
     pub(crate) fn is_subject(&self) -> bool {
-        matches!(self, BoundaryRole::Subject)
+        matches!(self, BoundaryRole::Subject(_))
     }
 }
 
@@ -51,7 +54,8 @@ where
     pub(crate) previous: usize,
     /// The index of the node following this one.
     pub(crate) next: usize,
-    /// Being this node an intersection, determines whether the boundary is entering or exiting the opposite one.
+    /// Being this node an intersection, determines whether the boundary is entering or exiting the
+    /// opposite one.
     pub(crate) intersection: Option<Intersection>,
     /// Vertices from the oposite shape located at the same point.
     pub(crate) siblings: BTreeSet<usize>,
@@ -74,7 +78,7 @@ pub(crate) struct Boundary {
     /// The index in the [`Graph`] at which this boundary begins.
     pub(crate) start: usize,
     /// The role of this boundary
-    pub(crate) role: BoundaryRole
+    pub(crate) role: BoundaryRole,
 }
 
 /// A graph of vertices and its relations.
@@ -137,8 +141,11 @@ where
     /// Populates the graph with all the intersections.
     fn with_intersections(mut self) -> Self {
         let intersections = self.intersections();
-        intersections.boundary_count.into_iter().for_each(|(position, count)| self.boundaries[position].intersection_count = count);
-        
+        intersections
+            .boundary_count
+            .into_iter()
+            .for_each(|(position, count)| self.boundaries[position].intersection_count = count);
+
         let mut visited = PartialOrdBTreeMap::new();
         for (edge, mut intersection_indexes) in intersections.by_edge {
             let &Node {
@@ -148,8 +155,7 @@ where
                 ..
             } = &self.nodes[edge];
 
-            let last = self.nodes[next]
-                .vertex;
+            let last = self.nodes[next].vertex;
 
             // Sorting the intersections by its distance to the edge starting point ensures each
             // intersection will "cut" the edge in order of appearance, preserving its original
@@ -207,9 +213,7 @@ where
                         .inspect(|&sibling| {
                             // While searching for siblings, update their siblings list by adding
                             // the index of this intersection.
-                            self.nodes[sibling]
-                                .siblings
-                                .insert(index);
+                            self.nodes[sibling].siblings.insert(index);
                         })
                         .collect();
 
@@ -217,19 +221,14 @@ where
                         // If the intersection point is any of the endpoints of the edge, do not
                         // create any node in the graph. Instead finds that endpoint and update
                         // the siblings list.
-                        self.nodes[index]
-                            .siblings
-                            .extend(siblings);
+                        self.nodes[index].siblings.extend(siblings);
                     } else {
                         // Cut the edge and register the new vertex.
-                        let next = self.nodes[previous]
-                            .next;
+                        let next = self.nodes[previous].next;
 
-                        self.nodes[previous]
-                            .next = index;
+                        self.nodes[previous].next = index;
 
-                        self.nodes[next]
-                            .previous = index;
+                        self.nodes[next].previous = index;
 
                         self.nodes.push(Node {
                             vertex: intersection_point,
@@ -250,13 +249,11 @@ where
 
     /// Returns the graph.
     pub(crate) fn build(self) -> Graph<T> {
-        let builder = self
-            .with_intersections()
-            .with_statuses();
+        let builder = self.with_intersections().with_statuses();
 
-        Graph { 
+        Graph {
             nodes: builder.nodes.into_iter().map(Some).collect(),
-            boundaries: builder.boundaries
+            boundaries: builder.boundaries,
         }
     }
 }
@@ -267,21 +264,29 @@ where
 {
     /// Returns a record of all the intersections between the edges of the subject and clip shapes.
     fn intersections(&self) -> EdgeIntersections<T> {
-        let edges_of = |boundary: &Boundary| {
-            Edges {
-                nodes: &self.nodes,
-                start: boundary.start,
-                next: None,
-            }
+        let edges_of = |boundary: &Boundary| Edges {
+            nodes: &self.nodes,
+            start: boundary.start,
+            next: None,
         };
 
         let mut intersections = EdgeIntersections::default();
-        for (subject_position, subject_boundary) in self.boundaries.iter().enumerate().filter(|(_, boundary)| boundary.role.is_subject()) {
-            for (clip_position, clip_boundary) in self.boundaries.iter().enumerate().filter(|(_, boundary)| !boundary.role.is_subject()) {
+        for (subject_position, subject_boundary) in self
+            .boundaries
+            .iter()
+            .enumerate()
+            .filter(|(_, boundary)| boundary.role.is_subject())
+        {
+            for (clip_position, clip_boundary) in self
+                .boundaries
+                .iter()
+                .enumerate()
+                .filter(|(_, boundary)| !boundary.role.is_subject())
+            {
                 for (subject_index, subject_edge) in edges_of(subject_boundary) {
                     for (clip_index, clip_edge) in edges_of(clip_boundary) {
-                        if let Some(intersection) = subject_edge
-                            .intersection(&clip_edge, self.tolerance)
+                        if let Some(intersection) =
+                            subject_edge.intersection(&clip_edge, self.tolerance)
                         {
                             intersections = intersections.with_intersection(EdgeIntersection {
                                 vertex: intersection,
@@ -289,9 +294,17 @@ where
                                 clip: clip_index,
                             });
 
-                            intersections.boundary_count.entry(subject_position).and_modify(|count| *count += 1).or_insert(1);
-                            
-                            intersections.boundary_count.entry(clip_position).and_modify(|count| *count += 1).or_insert(1);
+                            intersections
+                                .boundary_count
+                                .entry(subject_position)
+                                .and_modify(|count| *count += 1)
+                                .or_insert(1);
+
+                            intersections
+                                .boundary_count
+                                .entry(clip_position)
+                                .and_modify(|count| *count += 1)
+                                .or_insert(1);
                         }
                     }
                 }
@@ -321,7 +334,7 @@ where
         self
     }
 
-    /// Returns the base [`Status`] of the given boundary. 
+    /// Returns the base [`Status`] of the given boundary.
     fn base_status(&self, boundary: &Boundary) -> Intersection {
         let start = &self.nodes[boundary.start];
 
@@ -338,8 +351,8 @@ where
         };
 
         if match boundary.role {
-            BoundaryRole::Subject => self.clip.contains(vertex, self.tolerance),
-            BoundaryRole::Clip => self.subject.contains(vertex, self.tolerance),
+            BoundaryRole::Subject(_) => self.clip.contains(vertex, self.tolerance),
+            BoundaryRole::Clip(_) => self.subject.contains(vertex, self.tolerance),
         } {
             Intersection::Exit
         } else {
@@ -387,13 +400,18 @@ impl<T, S, C> GraphBuilder<'_, T, S, C>
 where
     T: Geometry + IntoIterator<Item = T::Vertex>,
 {
-    fn with_shape(mut self, shape: Shape<T>, role: BoundaryRole) -> Self {
+    fn with_shape(mut self, shape: Shape<T>, role: impl Fn(usize) -> BoundaryRole) -> Self {
         self.nodes.reserve(shape.total_vertices());
         self.boundaries.reserve(shape.boundaries.len());
 
         for boundary in shape.boundaries {
             let offset = self.nodes.len();
-            self.boundaries.push(Boundary { intersection_count: 0, start: offset, role });
+            let role = role(self.boundaries.len());
+            self.boundaries.push(Boundary {
+                intersection_count: 0,
+                start: offset,
+                role,
+            });
 
             let total_vertices = boundary.total_vertices();
             for (mut index, point) in boundary.into_iter().enumerate() {
@@ -436,7 +454,7 @@ where
 {
     all: Vec<EdgeIntersection<T>>,
     by_edge: BTreeMap<usize, Vec<usize>>,
-    boundary_count: BTreeMap<usize, usize>
+    boundary_count: BTreeMap<usize, usize>,
 }
 
 impl<T> Default for EdgeIntersections<T>
@@ -494,7 +512,9 @@ where
     type Item = &'b mut Node<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(current) = self.next && current == self.start {
+        if let Some(current) = self.next
+            && current == self.start
+        {
             return None;
         }
 
@@ -522,7 +542,9 @@ where
     type Item = (usize, T::Edge<'a>);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(current) = self.next && current == self.start {
+        if let Some(current) = self.next
+            && current == self.start
+        {
             return None;
         }
 

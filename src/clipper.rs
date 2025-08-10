@@ -1,16 +1,18 @@
 use std::marker::PhantomData;
 
 use crate::{
-    graph::{Graph, GraphBuilder, Node}, Geometry, IsClose, Shape, Vertex
+    graph::{Graph, GraphBuilder, Node},
+    Geometry, IsClose, Shape, Vertex,
 };
 
 /// Marker for yet undefined generic parameters.
 pub struct Unknown;
 
 /// A direction to follow when traversing a boundary.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub(crate) enum Direction {
     /// Use the `next` field of the [`Node`].
+    #[default]
     Forward,
     /// Use the `previous` field of the [`Node`].
     Backward,
@@ -26,6 +28,10 @@ impl Direction {
             Direction::Forward => node.next,
             Direction::Backward => node.previous,
         }
+    }
+
+    fn is_forward(&self) -> bool {
+        matches!(self, Self::Forward)
     }
 }
 
@@ -112,7 +118,7 @@ impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
     }
 }
 
-impl<Op, U, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
+impl<U, Op, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
 where
     U: Geometry + Clone + IntoIterator<Item = U::Vertex>,
     U::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
@@ -127,39 +133,23 @@ where
             .build();
 
         let mut output_boundaries = Vec::new();
-
-        let mut intersection_search = IntersectionSearch::default();
-        while let Some(position) = intersection_search.next_position(&graph) {
-            let Some(boundary) = BoundaryCollector::from(OutputNodes {
-                graph: &mut graph,
-                next: Some(position),
-                direction: Direction::Forward,
-                operator: PhantomData::<Op>,
-            })
-            .collect()
-            .and_then(|boundary| U::from_raw((&self).into(), boundary, &self.tolerance)) else {
-                continue;
+        let mut intersection_search = Resume::<IntersectionSearch<U>>::new(0);
+        while let Some(position) = intersection_search.next(&graph) {
+            let boundary = Follow::new::<Op>(&mut graph, position).collect();
+            if let Some(boundary) = U::from_raw((&self).into(), boundary, &self.tolerance) {
+                output_boundaries.push(boundary);
             };
-
-            output_boundaries.push(boundary);
         }
 
-        let mut intersectionless_search = IntersectionlessSearch::default();
-        while let Some(position) = intersectionless_search.next_position(&graph) {
-            let Some(direction) = graph.nodes[position].as_ref().and_then(|node|
-                Op::is_output((&self).into(), &node, &self.tolerance).then(|| Op::direction(node))
-            ) else {
+        let mut intersectionless_search = Resume::<IntersectionlessSearch<U>>::new(0);
+        while let Some(position) = intersectionless_search.next(&graph) {
+            if let Some(node) = graph.nodes[position].as_ref()
+                && !Op::is_output((&self).into(), node, &self.tolerance)
+            {
                 continue;
             };
 
-            let boundary = BoundaryNodes {
-                graph: &mut graph,
-                next: position,
-                direction,
-            }
-            .map(|node| node.vertex)
-            .collect();
-
+            let boundary = Drain::new(&mut graph, position).collect::<Op>();
             if let Some(boundary) = U::from_raw((&self).into(), boundary, &self.tolerance) {
                 output_boundaries.push(boundary);
             };
@@ -175,31 +165,121 @@ where
     }
 }
 
-#[derive(Debug, Default)]
-struct IntersectionSearch {
-    latest_position: Option<usize>,
+/// An iterator whose state that can be restored.
+trait Restorable: Iterator<Item = usize> {
+    type Geometry: Geometry;
+    type State;
+
+    /// Restores the iterator with the given [`Graph`] and state.
+    fn restore(
+        graph: &Graph<Self::Geometry>,
+        state: Self::State,
+    ) -> impl Restorable<State = Self::State>;
+    fn state(&self) -> Self::State;
 }
 
-impl IntersectionSearch {
-    fn next_position<T>(&mut self, graph: &Graph<T>) -> Option<usize>
-    where
-        T: Geometry,
-    {
-        let start = self.latest_position.unwrap_or_default();
-        self.latest_position = graph.nodes[start..]
-            .iter()
-            .enumerate()
-            .filter_map(|(index, slot)| slot.as_ref().map(|node| (index, node)))
-            .find(|(_, node)| node.is_intersection() && node.boundary.is_subject())
-            .map(|(position, _)| position + start);
+/// A wrapper around iterators that captures their state and restores it.
+struct Resume<I>
+where
+    I: Restorable,
+{
+    iterator: PhantomData<I>,
+    state: I::State,
+}
 
-        self.latest_position
+impl<I> Resume<I>
+where
+    I: Restorable,
+    I::State: Copy,
+{
+    /// Returns the next item from the restorable iterator.
+    fn next(&mut self, graph: &Graph<I::Geometry>) -> Option<usize> {
+        let mut iterator = I::restore(graph, self.state);
+        let current = iterator.next();
+        self.state = iterator.state();
+
+        current
     }
 }
 
-/// An iterator of [`Node`] that yields consecutive items from a [`Graph`] which vertex belongs to
-/// the output boundary.
-struct OutputNodes<'a, T, Op>
+impl<I> Resume<I>
+where
+    I: Restorable,
+{
+    /// Returns a new resumable iterator with the given initial state.
+    fn new(state: I::State) -> Self {
+        Self {
+            iterator: PhantomData,
+            state,
+        }
+    }
+}
+
+/// Searches for subject intersections in the [`Graph`].
+struct IntersectionSearch<'a, T>
+where
+    T: Geometry,
+{
+    graph: &'a Graph<T>,
+    next: usize,
+}
+
+impl<'a, T> Iterator for IntersectionSearch<'a, T>
+where
+    T: Geometry,
+{
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (position, node) = self
+            .graph
+            .nodes
+            .get(self.next..)?
+            .iter()
+            .enumerate()
+            .filter_map(|(position, node)| node.as_ref().map(|node| (position, node)))
+            .find(|(_, node)| node.is_intersection())
+            .map(|(position, node)| (position + self.next, node))?;
+
+        self.next = position + 1;
+
+        if !node.is_intersection() {
+            return self.next();
+        }
+
+        if !node.boundary.is_subject() {
+            return node
+                .siblings
+                .iter()
+                .copied()
+                .find(|&sibling| self.graph.nodes[sibling].is_some());
+        }
+
+        Some(position)
+    }
+}
+
+impl<T> Restorable for IntersectionSearch<'_, T>
+where
+    T: Geometry,
+{
+    type Geometry = T;
+    type State = usize;
+
+    fn restore(
+        graph: &Graph<Self::Geometry>,
+        next: Self::State,
+    ) -> impl Restorable<State = Self::State> {
+        IntersectionSearch { graph, next }
+    }
+
+    fn state(&self) -> Self::State {
+        self.next
+    }
+}
+
+/// Yields each [`Node`] from the [`Graph`] within the path starting at the given position.
+struct Follow<'a, T, Op>
 where
     T: Geometry,
 {
@@ -207,67 +287,11 @@ where
     next: Option<usize>,
     direction: Direction,
     operator: PhantomData<Op>,
-}
-
-impl<T, Op> Iterator for OutputNodes<'_, T, Op>
-where
-    T: Geometry,
-    T::Vertex: Copy + PartialEq,
-    Op: Operator<T>,
-{
-    type Item = Node<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let current = self.next?;
-        let node = self.graph.nodes[current].take()?;
-
-        if node.is_intersection() {
-            self.direction = Op::direction(&node);
-        }
-
-        let candidate = self.direction.next(&node);
-        self.next = self.graph.nodes[candidate]
-            .as_ref()
-            .map(|next| {
-                if next.is_intersection() {
-                    next.siblings.first().copied()
-                } else {
-                    Some(candidate)
-                }
-            })
-            .flatten();
-
-        Some(node)
-    }
-}
-
-/// A wrapper iterator around [`NodeIterator`] that stops yielding vertices when the boundary forms
-/// a closed shape.
-struct BoundaryCollector<'a, T, Op>
-where
-    T: Geometry,
-{
-    iterator: OutputNodes<'a, T, Op>,
-    direction: Direction,
     terminal: Vec<usize>,
     closed: bool,
 }
 
-impl<'a, T, Op> From<OutputNodes<'a, T, Op>> for BoundaryCollector<'a, T, Op>
-where
-    T: Geometry,
-{
-    fn from(iterator: OutputNodes<'a, T, Op>) -> Self {
-        Self {
-            iterator,
-            direction: Direction::Forward,
-            terminal: Default::default(),
-            closed: false,
-        }
-    }
-}
-
-impl<T, Op> Iterator for &mut BoundaryCollector<'_, T, Op>
+impl<T, Op> Iterator for Follow<'_, T, Op>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq,
@@ -280,22 +304,37 @@ where
             return None;
         }
 
-        let current = self.iterator.next?;
-        let node = self.iterator.next()?;
+        let current = self.next?;
+        let node = self.graph.nodes[current].take()?;
+
+        if node.is_intersection() {
+            self.direction = Op::direction(&node);
+        }
+
+        let candidate = self.direction.next(&node);
+        self.next = self.graph.nodes[candidate]
+            .as_mut()
+            .map(|next| {
+                if next.is_intersection() {
+                    next.siblings.pop_first()
+                } else {
+                    Some(candidate)
+                }
+            })
+            .flatten();
 
         if self.terminal.is_empty() {
-            self.direction = self.iterator.direction;
             self.terminal
                 .extend(node.siblings.iter().copied().chain([current]));
-        } else if let Some(next) = self.iterator.next {
+        } else if let Some(next) = self.next {
             self.closed = self.terminal.contains(&next);
         } else {
             self.closed = node
                 .siblings
                 .iter()
-                .filter_map(|&sibling| self.iterator.graph.nodes[sibling].as_ref())
+                .filter_map(|&sibling| self.graph.nodes[sibling].as_ref())
                 .map(|sibling| sibling.next)
-                .chain([node.next])
+                .chain([self.direction.next(&node)])
                 .any(|node| self.terminal.contains(&node));
         };
 
@@ -303,49 +342,66 @@ where
     }
 }
 
-impl<T, Op> BoundaryCollector<'_, T, Op>
+impl<T, Op> Follow<'_, T, Op>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq,
     Op: Operator<T>,
 {
-    /// Returns a vector of vertices if, and only if, the resulting boundary forms a closed shape.
-    pub(crate) fn collect(mut self) -> Option<Vec<T::Vertex>> {
-        let mut vertices: Vec<_> = self.map(|node| node.vertex).collect();
-        if !self.closed {
-            return None;
+    /// Returns the full path yielded by this iterator.
+    fn collect(self) -> Vec<T::Vertex> {
+        let orientation = self
+            .next
+            .and_then(|position| self.graph.nodes[position].as_ref())
+            .map(|node| Op::direction(node))
+            .unwrap_or_default();
+        let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
+
+        if !orientation.is_forward() {
+            boundary.reverse();
         }
 
-        if matches!(self.direction, Direction::Backward) {
-            vertices.reverse();
-        }
-
-        Some(vertices)
+        boundary
     }
 }
 
-struct IntersectionlessSearch {
+impl<'a, T> Follow<'a, T, Unknown>
+where
+    T: Geometry,
+{
+    /// Returns a new iterator that begins at the given position.
+    fn new<Op>(graph: &'a mut Graph<T>, start: usize) -> Follow<'a, T, Op> {
+        Follow {
+            graph,
+            next: Some(start),
+            direction: Direction::Forward,
+            operator: PhantomData::<Op>,
+            terminal: Default::default(),
+            closed: false,
+        }
+    }
+}
+
+/// Searches for the first [`Node`] in the [`Graph`] belonging to a geometry with no intersections.
+struct IntersectionlessSearch<'a, T>
+where
+    T: Geometry,
+{
+    graph: &'a Graph<T>,
     next: usize,
 }
 
-impl Default for IntersectionlessSearch {
-    fn default() -> Self {
-        Self {
-            next: Default::default(),
-        }
-    }
-}
+impl<'a, T> Iterator for IntersectionlessSearch<'a, T>
+where
+    T: Geometry,
+{
+    type Item = usize;
 
-impl IntersectionlessSearch {
-    fn next_position<T>(&mut self, graph: &Graph<T>) -> Option<usize>
-    where
-        T: Geometry,
-    {
-        if self.next >= graph.boundaries.len() {
-            return None;
-        }
-
-        let (position, start) = graph.boundaries[self.next..]
+    fn next(&mut self) -> Option<Self::Item> {
+        let (position, start) = self
+            .graph
+            .boundaries
+            .get(self.next..)?
             .iter()
             .enumerate()
             .find(|(_, boundary)| boundary.intersection_count == 0)
@@ -356,30 +412,95 @@ impl IntersectionlessSearch {
     }
 }
 
-struct BoundaryNodes<'a, T>
+impl<T> Restorable for IntersectionlessSearch<'_, T>
+where
+    T: Geometry,
+{
+    type Geometry = T;
+    type State = usize;
+
+    fn restore(
+        graph: &Graph<Self::Geometry>,
+        next: Self::State,
+    ) -> impl Restorable<State = Self::State> {
+        IntersectionlessSearch { graph, next }
+    }
+
+    fn state(&self) -> Self::State {
+        self.next
+    }
+}
+
+/// Yields all the nodes from a boundary that never intersects.
+struct Drain<'a, T>
 where
     T: Geometry,
 {
     graph: &'a mut Graph<T>,
-    direction: Direction,
-    next: usize,
+    next: Option<usize>,
+    start: usize,
 }
 
-impl<T> Iterator for BoundaryNodes<'_, T>
+impl<'a, T> Iterator for Drain<'a, T>
 where
     T: Geometry,
-    T::Vertex: Copy + PartialEq,
 {
     type Item = Node<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.graph.nodes[self.next]
-            .take()
-            .inspect(|node| self.next = self.direction.next(node))
+        if let Some(current) = self.next
+            && current == self.start
+        {
+            return None;
+        }
+
+        let current = self.next.unwrap_or(self.start);
+        let node = self.graph.nodes[current].take()?;
+        self.next = Some(node.next);
+
+        Some(node)
+    }
+}
+
+impl<T> Drain<'_, T>
+where
+    T: Geometry,
+    T::Vertex: Copy + PartialEq,
+{
+    /// Returns the full path yielded by this iterator.
+    fn collect<Op>(self) -> Vec<T::Vertex>
+    where
+        Op: Operator<T>,
+    {
+        let orientation = self.graph.nodes[self.start]
+            .as_ref()
+            .map(|node| Op::direction(node))
+            .unwrap_or_default();
+        let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
+
+        if !orientation.is_forward() {
+            boundary.reverse();
+        }
+
+        boundary
+    }
+}
+
+impl<'a, T> Drain<'a, T>
+where
+    T: Geometry,
+{
+    fn new(graph: &'a mut Graph<T>, start: usize) -> Self {
+        Self {
+            graph,
+            next: None,
+            start,
+        }
     }
 }
 
 /// The subject and clip operands of a clipping operation.
+#[derive(Debug, Clone, Copy)]
 pub struct Operands<'a, T> {
     pub subject: &'a Shape<T>,
     pub clip: &'a Shape<T>,

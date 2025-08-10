@@ -1,7 +1,7 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    clipper::{Clipper, Direction, Operator}, graph::{BoundaryRole, Intersection, Node}, Edge, Geometry, IsClose, Operands, Vertex
+    clipper::{Clipper, Direction, Operator}, graph::{BoundaryRole, Intersection, Node}, Geometry, IsClose, Operands, Vertex
 };
 
 /// A combination of disjoint boundaries.
@@ -55,11 +55,11 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject => {
+                    BoundaryRole::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                             
                     }
-                    BoundaryRole::Clip => {
+                    BoundaryRole::Clip(_) => {
                         !ops.subject.contains(&node.vertex, tolerance)
                             
                     }
@@ -101,10 +101,10 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject => {
+                    BoundaryRole::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                     }
-                    BoundaryRole::Clip => {
+                    BoundaryRole::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                     }
                 }
@@ -120,10 +120,10 @@ where
                 };
 
                 match (node.boundary, intersection) {
-                    (BoundaryRole::Subject, Intersection::Entry) => Direction::Backward,
-                    (BoundaryRole::Subject, Intersection::Exit) => Direction::Forward,
-                    (BoundaryRole::Clip, Intersection::Entry) => Direction::Forward,
-                    (BoundaryRole::Clip, Intersection::Exit) => Direction::Backward,
+                    (BoundaryRole::Subject(_), Intersection::Entry) => Direction::Backward,
+                    (BoundaryRole::Subject(_), Intersection::Exit) => Direction::Forward,
+                    (BoundaryRole::Clip(_), Intersection::Entry) => Direction::Forward,
+                    (BoundaryRole::Clip(_), Intersection::Exit) => Direction::Backward,
                 }
             }
         }
@@ -150,11 +150,11 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject => {
+                    BoundaryRole::Subject(_) => {
                         ops.clip.contains(&node.vertex, tolerance)
                             
                     }
-                    BoundaryRole::Clip => {
+                    BoundaryRole::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                             
                     }
