@@ -5,7 +5,7 @@ use num_traits::{Float, Signed};
 use crate::{
     cartesian::{determinant::Determinant, Point, Segment},
     clipper::Operands,
-    Geometry, RightHanded, Tolerance,
+    Edge, Geometry, RightHanded, Tolerance,
 };
 
 /// A polygon in the plain.
@@ -109,7 +109,7 @@ where
         self
     }
 
-    fn winding(&self, point: &Point<T>, _: &Tolerance<T>) -> isize {
+    fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
         // Returns true if, and only if, the point is on the left of the infinite line containing
         // the given segment.
         let left_of = |segment: &Segment<'_, T>| {
@@ -119,7 +119,9 @@ where
         };
 
         self.edges().fold(0, |wn, segment| {
-            if segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment) {
+            if segment.contains(point, tolerance)
+                || segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment)
+            {
                 wn + 1
             } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
                 wn - 1
@@ -177,6 +179,30 @@ mod tests {
                 polygon: vec![[0., 0.], [0., 4.], [4., 4.], [4., 0.]].into(),
                 point: [2., 2.].into(),
                 want: -1,
+            },
+            Test {
+                name: "bottom-left vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [0., 0.].into(),
+                want: 3,
+            },
+            Test {
+                name: "top-right vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [4., 4.].into(),
+                want: 2,
+            },
+            Test {
+                name: "midpoint of left-most edge",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [0., 2.].into(),
+                want: 2,
+            },
+            Test {
+                name: "midpoint of right-most edge",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [4., 2.].into(),
+                want: 1,
             },
             Test {
                 name: "on the left of the polygon",

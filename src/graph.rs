@@ -5,7 +5,7 @@ use std::{
 
 use crate::{Edge, Geometry, IsClose, Shape, Vertex};
 
-/// The role of a boundary.
+/// The role of the boundary at the inner position in the [`Graph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum BoundaryRole {
     /// The boundary belongs to the subject shape.
@@ -19,18 +19,50 @@ impl BoundaryRole {
     pub(crate) fn is_subject(&self) -> bool {
         matches!(self, BoundaryRole::Subject(_))
     }
+
+    fn position(&self) -> usize {
+        match self {
+            BoundaryRole::Subject(position) | BoundaryRole::Clip(position) => *position,
+        }
+    }
+}
+
+/// A boundary in the [`Graph`].
+pub(crate) struct Boundary {
+    /// The amount of intersections in this boundary.
+    pub(crate) intersection_count: usize,
+    /// The index in the [`Graph`] at which this boundary begins.
+    pub(crate) start: usize,
+    /// The role of this boundary
+    pub(crate) role: BoundaryRole,
+}
+
+/// The intersection between two edges.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Intersection<T> {
+    /// The intersection is a single point between the endpoints.
+    Single(T),
+    /// Both edges are collinear and the intersection is not a point, but a range.
+    Range { start: T, end: T },
+}
+
+impl<T> Intersection<T> {
+    /// Return true if, and only if, this is an  range.
+    pub(crate) fn is_range(&self) -> bool {
+        matches!(self, Intersection::Range { start: _, end: _ })
+    }
 }
 
 /// The kind of intersection being represented by a [`Node`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Intersection {
+pub(crate) enum IntersectionKind {
     /// The shape is entering into the oposite one.
     Entry,
     /// The shape is exiting from the oposite one.
     Exit,
 }
 
-impl Intersection {
+impl IntersectionKind {
     /// Returns the oposite intersection type.
     pub(crate) fn oposite(self) -> Self {
         match self {
@@ -56,7 +88,9 @@ where
     pub(crate) next: usize,
     /// Being this node an intersection, determines whether the boundary is entering or exiting the
     /// opposite one.
-    pub(crate) intersection: Option<Intersection>,
+    pub(crate) intersection: Option<IntersectionKind>,
+    /// Being this node an intersection, marks it as pseudo-intersection.
+    pub(crate) is_pseudo_intersection: bool,
     /// Vertices from the oposite shape located at the same point.
     pub(crate) siblings: BTreeSet<usize>,
 }
@@ -69,16 +103,6 @@ where
     pub(crate) fn is_intersection(&self) -> bool {
         !self.siblings.is_empty()
     }
-}
-
-/// A boundary in the [`Graph`].
-pub(crate) struct Boundary {
-    /// The total amount of intersection in this boundary.
-    pub(crate) intersection_count: usize,
-    /// The index in the [`Graph`] at which this boundary begins.
-    pub(crate) start: usize,
-    /// The role of this boundary
-    pub(crate) role: BoundaryRole,
 }
 
 /// A graph of vertices and its relations.
@@ -141,11 +165,6 @@ where
     /// Populates the graph with all the intersections.
     fn with_intersections(mut self) -> Self {
         let intersections = self.intersections();
-        intersections
-            .boundary_count
-            .into_iter()
-            .for_each(|(position, count)| self.boundaries[position].intersection_count = count);
-
         let mut visited = PartialOrdBTreeMap::new();
         for (edge, mut intersection_indexes) in intersections.by_edge {
             let &Node {
@@ -191,6 +210,9 @@ where
                     // Mark this intersection point as been visited by this edge. This will allow
                     // siblings from the oposite shape to know about its index in the graph.
                     visited.insert((edge, intersection_point), index);
+                    
+                    // Count this intersection into the corresponding boundary.
+                    self.boundaries[boundary.position()].intersection_count += 1;
 
                     let siblings = chunk
                         .iter()
@@ -222,6 +244,7 @@ where
                         // create any node in the graph. Instead finds that endpoint and update
                         // the siblings list.
                         self.nodes[index].siblings.extend(siblings);
+                        self.nodes[index].is_pseudo_intersection = true;
                     } else {
                         // Cut the edge and register the new vertex.
                         let next = self.nodes[previous].next;
@@ -236,9 +259,10 @@ where
                             previous,
                             next,
                             intersection: None,
+                            is_pseudo_intersection: false,
                             siblings,
                         });
-                    }
+                    };
 
                     index
                 });
@@ -271,41 +295,45 @@ where
         };
 
         let mut intersections = EdgeIntersections::default();
-        for (subject_position, subject_boundary) in self
+        for subject_boundary in self
             .boundaries
             .iter()
-            .enumerate()
-            .filter(|(_, boundary)| boundary.role.is_subject())
+            .filter(|boundary| boundary.role.is_subject())
         {
-            for (clip_position, clip_boundary) in self
+            for clip_boundary in self
                 .boundaries
                 .iter()
-                .enumerate()
-                .filter(|(_, boundary)| !boundary.role.is_subject())
+                .filter(|boundary| !boundary.role.is_subject())
             {
                 for (subject_index, subject_edge) in edges_of(subject_boundary) {
                     for (clip_index, clip_edge) in edges_of(clip_boundary) {
                         if let Some(intersection) =
                             subject_edge.intersection(&clip_edge, self.tolerance)
                         {
-                            intersections = intersections.with_intersection(EdgeIntersection {
-                                vertex: intersection,
-                                subject: subject_index,
-                                clip: clip_index,
-                            });
+                            intersections = match intersection {
+                                Intersection::Single(vertex) => {
+                                    intersections.with_intersection(EdgeIntersection {
+                                        vertex,
+                                        subject: subject_index,
+                                        clip: clip_index,
+                                    })
+                                }
+                                Intersection::Range { start, end } => {
+                                    let intersection = EdgeIntersection {
+                                        vertex: start,
+                                        subject: subject_index,
+                                        clip: clip_index,
+                                    };
 
-                            intersections
-                                .boundary_count
-                                .entry(subject_position)
-                                .and_modify(|count| *count += 1)
-                                .or_insert(1);
-
-                            intersections
-                                .boundary_count
-                                .entry(clip_position)
-                                .and_modify(|count| *count += 1)
-                                .or_insert(1);
-                        }
+                                    intersections
+                                        .with_intersection(EdgeIntersection { ..intersection })
+                                        .with_intersection(EdgeIntersection {
+                                            vertex: end,
+                                            ..intersection
+                                        })
+                                }
+                            };
+                        };
                     }
                 }
             }
@@ -314,50 +342,78 @@ where
         intersections
     }
 
+    /// Returns the [`IntersectionKind`] corresponding to the [`Node`] at the given position.
+    fn intersection_kind(&self, position: usize) -> IntersectionKind {
+        let node = &self.nodes[position];
+        let boundary = match &node.boundary {
+            BoundaryRole::Subject(_) => self.clip,
+            BoundaryRole::Clip(_) => self.subject,
+        };
+
+        let previous = if node.is_intersection() {
+            let previous = &self.nodes[node.previous];
+            &T::Edge::new(&previous.vertex, &node.vertex).midpoint()
+        } else {
+            &node.vertex
+        };
+
+        if boundary.contains(previous, self.tolerance) {
+            IntersectionKind::Exit
+        } else {
+            IntersectionKind::Entry
+        }
+    }
+
+    /// Returns true if, and only if, the given the [`Node`] at the given position is indeed an intersection.
+    fn is_intersection(&self, position: usize) -> bool {
+        let node = &self.nodes[position];
+
+        let previous = T::Edge::new(&node.vertex, &self.nodes[node.previous].vertex).midpoint();
+        let next = T::Edge::new(&node.vertex, &self.nodes[node.next].vertex).midpoint();
+        let oposite = match node.boundary {
+            BoundaryRole::Subject(_) => self.clip,
+            BoundaryRole::Clip(_) => self.subject,
+        };
+
+        oposite.contains(&previous, self.tolerance) != oposite.contains(&next, self.tolerance)
+    }
+
+    /// Downgrades the [`Node`] at the given position from intersection to non-intersection.
+    fn downgrade_intersection(&mut self, position: usize) {
+        let node = &mut self.nodes[position];
+        if !node.is_intersection() {
+            return;
+        }
+
+        let boundary = &mut self.boundaries[node.boundary.position()];
+        boundary.intersection_count = boundary
+            .intersection_count
+            .saturating_sub(if node.is_pseudo_intersection { 2 } else { 1 });
+
+        std::mem::replace(&mut self.nodes[position].siblings, Default::default())
+            .into_iter()
+            .for_each(|sibling| self.downgrade_intersection(sibling));
+    }
+
     /// Computes the [`Status`] of each intersection [`Node`] in the graph.
     fn with_statuses(mut self) -> Self {
-        for boundary in &self.boundaries {
-            let base_status = self.base_status(boundary);
+        for boundary in 0..self.boundaries.len() {
+            let start = self.boundaries[boundary].start;
 
-            NodesMut {
-                nodes: &mut self.nodes,
-                start: boundary.start,
-                next: None,
+            let mut intersection_traversal = IntersectionSearch::new(start);
+            let mut intersection_kind = self.intersection_kind(start);
+
+            while let Some(node) = intersection_traversal.next(&self.nodes) {
+                if self.nodes[node].is_pseudo_intersection && !self.is_intersection(node) {
+                    self.downgrade_intersection(node);
+                } else {
+                    self.nodes[node].intersection = Some(intersection_kind);
+                    intersection_kind = intersection_kind.oposite();
+                }
             }
-            .filter(|node| node.is_intersection())
-            .fold(base_status, |status, node| {
-                node.intersection = Some(status);
-                status.oposite()
-            });
         }
 
         self
-    }
-
-    /// Returns the base [`Status`] of the given boundary.
-    fn base_status(&self, boundary: &Boundary) -> Intersection {
-        let start = &self.nodes[boundary.start];
-
-        let vertex = if start.is_intersection() {
-            let previous = &self.nodes[start.previous];
-
-            if previous.is_intersection() {
-                &T::Edge::new(&previous.vertex, &start.vertex).midpoint()
-            } else {
-                &previous.vertex
-            }
-        } else {
-            &start.vertex
-        };
-
-        if match boundary.role {
-            BoundaryRole::Subject(_) => self.clip.contains(vertex, self.tolerance),
-            BoundaryRole::Clip(_) => self.subject.contains(vertex, self.tolerance),
-        } {
-            Intersection::Exit
-        } else {
-            Intersection::Entry
-        }
     }
 }
 
@@ -424,6 +480,7 @@ where
                     previous: offset + ((index - 1) % total_vertices),
                     next: offset + ((index + 1) % total_vertices),
                     intersection: Default::default(),
+                    is_pseudo_intersection: false,
                     siblings: BTreeSet::new(),
                 });
             }
@@ -454,7 +511,6 @@ where
 {
     all: Vec<EdgeIntersection<T>>,
     by_edge: BTreeMap<usize, Vec<usize>>,
-    boundary_count: BTreeMap<usize, usize>,
 }
 
 impl<T> Default for EdgeIntersections<T>
@@ -465,7 +521,6 @@ where
         Self {
             all: Default::default(),
             by_edge: Default::default(),
-            boundary_count: Default::default(),
         }
     }
 }
@@ -477,41 +532,35 @@ where
     fn with_intersection(mut self, intersection: EdgeIntersection<T>) -> Self {
         let index = self.all.len();
 
-        match self.by_edge.get_mut(&intersection.subject) {
-            Some(group) => group.push(index),
-            None => {
-                self.by_edge.insert(intersection.subject, vec![index]);
-            }
-        };
+        self.by_edge
+            .entry(intersection.subject)
+            .and_modify(|group| group.push(index))
+            .or_insert(vec![index]);
 
-        match self.by_edge.get_mut(&intersection.clip) {
-            Some(group) => group.push(index),
-            None => {
-                self.by_edge.insert(intersection.clip, vec![index]);
-            }
-        };
+        self.by_edge
+            .entry(intersection.clip)
+            .and_modify(|group| group.push(index))
+            .or_insert(vec![index]);
 
         self.all.push(intersection);
         self
     }
 }
 
-struct NodesMut<'a, T>
-where
-    T: Geometry,
-{
-    nodes: &'a mut Vec<Node<T>>,
+struct IntersectionSearch {
     next: Option<usize>,
     start: usize,
 }
 
-impl<'a, 'b, T> Iterator for &'b mut NodesMut<'a, T>
-where
-    T: Geometry,
-{
-    type Item = &'b mut Node<T>;
+impl IntersectionSearch {
+    fn new(start: usize) -> Self {
+        Self { next: None, start }
+    }
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next<T>(&mut self, nodes: &[Node<T>]) -> Option<usize>
+    where
+        T: Geometry,
+    {
         if let Some(current) = self.next
             && current == self.start
         {
@@ -519,10 +568,14 @@ where
         }
 
         let current = self.next.unwrap_or(self.start);
-        let node = &mut self.nodes[current];
+        let node = &nodes[current];
         self.next = Some(node.next);
 
-        unsafe { Some(std::mem::transmute(node)) }
+        if !node.is_intersection() {
+            return self.next(nodes);
+        }
+
+        Some(current)
     }
 }
 

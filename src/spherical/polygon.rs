@@ -106,9 +106,10 @@ where
                 .edges()
                 .chain(operands.clip.edges())
                 .find_map(|arc| {
-                    closest_exterior_point(&arc, theta).or_else(|| closest_exterior_point(&arc, -theta))
+                    closest_exterior_point(&arc, theta)
+                        .or_else(|| closest_exterior_point(&arc, -theta))
                 });
-            
+
             theta = theta + theta;
         }
 
@@ -140,10 +141,9 @@ where
 
         self.edges()
             .filter(|segment| {
-                let intersection = Arc::new(&self.exterior, point)
-                    .intersection(segment, tolerance);
-                    
-                intersection.is_some()
+                Arc::new(&self.exterior, point)
+                    .intersection(segment, tolerance)
+                    .is_some()
             })
             .fold(0, |wn, arc| if left_of(&arc) { wn + 1 } else { wn - 1 })
     }

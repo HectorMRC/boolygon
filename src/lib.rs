@@ -9,6 +9,7 @@ pub mod cartesian;
 pub mod spherical;
 
 pub use self::clipper::Operands;
+pub use self::graph::Intersection;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
@@ -44,7 +45,7 @@ pub trait Edge<'a> {
         &self,
         rhs: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> Option<Self::Vertex>;
+    ) -> Option<Intersection<Self::Vertex>>;
 
     /// Returns the starting endpoint of the edge.
     fn start(&self) -> &Self::Vertex;

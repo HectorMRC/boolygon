@@ -2,6 +2,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     cartesian::{determinant::Determinant, Point},
+    graph::Intersection,
     Edge, IsClose, Tolerance, Vertex as _,
 };
 
@@ -36,37 +37,41 @@ where
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, tolerance: &Tolerance<T>) -> Option<Self::Vertex> {
+    fn intersection(&self, rhs: &Self, _: &Tolerance<T>) -> Option<Intersection<Self::Vertex>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
-            // When the two (infinte) lines are parallel or coincident, the determinant is zero.
-            // return self.collinear_common_point(rhs, tolerance);
-            return None;
+            // When the two (infinite) lines are parallel or coincident, the determinant is zero.
+            return if Determinant::from([self, &Segment::new(rhs.from, self.from)])
+                .into_inner()
+                .is_zero()
+            {
+                self.collinear_common_points(rhs)
+            } else {
+                Default::default()
+            };
         }
 
         let t = (self.from.x - rhs.from.x) * (rhs.from.y - rhs.to.y)
             - (self.from.y - rhs.from.y) * (rhs.from.x - rhs.to.x);
 
-        // Predict if the division `t / determinant` will be in the range `(0,1)`
-        if t.abs() >= determinant.abs() || t.is_zero() || t.signum() != determinant.signum() {
-            return None;
-        }
-
         let t = t / determinant;
+        if !(T::zero()..=T::one()).contains(&t) {
+            return Default::default();
+        }
 
         let u = -((self.from.x - self.to.x) * (self.from.y - rhs.from.y)
             - (self.from.y - self.to.y) * (self.from.x - rhs.from.x));
 
-        // Predict if the division `u / determinant` will be in the range `(0,1)`
-        if u.abs() >= determinant.abs() || u.is_zero() || u.signum() != determinant.signum() {
-            return None;
+        let u = u / determinant;
+        if !(T::zero()..=T::one()).contains(&u) {
+            return Default::default();
         }
 
-        Some(Point {
+        Some(Intersection::Single(Point {
             x: self.from.x + t * (self.to.x - self.from.x),
             y: self.from.y + t * (self.to.y - self.from.y),
-        })
+        }))
     }
 
     fn start(&self) -> &Self::Vertex {
@@ -80,26 +85,46 @@ where
 {
     /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
     /// them, if any.
-    fn collinear_common_point(
-        &self,
-        rhs: &Segment<'_, T>,
-        tolerance: &Tolerance<T>,
-    ) -> Option<Point<T>> {
-        if !rhs.contains(self.to, tolerance)
-            && (self.from.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
-                || self.from.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
-        {
-            return Some(*self.from);
+    fn collinear_common_points(&self, rhs: &Segment<'_, T>) -> Option<Intersection<Point<T>>> {
+        let project_on_x = self.to.x - self.from.x > self.to.y - self.from.y;
+        let project = |point: &Point<T>| -> T {
+            if project_on_x {
+                point.x
+            } else {
+                point.y
+            }
+        };
+
+        // TODO: direction should not matter.
+        let self_from = project(self.from);
+        let self_to = project(self.to);
+        let rhs_from = project(rhs.from);
+        let rhs_to = project(rhs.to);
+
+        let start = T::max(self_from.min(self_to), rhs_from.min(rhs_to));
+        let end = T::min(self_from.max(self_to), rhs_from.max(rhs_to));
+
+        let unproject = |scalar: T| -> Option<Point<T>> {
+            // parametric function u along self
+            let u = (scalar - project(self.from)) / (project(self.to) - project(self.from));
+            (T::zero()..=T::one())
+                .contains(&u)
+                .then(|| *self.from + (*self.to - *self.from) * u)
+        };
+
+        if end < start {
+            return Default::default();
         }
 
-        if !rhs.contains(self.from, tolerance)
-            && (self.to.is_close(rhs.from, tolerance) && !self.contains(rhs.to, tolerance)
-                || self.to.is_close(rhs.to, tolerance) && !self.contains(rhs.from, tolerance))
-        {
-            return Some(*self.to);
+        if start == end {
+            return unproject(start).map(Intersection::Single);
         }
 
-        None
+        return match (unproject(start), unproject(end)) {
+            (Some(start), Some(end)) => Some(Intersection::Range { start, end }),
+            (Some(endpoint), _) | (_, Some(endpoint)) => Some(Intersection::Single(endpoint)),
+            _ => Default::default(),
+        };
     }
 }
 
@@ -117,6 +142,7 @@ where
 mod tests {
     use crate::{
         cartesian::{Point, Segment},
+        graph::Intersection,
         Edge,
     };
 
@@ -126,12 +152,24 @@ mod tests {
             name: &'a str,
             segment: Segment<'a, f64>,
             rhs: Segment<'a, f64>,
-            want: Option<Point<f64>>,
+            want: Option<Intersection<Point<f64>>>,
         }
 
         vec![
             Test {
-                name: "crossing segments",
+                name: "non-crossing segments",
+                segment: Segment {
+                    from: &[4., 4.].into(),
+                    to: &[8., 8.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 4.].into(),
+                    to: &[4., 0.].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "perpendicular with no common endpoint",
                 segment: Segment {
                     from: &[0., 0.].into(),
                     to: &[4., 4.].into(),
@@ -140,22 +178,22 @@ mod tests {
                     from: &[0., 4.].into(),
                     to: &[4., 0.].into(),
                 },
-                want: Some([2., 2.].into()),
+                want: Some(Intersection::Single([2., 2.].into())),
             },
             Test {
-                name: "perpendicular segments",
+                name: "perpendicular with endpoint in line",
                 segment: Segment {
-                    from: &[4., 0.].into(),
-                    to: &[4., 4.].into(),
+                    from: &[0., 0.].into(),
+                    to: &[4., 0.].into(),
                 },
                 rhs: Segment {
                     from: &[2., 2.].into(),
-                    to: &[6., 2.].into(),
+                    to: &[2., 0.].into(),
                 },
-                want: Some([4., 2.].into()),
+                want: Some(Intersection::Single([2., 0.].into())),
             },
             Test {
-                name: "segments starting at the same point",
+                name: "perpendicular segments starting at the same point",
                 segment: Segment {
                     from: &[0., 0.].into(),
                     to: &[4., 4.].into(),
@@ -164,34 +202,55 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
-                // want: Some([0., 0.].into()),
+                want: Some(Intersection::Single([0., 0.].into())),
+            },
+            Test {
+                name: "perpendicular segments ending at the same point",
+                segment: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 8.].into(),
+                    to: &[4., 4.].into(),
+                },
+                want: Some(Intersection::Single([4., 4.].into())),
+            },
+            Test {
+                name: "none-collinear parallel segments",
+                segment: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 4.].into(),
+                    to: &[4., 8.].into(),
+                },
                 want: None,
             },
             Test {
-                name: "connected segments",
+                name: "collinear segments starting at the same point",
+                segment: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[-4., -4.].into(),
+                },
+                want: Some(Intersection::Single([0., 0.].into())),
+            },
+            Test {
+                name: "collinear segments ending at the same point",
                 segment: Segment {
                     from: &[4., 4.].into(),
                     to: &[0., 0.].into(),
                 },
                 rhs: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[-4., 4.].into(),
-                },
-                // want: Some([0., 0.].into()),
-                want: None,
-            },
-            Test {
-                name: "collinear segments with common point",
-                segment: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[4., 4.].into(),
-                },
-                rhs: Segment {
                     from: &[-4., -4.].into(),
                     to: &[0., 0.].into(),
                 },
-                // want: Some([0., 0.].into()),
-                want: None,
+                want: Some(Intersection::Single([0., 0.].into())),
             },
             Test {
                 name: "collinear segments with no common point",
@@ -206,31 +265,6 @@ mod tests {
                 want: None,
             },
             Test {
-                name: "segments ending at the same point",
-                segment: Segment {
-                    from: &[4., 4.].into(),
-                    to: &[0., 0.].into(),
-                },
-                rhs: Segment {
-                    from: &[-4., 4.].into(),
-                    to: &[0., 0.].into(),
-                },
-                // want: Some([0., 0.].into()),
-                want: None,
-            },
-            Test {
-                name: "parallel segments",
-                segment: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[4., 4.].into(),
-                },
-                rhs: Segment {
-                    from: &[0., 4.].into(),
-                    to: &[4., 8.].into(),
-                },
-                want: None,
-            },
-            Test {
                 name: "coincident segments when rhs is shorter",
                 segment: Segment {
                     from: &[0., 0.].into(),
@@ -240,68 +274,85 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 2.].into(),
                 },
-                want: None,
+                want: Some(Intersection::Range {
+                    start: [0., 0.].into(),
+                    end: [2., 2.].into(),
+                }),
             },
             Test {
                 name: "coincident segments when rhs is larger",
-                segment: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[4., 4.].into(),
-                },
-                rhs: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[8., 8.].into(),
-                },
-                want: None,
-            },
-            Test {
-                name: "segment inside rhs",
-                segment: Segment {
-                    from: &[1., 1.].into(),
-                    to: &[3., 3.].into(),
-                },
-                rhs: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[4., 4.].into(),
-                },
-                want: None,
-            },
-            Test {
-                name: "rhs inside segment",
-                segment: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[4., 4.].into(),
-                },
-                rhs: Segment {
-                    from: &[1., 1.].into(),
-                    to: &[3., 3.].into(),
-                },
-                want: None,
-            },
-            Test {
-                name: "non-crossing segments",
                 segment: Segment {
                     from: &[4., 4.].into(),
                     to: &[8., 8.].into(),
                 },
                 rhs: Segment {
-                    from: &[0., 4.].into(),
-                    to: &[4., 0.].into(),
+                    from: &[0., 0.].into(),
+                    to: &[8., 8.].into(),
                 },
-                want: None,
+                want: Some(Intersection::Range {
+                    start: [4., 4.].into(),
+                    end: [8., 8.].into(),
+                }),
             },
             Test {
-                name: "perpendicular with endpoint in line",
+                name: "coincident segments when rhs is constained",
                 segment: Segment {
                     from: &[0., 0.].into(),
-                    to: &[4., 0.].into(),
+                    to: &[4., 4.].into(),
                 },
                 rhs: Segment {
-                    from: &[2., 2.].into(),
+                    from: &[1., 1.].into(),
+                    to: &[3., 3.].into(),
+                },
+                want: Some(Intersection::Range {
+                    start: [1., 1.].into(),
+                    end: [3., 3.].into(),
+                }),
+            },
+            Test {
+                name: "coincident segments when rhs constains",
+                segment: Segment {
+                    from: &[1., 1.].into(),
+                    to: &[3., 3.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[4., 4.].into(),
+                },
+                want: Some(Intersection::Range {
+                    start: [1., 1.].into(),
+                    end: [3., 3.].into(),
+                }),
+            },
+            Test {
+                name: "coincident when none is fully contained",
+                segment: Segment {
+                    from: &[-1., 0.].into(),
+                    to: &[1., 0.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 0.].into(),
                     to: &[2., 0.].into(),
                 },
-                // want: Some([2., 0.].into()),
-                want: None,
+                want: Some(Intersection::Range {
+                    start: [0., 0.].into(),
+                    end: [1., 0.].into(),
+                }),
+            },
+            Test {
+                name: "coincident when none is fully contained",
+                segment: Segment {
+                    from: &[-1., 0.].into(),
+                    to: &[1., 0.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[2., 0.].into(),
+                },
+                want: Some(Intersection::Range {
+                    start: [0., 0.].into(),
+                    end: [1., 0.].into(),
+                }),
             },
         ]
         .into_iter()

@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     graph::{Graph, GraphBuilder, Node},
-    Geometry, IsClose, Shape, Vertex,
+    Edge, Geometry, IsClose, Shape, Vertex,
 };
 
 /// Marker for yet undefined generic parameters.
@@ -122,6 +122,7 @@ impl<U, Op, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
 where
     U: Geometry + Clone + IntoIterator<Item = U::Vertex>,
     U::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
+    for<'a> U::Edge<'a>: Edge<'a>,
     <U::Vertex as Vertex>::Scalar: Copy + PartialOrd,
     Op: Operator<U>,
 {
@@ -143,9 +144,27 @@ where
 
         let mut intersectionless_search = Resume::<IntersectionlessSearch<U>>::new(0);
         while let Some(position) = intersectionless_search.next(&graph) {
-            if let Some(node) = graph.nodes[position].as_ref()
-                && !Op::is_output((&self).into(), node, &self.tolerance)
+            let Some(node) = &graph.nodes[position] else {
+                continue;
+            };
+
+            // Dodge pseudo-intersection nodes by taking the midpoint.
+            let node = if node.is_pseudo_intersection
+                && let Some(next) = &graph.nodes[node.next]
             {
+                &Node {
+                    vertex: U::Edge::new(&node.vertex, &next.vertex).midpoint(),
+                    previous: position,
+                    intersection: None,
+                    is_pseudo_intersection: false,
+                    siblings: Default::default(),
+                    ..*node
+                }
+            } else {
+                node
+            };
+
+            if !Op::is_output((&self).into(), node, &self.tolerance) {
                 continue;
             };
 
@@ -247,14 +266,6 @@ where
             return self.next();
         }
 
-        if !node.boundary.is_subject() {
-            return node
-                .siblings
-                .iter()
-                .copied()
-                .find(|&sibling| self.graph.nodes[sibling].is_some());
-        }
-
         Some(position)
     }
 }
@@ -312,16 +323,13 @@ where
         }
 
         let candidate = self.direction.next(&node);
-        self.next = self.graph.nodes[candidate]
-            .as_mut()
-            .map(|next| {
-                if next.is_intersection() {
-                    next.siblings.pop_first()
-                } else {
-                    Some(candidate)
-                }
-            })
-            .flatten();
+        self.next = self.graph.nodes[candidate].as_mut().and_then(|next| {
+            if next.is_intersection() {
+                next.siblings.pop_first()
+            } else {
+                Some(candidate)
+            }
+        });
 
         if self.terminal.is_empty() {
             self.terminal
@@ -476,6 +484,7 @@ where
             .as_ref()
             .map(|node| Op::direction(node))
             .unwrap_or_default();
+
         let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
 
         if !orientation.is_forward() {
