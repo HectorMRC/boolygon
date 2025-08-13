@@ -98,7 +98,7 @@ where
     /// The index of the node following this one.
     pub(crate) next: usize,
     /// The intersection info of this node.
-    pub(crate) intersection: Intersection
+    pub(crate) intersection: Intersection,
 }
 
 /// A graph of vertices and its relations.
@@ -358,7 +358,7 @@ where
         }
     }
 
-    /// Returns true if, and only if, the given the [`Node`] at the given position is indeed an intersection.
+    /// Returns true if, and only if, the [`Node`] at the given position is indeed an intersection.
     fn is_intersection(&self, position: usize) -> bool {
         let node = &self.nodes[position];
         let previous = &self.nodes[node.previous];
@@ -391,9 +391,12 @@ where
             .saturating_sub(if node.intersection.is_pseudo { 2 } else { 1 });
 
         node.intersection.kind.take();
-        std::mem::replace(&mut self.nodes[position].intersection.siblings, Default::default())
-            .into_iter()
-            .for_each(|sibling| self.downgrade_intersection(sibling));
+        std::mem::replace(
+            &mut self.nodes[position].intersection.siblings,
+            Default::default(),
+        )
+        .into_iter()
+        .for_each(|sibling| self.downgrade_intersection(sibling));
     }
 
     /// Computes the [`Status`] of each intersection [`Node`] in the graph.
@@ -546,6 +549,7 @@ where
     }
 }
 
+/// Searches for intersections in the boundary starting at the given position.
 struct IntersectionSearch {
     next: Option<usize>,
     start: usize,
@@ -578,6 +582,7 @@ impl IntersectionSearch {
     }
 }
 
+/// Iteratos over all the edges in the boundary starting at the given position.
 struct Edges<'a, T>
 where
     T: Geometry,

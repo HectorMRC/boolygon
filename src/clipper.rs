@@ -239,7 +239,7 @@ where
             .iter()
             .enumerate()
             .filter_map(|(position, node)| node.as_ref().map(|node| (position, node)))
-            .find(|(_, node)| node.intersection.has_siblings())
+            .find(|(_, node)| node.boundary.is_subject() && node.intersection.has_siblings())
             .map(|(position, _)| position + self.next)?;
 
         self.next = position + 1;

@@ -107,10 +107,10 @@ where
         let rhs_from = project(rhs.from);
         let rhs_to = project(rhs.to);
 
-        let start = T::max(self_from.min(self_to), rhs_from.min(rhs_to));
-        let end = T::min(self_from.max(self_to), rhs_from.max(rhs_to));
+        let first = T::max(self_from.min(self_to), rhs_from.min(rhs_to));
+        let second = T::min(self_from.max(self_to), rhs_from.max(rhs_to));
 
-        let unproject = |scalar: T| -> Option<Point<T>> {
+        let unproject = |scalar: T| {
             // parametric function u along self
             let u = (scalar - project(self.from)) / (project(self.to) - project(self.from));
             (T::zero()..=T::one())
@@ -118,19 +118,19 @@ where
                 .then(|| *self.from + (*self.to - *self.from) * u)
         };
 
-        if end < start {
+        if second < first {
             return Default::default();
         }
 
-        if start == end {
-            return unproject(start).map(Either::Left);
+        if first == second {
+            return unproject(first).map(Either::Left);
         }
 
-        return match (unproject(start), unproject(end)) {
-            (Some(start), Some(end)) => Some(Either::Right([start, end])),
-            (Some(endpoint), _) | (_, Some(endpoint)) => Some(Either::Left(endpoint)),
+        match (unproject(first), unproject(second)) {
+            (Some(first), Some(second)) => Some(Either::Right([first, second])),
+            (Some(point), _) | (_, Some(point)) => Some(Either::Left(point)),
             _ => Default::default(),
-        };
+        }
     }
 }
 
@@ -295,7 +295,7 @@ mod tests {
                 want: Some(Either::Right([[4., 4.].into(), [8., 8.].into()])),
             },
             Test {
-                name: "coincident segments when rhs is constained",
+                name: "coincident segments when segment contains rhs",
                 segment: Segment {
                     from: &[0., 0.].into(),
                     to: &[4., 4.].into(),
@@ -307,7 +307,7 @@ mod tests {
                 want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
             },
             Test {
-                name: "coincident segments when rhs constains",
+                name: "coincident segments when rhs constains segment",
                 segment: Segment {
                     from: &[1., 1.].into(),
                     to: &[3., 3.].into(),
@@ -317,18 +317,6 @@ mod tests {
                     to: &[4., 4.].into(),
                 },
                 want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
-            },
-            Test {
-                name: "coincident when none is fully contained",
-                segment: Segment {
-                    from: &[-1., 0.].into(),
-                    to: &[1., 0.].into(),
-                },
-                rhs: Segment {
-                    from: &[0., 0.].into(),
-                    to: &[2., 0.].into(),
-                },
-                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
             },
             Test {
                 name: "coincident when none is fully contained",
@@ -358,11 +346,7 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.segment.intersection(&test.rhs, &Default::default());
-            assert_eq!(
-                got, test.want,
-                "{}: got intersection point = {got:?}, want = {:?}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }

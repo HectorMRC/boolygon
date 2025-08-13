@@ -80,11 +80,7 @@ mod tests {
             let [a, b, c] = test.points;
             let got = Determinant::from([&a, &b, &c]);
 
-            assert_eq!(
-                got, test.want,
-                "{}: got determinant = {got:?}, want = {:?}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }

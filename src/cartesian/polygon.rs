@@ -288,11 +288,7 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.polygon.winding(&test.point, &Default::default());
-            assert_eq!(
-                got, test.want,
-                "{}: got winding number = {got}, want = {}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 
@@ -351,11 +347,7 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.polygon.is_clockwise();
-            assert_eq!(
-                got, test.want,
-                "{}: got is clockwise = {got}, want = {}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 
@@ -397,11 +389,7 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.left == test.right;
-            assert_eq!(
-                got, test.want,
-                "{}: got = {got}, want = {}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }

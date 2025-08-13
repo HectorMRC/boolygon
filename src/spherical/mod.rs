@@ -575,67 +575,67 @@ mod tests {
                     [PI, 0.]
                 ))),
             },
-            // Test {
-            //     name: "subject with hole intersecting clip with hole",
-            //     subject: Shape {
-            //         boundaries: vec![
-            //             spherical_polygon!(
-            //                 [FRAC_PI_2, 0.],
-            //                 [FRAC_PI_2, FRAC_PI_2],
-            //                 [FRAC_PI_2, PI],
-            //                 [FRAC_PI_2, 3. * FRAC_PI_2];
-            //                 [PI, 0.]
-            //             ),
-            //             spherical_polygon!(
-            //                 [FRAC_PI_4, 3. * FRAC_PI_2],
-            //                 [FRAC_PI_4, PI],
-            //                 [FRAC_PI_4, FRAC_PI_2],
-            //                 [FRAC_PI_4, 0.];
-            //                 [PI, 0.]
-            //             ),
-            //         ],
-            //     },
-            //     clip: Shape {
-            //         boundaries: vec![
-            //             spherical_polygon!(
-            //                 [0., 0.],
-            //                 [FRAC_PI_2, 0.],
-            //                 [PI, 0.],
-            //                 [FRAC_PI_2, PI];
-            //                 [FRAC_PI_2, 3. * FRAC_PI_2]
-            //             ),
-            //             spherical_polygon!(
-            //                 [FRAC_PI_2, PI - FRAC_PI_4],
-            //                 [PI - FRAC_PI_8, FRAC_PI_2],
-            //                 [FRAC_PI_2, FRAC_PI_4],
-            //                 [FRAC_PI_8, FRAC_PI_2];
-            //                 [FRAC_PI_2, 3. * FRAC_PI_2]
-            //             ),
-            //         ],
-            //     },
-            //     want: Some(Shape {
-            //         boundaries: vec![
-            //             spherical_polygon!(
-            //                 [FRAC_PI_4, 0.],
-            //                 [FRAC_PI_4, 3. * FRAC_PI_2],
-            //                 [FRAC_PI_4, PI],
-            //                 [FRAC_PI_2, PI],
-            //                 [FRAC_PI_2, 3. * FRAC_PI_2],
-            //                 [FRAC_PI_2, 0.];
-            //                 [PI, 0.]
-            //             ),
-            //             spherical_polygon!(
-            //                 [FRAC_PI_2, FRAC_PI_4],
-            //                 [FRAC_PI_2, FRAC_PI_2],
-            //                 [FRAC_PI_2, PI - FRAC_PI_4],
-            //                 [0.6532635808587185, 1.9634954084936205],
-            //                 [FRAC_PI_4, FRAC_PI_2],
-            //                 [0.6532635808587185, 1.1780972450961726];
-            //                 [PI, 0.]
-            //             ),
-            //         ],
-            //     }),
-            // },
+            Test {
+                name: "subject with hole intersecting clip with hole",
+                subject: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_2, 0.],
+                            [FRAC_PI_2, FRAC_PI_2],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
+                            [FRAC_PI_4, PI],
+                            [FRAC_PI_4, FRAC_PI_2],
+                            [FRAC_PI_4, 0.];
+                            [PI, 0.]
+                        ),
+                    ],
+                },
+                clip: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [0., 0.],
+                            [FRAC_PI_2, 0.],
+                            [PI, 0.],
+                            [FRAC_PI_2, PI];
+                            [FRAC_PI_2, 3. * FRAC_PI_2]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_2, PI - FRAC_PI_4],
+                            [PI - FRAC_PI_8, FRAC_PI_2],
+                            [FRAC_PI_2, FRAC_PI_4],
+                            [FRAC_PI_8, FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2]
+                        ),
+                    ],
+                },
+                want: Some(Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_4, 0.],
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
+                            [FRAC_PI_4, PI],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2],
+                            [FRAC_PI_2, 0.];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_2, FRAC_PI_4],
+                            [FRAC_PI_2, FRAC_PI_2],
+                            [FRAC_PI_2, PI - FRAC_PI_4],
+                            [0.6532635808587185, 1.9634954084936205],
+                            [FRAC_PI_4, FRAC_PI_2],
+                            [0.6532635808587185, 1.1780972450961726];
+                            [PI, 0.]
+                        ),
+                    ],
+                }),
+            },
         ]
         .into_iter()
         .for_each(|test| {

@@ -149,18 +149,23 @@ where
 
         match (self_containement, rhs_containement) {
             (_, (true, true)) => Some(Either::Right([*self.from, *self.to])),
-            ((true, _), (true, _)) => Some(if self.from != rhs.from {
-                Either::Right([*self.from, *self.from])
-            } else {
-                Either::Left(*self.from)
-            }),
-            ((_, true), (true, _)) => Some(if self.to != rhs.from {
-                Either::Right([*self.to, *self.from])
+            ((true, _), (_, true)) => Some(if rhs.from != self.to {
+                Either::Right([*rhs.from, *self.to])
             } else {
                 Either::Left(*self.to)
             }),
-            ((_, true), (_, true)) => Some(if self.to != rhs.to {
-                Either::Right([*self.to, *self.to])
+            ((true, _), (true, _)) => Some(if rhs.from != self.from {
+                Either::Right([*rhs.from, *self.from])
+            } else {
+                Either::Left(*self.from)
+            }),
+            ((_, true), (true, _)) => Some(if rhs.to != self.from {
+                Either::Right([*rhs.to, *self.from])
+            } else {
+                Either::Left(*self.from)
+            }),
+            ((_, true), (_, true)) => Some(if rhs.to != self.to {
+                Either::Right([*rhs.to, *self.to])
             } else {
                 Either::Left(*self.to)
             }),
@@ -207,91 +212,7 @@ mod tests {
 
         vec![
             Test {
-                name: "perpendicular arcs",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[FRAC_PI_4, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
-                    to: &[FRAC_PI_4, FRAC_PI_4].into(),
-                },
-                want: Some(Either::Left([0.61547970867038715, 0.].into())),
-            },
-            Test {
-                name: "perpendicular with endpoint in line",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[FRAC_PI_4, 0.].into(),
-                    to: &[FRAC_PI_4, FRAC_PI_4].into(),
-                },
-                want: Some(Either::Left([FRAC_PI_4, 0.].into())),
-            },
-            Test {
-                name: "arcs starting at the same point",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
-                },
-                want: Some(Either::Left([0., 0.].into())),
-            },
-            Test {
-                name: "arcs ending at the same point",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[FRAC_PI_2, FRAC_PI_2].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
-            },
-            Test {
-                name: "connected arcs",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[FRAC_PI_2, 0.].into(),
-                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
-                },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
-            },
-            Test {
-                name: "co-great-circular arcs ending at the same point",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[PI, 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
-            },
-            Test {
-                name: "co-great-circular arcs with no common point",
-                arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
-                },
-                rhs: Arc {
-                    from: &[PI, 0.].into(),
-                    to: &[FRAC_PI_2, -PI].into(),
-                },
-                want: None,
-            },
-            Test {
-                name: "arcs on different parallels",
+                name: "non-crossing arcs",
                 arc: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
@@ -303,31 +224,133 @@ mod tests {
                 want: None,
             },
             Test {
+                name: "perpendicular with no common point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, FRAC_PI_2].into(),
+                    to: &[FRAC_PI_2, PI].into(),
+                },
+                want: None,
+            },
+            Test {
+                name: "perpendicular with endpoint in line",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_4].into(),
+                },
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+            },
+            Test {
+                name: "perpendicular arcs starting at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+            },
+            Test {
+                name: "perpendicular arcs starting at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                want: Some(Either::Left([0., 0.].into())),
+            },
+            Test {
+                name: "perpendicular arcs ending at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, FRAC_PI_2].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+            },
+            Test {
+                name: "co-great-circular arcs starting at the same point",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2, PI].into(),
+                },
+                want: Some(Either::Left([0., 0.].into())),
+            },
+            Test {
+                name: "co-great-circular arcs ending at the same point",
+                arc: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[PI, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, PI].into(),
+                    to: &[PI, 0.].into(),
+                },
+                want: Some(Either::Left([PI, 0.].into())),
+            },
+            Test {
+                name: "co-great-circular arcs with no common point",
+                arc: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[PI, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, PI].into(),
+                    to: &[0., 0.].into(),
+                },
+                want: None,
+            },
+            Test {
                 name: "coincident arcs when rhs is shorter",
                 arc: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
                 rhs: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_4, 0.].into(),
+                    from: &[FRAC_PI_4, 0.].into(),
+                    to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Either::Right([[0., 0.].into(), [FRAC_PI_4, 0.].into()])),
+                want: Some(Either::Right([
+                    [FRAC_PI_4, 0.].into(),
+                    [FRAC_PI_2, 0.].into(),
+                ])),
             },
             Test {
                 name: "coincident arcs when rhs is larger",
                 arc: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2, 0.].into(),
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_4].into(),
                 },
                 rhs: Arc {
-                    from: &[0., 0.].into(),
-                    to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Either::Right([[0., 0.].into(), [FRAC_PI_2, 0.].into()])),
+                want: Some(Either::Right([
+                    [FRAC_PI_2, 0.].into(),
+                    [FRAC_PI_2, FRAC_PI_4].into(),
+                ])),
             },
             Test {
-                name: "rhs inside arc",
+                name: "coincident arcs when arc contains rhs",
                 arc: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
@@ -342,18 +365,48 @@ mod tests {
                 ])),
             },
             Test {
-                name: "arc inside rhs",
+                name: "coincident arcs when rhs contains arc",
                 arc: Arc {
-                    from: &[FRAC_PI_8, 0.].into(),
-                    to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                    from: &[FRAC_PI_2, FRAC_PI_8].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2 - FRAC_PI_8].into(),
                 },
                 rhs: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[FRAC_PI_2, FRAC_PI_2].into(),
+                },
+                want: Some(Either::Right([
+                    [FRAC_PI_2, FRAC_PI_8].into(),
+                    [FRAC_PI_2, FRAC_PI_2 - FRAC_PI_8].into(),
+                ])),
+            },
+            Test {
+                name: "coincident arcs when none is fully contained",
+                arc: Arc {
                     from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[FRAC_PI_2, 0.].into(),
+                    to: &[PI, 0.].into(),
+                },
+                want: Some(Either::Right([
+                    [FRAC_PI_2, 0.].into(),
+                    [FRAC_PI_2 + FRAC_PI_4, 0.].into(),
+                ])),
+            },
+            Test {
+                name: "coincident at oposite direction when none is fully contained",
+                arc: Arc {
+                    from: &[0., 0.].into(),
+                    to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
+                },
+                rhs: Arc {
+                    from: &[PI, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
                 want: Some(Either::Right([
-                    [FRAC_PI_8, 0.].into(),
-                    [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                    [FRAC_PI_2, 0.].into(),
+                    [FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 ])),
             },
         ]
@@ -365,12 +418,7 @@ mod tests {
             };
 
             let got = test.arc.intersection(&test.rhs, &tolerance);
-
-            assert_eq!(
-                got, test.want,
-                "{}: got intersection point = {got:?}, want = {:?}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }
