@@ -4,7 +4,7 @@ use super::{Point, Segment};
 
 /// The scalar value representing the determinant of a matrix.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(super) struct Determinant<T>(T);
+pub(crate) struct Determinant<T>(T);
 
 impl<T> From<[&Point<T>; 3]> for Determinant<T>
 where
@@ -41,7 +41,7 @@ where
 
 impl<T> Determinant<T> {
     /// Returns the inner value of self.
-    pub(super) fn into_inner(self) -> T {
+    pub(crate) fn into_inner(self) -> T {
         self.0
     }
 }
@@ -80,11 +80,7 @@ mod tests {
             let [a, b, c] = test.points;
             let got = Determinant::from([&a, &b, &c]);
 
-            assert_eq!(
-                got, test.want,
-                "{}: got determinant = {got:?}, want = {:?}",
-                test.name, test.want
-            );
+            assert_eq!(got, test.want, "{}", test.name);
         });
     }
 }

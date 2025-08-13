@@ -358,11 +358,7 @@ mod tests {
         .for_each(|test| {
             let azimuth = Azimuth::from(test.input).into_inner();
 
-            assert_eq!(
-                azimuth, test.output,
-                "{}: got azimuth = {}, want {}",
-                test.name, azimuth, test.output
-            );
+            assert_eq!(azimuth, test.output, "{}", test.name);
         });
     }
 }

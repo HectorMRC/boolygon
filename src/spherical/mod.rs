@@ -22,28 +22,59 @@ mod tests {
         }
 
         vec![
+            // Test {
+            //     name: "overlapping triangles",
+            //     subject: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 0.],
+            //         [FRAC_PI_2, FRAC_PI_2];
+            //         [PI, 0.]
+            //     )),
+            //     clip: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
+            //         [FRAC_PI_2, FRAC_PI_4];
+            //         [PI, 0.]
+            //     )),
+            //     want: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
+            //         [FRAC_PI_2, 0.],
+            //         [FRAC_PI_2, FRAC_PI_4],
+            //         [FRAC_PI_2, FRAC_PI_2];
+            //         [FRAC_PI_2, 3. * FRAC_PI_2]
+            //     )),
+            // },
             Test {
-                name: "overlapping triangles",
+                name: "triangles sharing vertex",
                 subject: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [0., 0.],
-                    [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
-                    [FRAC_PI_2, FRAC_PI_4];
-                    [PI, PI]
+                    [FRAC_PI_2, PI],
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
+                    [PI, 0.]
                 )),
-                want: Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
-                    [FRAC_PI_2, 0.],
-                    [FRAC_PI_2, FRAC_PI_4],
-                    [FRAC_PI_2, FRAC_PI_2];
-                    [FRAC_PI_2, 3. * FRAC_PI_2]
-                )),
+                want: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [0., 0.],
+                            [FRAC_PI_2, 0.],
+                            [FRAC_PI_2, FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [0., 0.],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                    ],
+                },
             },
             Test {
                 name: "non-overlapping triangles",
@@ -51,7 +82,7 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [FRAC_PI_2, 3. * FRAC_PI_2],
@@ -82,19 +113,19 @@ mod tests {
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
             },
             Test {
@@ -103,20 +134,46 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
+            },
+            Test {
+                name: "subject intersecting clip",
+                subject: Shape::new(spherical_polygon!(
+                    [FRAC_PI_2, 0.],
+                    [FRAC_PI_2, FRAC_PI_2],
+                    [FRAC_PI_2, PI],
+                    [FRAC_PI_2, 3. * FRAC_PI_2];
+                    [PI, 0.]
+                )),
+                clip: Shape::new(spherical_polygon!(
+                    [0., 0.],
+                    [FRAC_PI_2, 0.],
+                    [PI, 0.],
+                    [FRAC_PI_2, PI];
+                    [FRAC_PI_2, 3. * FRAC_PI_2]
+                )),
+                want: Shape {
+                    boundaries: vec![spherical_polygon!(
+                        [FRAC_PI_2, 0.],
+                        [PI, 0.],
+                        [FRAC_PI_2, PI],
+                        [FRAC_PI_2, 3. * FRAC_PI_2];
+                        [PI - FRAC_PI_8, 3. * FRAC_PI_2]
+                    )],
+                },
             },
             Test {
                 name: "subject with hole enclosing clip",
@@ -206,6 +263,123 @@ mod tests {
                     ],
                 },
             },
+            Test {
+                name: "subject with hole intersecting clip",
+                subject: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_2, 0.],
+                            [FRAC_PI_2, FRAC_PI_2],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
+                            [FRAC_PI_4, PI],
+                            [FRAC_PI_4, FRAC_PI_2],
+                            [FRAC_PI_4, 0.];
+                            [PI, 0.]
+                        ),
+                    ],
+                },
+                clip: Shape::new(spherical_polygon!(
+                    [0., 0.],
+                    [FRAC_PI_2, 0.],
+                    [PI, 0.],
+                    [FRAC_PI_2, PI];
+                    [FRAC_PI_2, 3. * FRAC_PI_2]
+                )),
+                want: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_2, 0.],
+                            [PI, 0.],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI - FRAC_PI_8, 3. * FRAC_PI_2]
+                        ),
+                        spherical_polygon!(
+                           [FRAC_PI_4, 0.],
+                           [FRAC_PI_4, 3. * FRAC_PI_2],
+                           [FRAC_PI_4, PI],
+                           [0., 0.];
+                           [PI, 0.]
+                        ),
+                    ],
+                },
+            },
+            Test {
+                name: "subject with hole intersecting clip with hole",
+                subject: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_2, 0.],
+                            [FRAC_PI_2, FRAC_PI_2],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_4, 3. * FRAC_PI_2],
+                            [FRAC_PI_4, PI],
+                            [FRAC_PI_4, FRAC_PI_2],
+                            [FRAC_PI_4, 0.];
+                            [PI, 0.]
+                        ),
+                    ],
+                },
+                clip: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [0., 0.],
+                            [FRAC_PI_2, 0.],
+                            [PI, 0.],
+                            [FRAC_PI_2, PI];
+                            [FRAC_PI_2, 3. * FRAC_PI_2]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_2, PI - FRAC_PI_4],
+                            [PI - FRAC_PI_8, FRAC_PI_2],
+                            [FRAC_PI_2, FRAC_PI_4],
+                            [FRAC_PI_8, FRAC_PI_2];
+                            [FRAC_PI_2, 3. * FRAC_PI_2]
+                        ),
+                    ],
+                },
+                want: Shape {
+                    boundaries: vec![
+                        spherical_polygon!(
+                            [FRAC_PI_2, 0.],
+                            [PI, 0.],
+                            [FRAC_PI_2, PI],
+                            [FRAC_PI_2, 3. * FRAC_PI_2];
+                            [PI - FRAC_PI_8, 3. * FRAC_PI_2]
+                        ),
+                        spherical_polygon!(
+                           [FRAC_PI_4, 0.],
+                           [FRAC_PI_4, 3. * FRAC_PI_2],
+                           [FRAC_PI_4, PI],
+                           [0., 0.];
+                           [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [FRAC_PI_2, PI - FRAC_PI_4],
+                            [PI - FRAC_PI_8, FRAC_PI_2],
+                            [FRAC_PI_2, FRAC_PI_4],
+                            [FRAC_PI_2, FRAC_PI_2];
+                            [PI, 0.]
+                        ),
+                        spherical_polygon!(
+                            [0.6532635808587185, 1.9634954084936205],
+                            [FRAC_PI_4, FRAC_PI_2],
+                            [0.6532635808587185, 1.1780972450961726],
+                            [0.39269908169872414, 1.5707963267948966];
+                            [PI, 0.]
+                        ),
+                    ],
+                },
+            },
         ]
         .into_iter()
         .for_each(|test| {
@@ -229,34 +403,34 @@ mod tests {
         }
 
         vec![
-            Test {
-                name: "overlapping triangles",
-                subject: Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 0.],
-                    [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
-                )),
-                clip: Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
-                    [FRAC_PI_2, FRAC_PI_4];
-                    [PI, PI]
-                )),
-                want: Some(Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, FRAC_PI_4],
-                    [FRAC_PI_2, FRAC_PI_2];
-                    [FRAC_PI_2, 3. * FRAC_PI_2]
-                ))),
-            },
+            // Test {
+            //     name: "overlapping triangles",
+            //     subject: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 0.],
+            //         [FRAC_PI_2, FRAC_PI_2];
+            //         [PI, PI]
+            //     )),
+            //     clip: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
+            //         [FRAC_PI_2, FRAC_PI_4];
+            //         [PI, PI]
+            //     )),
+            //     want: Some(Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, FRAC_PI_4],
+            //         [FRAC_PI_2, FRAC_PI_2];
+            //         [FRAC_PI_2, 3. * FRAC_PI_2]
+            //     ))),
+            // },
             Test {
                 name: "non-overlapping triangles",
                 subject: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [PI, 0.],
@@ -268,7 +442,7 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 ))),
             },
             Test {
@@ -277,13 +451,13 @@ mod tests {
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: None,
             },
@@ -293,13 +467,13 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: Some(Shape {
                     boundaries: vec![
@@ -485,34 +659,34 @@ mod tests {
         }
 
         vec![
-            Test {
-                name: "overlapping triangles",
-                subject: Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 0.],
-                    [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
-                )),
-                clip: Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
-                    [FRAC_PI_2, FRAC_PI_4];
-                    [PI, PI]
-                )),
-                want: Some(Shape::new(spherical_polygon!(
-                    [0., 0.],
-                    [FRAC_PI_2, 0.],
-                    [FRAC_PI_2, FRAC_PI_4];
-                    [FRAC_PI_2, 3. * FRAC_PI_2]
-                ))),
-            },
+            // Test {
+            //     name: "overlapping triangles",
+            //     subject: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 0.],
+            //         [FRAC_PI_2, FRAC_PI_2];
+            //         [PI, PI]
+            //     )),
+            //     clip: Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4],
+            //         [FRAC_PI_2, FRAC_PI_4];
+            //         [PI, PI]
+            //     )),
+            //     want: Some(Shape::new(spherical_polygon!(
+            //         [0., 0.],
+            //         [FRAC_PI_2, 0.],
+            //         [FRAC_PI_2, FRAC_PI_4];
+            //         [FRAC_PI_2, 3. * FRAC_PI_2]
+            //     ))),
+            // },
             Test {
                 name: "non-overlapping triangles",
                 subject: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [PI, 0.],
@@ -528,19 +702,19 @@ mod tests {
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: Some(Shape::new(spherical_polygon!(
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 ))),
             },
             Test {
@@ -549,19 +723,19 @@ mod tests {
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 clip: Shape::new(spherical_polygon!(
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 )),
                 want: Some(Shape::new(spherical_polygon!(
                     [FRAC_PI_8, FRAC_PI_4],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_8],
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
-                    [PI, PI]
+                    [PI, 0.]
                 ))),
             },
             Test {

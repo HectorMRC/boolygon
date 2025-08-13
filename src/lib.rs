@@ -1,6 +1,6 @@
 mod clipper;
+mod either;
 mod graph;
-mod node;
 mod shape;
 mod tolerance;
 
@@ -10,6 +10,7 @@ pub mod cartesian;
 pub mod spherical;
 
 pub use self::clipper::Operands;
+pub use self::either::Either;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
@@ -45,7 +46,10 @@ pub trait Edge<'a> {
         &self,
         rhs: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> Option<Self::Vertex>;
+    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
+
+    /// Returns the starting endpoint of the edge.
+    fn start(&self) -> &Self::Vertex;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.
@@ -86,4 +90,12 @@ pub trait Geometry: Sized + RightHanded {
         vertex: &Self::Vertex,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> isize;
+
+    fn contains(
+        &self,
+        vertex: &Self::Vertex,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> bool {
+        self.winding(vertex, tolerance) != 0
+    }
 }

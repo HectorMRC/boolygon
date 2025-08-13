@@ -1,8 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    clipper::{Clipper, Operator},
-    node::{Node, Role},
+    clipper::{Clipper, Direction, Operator},
+    graph::{BoundaryRole, IntersectionKind, Node},
     Edge, Geometry, IsClose, Operands, Vertex,
 };
 
@@ -41,6 +41,7 @@ impl<T> Shape<T>
 where
     T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
     T::Vertex: Copy + PartialEq + PartialOrd,
+    for<'a> T::Edge<'a>: Edge<'a>,
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of this shape and rhs.
@@ -56,15 +57,26 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                             || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip(_) => {
                         !ops.subject.contains(&node.vertex, tolerance)
                             || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection.kind else {
+                    return Direction::Forward;
+                };
+
+                match intersection {
+                    IntersectionKind::Entry => Direction::Backward,
+                    IntersectionKind::Exit => Direction::Forward,
                 }
             }
         }
@@ -91,15 +103,32 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject(_) => {
                         !ops.clip.contains(&node.vertex, tolerance)
                             && !ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                             && !ops.subject.is_boundary(&node.vertex, tolerance)
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection.kind else {
+                    return if node.boundary.is_subject() {
+                        Direction::Forward
+                    } else {
+                        Direction::Backward
+                    };
+                };
+
+                match (node.boundary, intersection) {
+                    (BoundaryRole::Subject(_), IntersectionKind::Entry) => Direction::Backward,
+                    (BoundaryRole::Subject(_), IntersectionKind::Exit) => Direction::Forward,
+                    (BoundaryRole::Clip(_), IntersectionKind::Entry) => Direction::Forward,
+                    (BoundaryRole::Clip(_), IntersectionKind::Exit) => Direction::Backward,
                 }
             }
         }
@@ -107,7 +136,7 @@ where
         Clipper::default()
             .with_operator::<NotOperator<T>>()
             .with_tolerance(tolerance)
-            .with_clip(rhs.inverted_winding())
+            .with_clip(rhs)
             .with_subject(self)
             .execute()
     }
@@ -125,15 +154,26 @@ where
                 node: &'a Node<T>,
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
-                match node.role {
-                    Role::Subject(_) => {
+                match node.boundary {
+                    BoundaryRole::Subject(_) => {
                         ops.clip.contains(&node.vertex, tolerance)
                             || ops.clip.is_boundary(&node.vertex, tolerance)
                     }
-                    Role::Clip(_) => {
+                    BoundaryRole::Clip(_) => {
                         ops.subject.contains(&node.vertex, tolerance)
                             || ops.subject.is_boundary(&node.vertex, tolerance)
                     }
+                }
+            }
+
+            fn direction(node: &Node<T>) -> Direction {
+                let Some(intersection) = node.intersection.kind else {
+                    return Direction::Forward;
+                };
+
+                match intersection {
+                    IntersectionKind::Entry => Direction::Forward,
+                    IntersectionKind::Exit => Direction::Backward,
                 }
             }
         }
@@ -209,12 +249,5 @@ where
 
     pub(crate) fn edges(&self) -> impl Iterator<Item = T::Edge<'_>> {
         self.boundaries.iter().flat_map(|boundary| boundary.edges())
-    }
-
-    /// Returns  a new shape with the inverted winding.
-    fn inverted_winding(self) -> Self {
-        Self {
-            boundaries: self.boundaries.into_iter().map(T::reversed).collect(),
-        }
     }
 }
