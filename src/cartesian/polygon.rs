@@ -113,7 +113,7 @@ where
         // Returns true if, and only if, the point is on the left of the infinite line containing
         // the given segment.
         let left_of = |segment: &Segment<'_, T>| {
-            Determinant::from((segment, point))
+            Determinant::from([segment.from, segment.to, point])
                 .into_inner()
                 .is_positive()
         };

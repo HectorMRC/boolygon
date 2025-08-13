@@ -44,8 +44,8 @@ where
     for<'a> T::Edge<'a>: Edge<'a>,
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
-    /// Returns the union of this shape and rhs.
-    pub fn or(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Self {
+    /// Returns the union of this shape and the other.
+    pub fn or(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Self {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
@@ -85,13 +85,13 @@ where
             .with_operator::<OrOperator<T>>()
             .with_tolerance(tolerance)
             .with_subject(self)
-            .with_clip(rhs)
+            .with_clip(other)
             .execute()
             .expect("union should always return a shape")
     }
 
-    /// Returns the difference of rhs on this shape.
-    pub fn not(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
+    /// Returns the difference of the other shape on this one.
+    pub fn not(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
@@ -136,13 +136,13 @@ where
         Clipper::default()
             .with_operator::<NotOperator<T>>()
             .with_tolerance(tolerance)
-            .with_clip(rhs)
+            .with_clip(other)
             .with_subject(self)
             .execute()
     }
 
-    /// Returns the intersection of this shape and rhs.
-    pub fn and(self, rhs: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
+    /// Returns the intersection of this shape and the other.
+    pub fn and(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for AndOperator<T>
@@ -182,7 +182,7 @@ where
             .with_operator::<AndOperator<T>>()
             .with_tolerance(tolerance)
             .with_subject(self)
-            .with_clip(rhs)
+            .with_clip(other)
             .execute()
     }
 }

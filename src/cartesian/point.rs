@@ -67,8 +67,8 @@ where
 {
     type Scalar = T;
 
-    fn distance(&self, rhs: &Self) -> Self::Scalar {
-        ((self.x - rhs.x).powi(2) + (self.y - rhs.y).powi(2)).sqrt()
+    fn distance(&self, other: &Self) -> Self::Scalar {
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
     }
 }
 
@@ -78,7 +78,7 @@ where
 {
     type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        self.x.is_close(&rhs.x, tolerance) && self.y.is_close(&rhs.y, tolerance)
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
+        self.x.is_close(&other.x, tolerance) && self.y.is_close(&other.y, tolerance)
     }
 }

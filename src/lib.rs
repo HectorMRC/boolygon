@@ -19,8 +19,8 @@ pub trait Vertex {
     /// The scalar type in this vertex's space.
     type Scalar;
 
-    /// Returns the distance between this vertex and rhs.
-    fn distance(&self, rhs: &Self) -> Self::Scalar;
+    /// Returns the distance between this vertex and the other.
+    fn distance(&self, other: &Self) -> Self::Scalar;
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
@@ -41,10 +41,10 @@ pub trait Edge<'a> {
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> bool;
 
-    /// Returns the intersection between this edge and rhs, if any.
+    /// Returns the intersection between this edge and the other, if any.
     fn intersection(
         &self,
-        rhs: &Self,
+        other: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
 

@@ -46,7 +46,7 @@ where
 
     fn intersection(
         &self,
-        rhs: &Self,
+        other: &Self,
         tolerance: &Tolerance<T>,
     ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>> {
         if self.is_antipodal() {
@@ -54,15 +54,15 @@ where
             let first_half = Arc::new(self.from, &point);
             let second_half = Arc::new(&point, self.to);
 
-            let Some(first_intersection) = rhs.intersection(&first_half, tolerance) else {
-                return rhs.intersection(&second_half, tolerance);
+            let Some(first_intersection) = other.intersection(&first_half, tolerance) else {
+                return other.intersection(&second_half, tolerance);
             };
 
             if first_intersection.is_right() {
                 return Some(first_intersection);
             }
 
-            let Some(second_intersection) = rhs.intersection(&second_half, tolerance) else {
+            let Some(second_intersection) = other.intersection(&second_half, tolerance) else {
                 return Some(first_intersection);
             };
 
@@ -72,38 +72,38 @@ where
             };
         }
 
-        let direction = self.normal().cross(&rhs.normal());
+        let direction = self.normal().cross(&other.normal());
         if direction.magnitude().is_close(&T::zero(), tolerance) {
             // When two arcs lie on the same great circle, their normal vectors coincide.
-            return self.co_great_circular_common_points(rhs, tolerance);
+            return self.co_great_circular_common_points(other, tolerance);
         }
 
         // TODO: remove this if statements
-        if self.contains(rhs.from, tolerance) {
-            return Some(Either::Left(*rhs.from));
+        if self.contains(other.from, tolerance) {
+            return Some(Either::Left(*other.from));
         }
 
-        if self.contains(rhs.to, tolerance) {
-            return Some(Either::Left(*rhs.to));
+        if self.contains(other.to, tolerance) {
+            return Some(Either::Left(*other.to));
         }
 
-        if rhs.contains(self.from, tolerance) {
+        if other.contains(self.from, tolerance) {
             return Some(Either::Left(*self.from));
         }
 
-        if rhs.contains(self.to, tolerance) {
+        if other.contains(self.to, tolerance) {
             return Some(Either::Left(*self.to));
         }
 
         let lambda = T::one() / direction.magnitude();
 
         let intersection = (direction * lambda).into();
-        if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
+        if self.contains(&intersection, tolerance) && other.contains(&intersection, tolerance) {
             return Some(Either::Left(intersection));
         }
 
         let intersection = (direction * -lambda).into();
-        if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
+        if self.contains(&intersection, tolerance) && other.contains(&intersection, tolerance) {
             return Some(Either::Left(intersection));
         }
 
@@ -126,46 +126,46 @@ where
         from.cross(&to).normal()
     }
 
-    /// Being self and rhs two arcs lying on the same great circle, returns the intersection
-    /// between them, if any.
+    /// Being self and the other two arcs lying on the same great circle, returns the
+    /// intersection between them, if any.
     fn co_great_circular_common_points(
         &self,
-        rhs: &Self,
+        other: &Self,
         tolerance: &Tolerance<T>,
     ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
         let self_containement = (
-            self.contains(&rhs.from, tolerance),
-            self.contains(&rhs.to, tolerance),
+            self.contains(&other.from, tolerance),
+            self.contains(&other.to, tolerance),
         );
 
         if let (true, true) = self_containement {
-            return Some(Either::Right([*rhs.from, *rhs.to]));
+            return Some(Either::Right([*other.from, *other.to]));
         }
 
-        let rhs_containement = (
-            rhs.contains(&self.from, tolerance),
-            rhs.contains(&self.to, tolerance),
+        let other_containement = (
+            other.contains(&self.from, tolerance),
+            other.contains(&self.to, tolerance),
         );
 
-        match (self_containement, rhs_containement) {
+        match (self_containement, other_containement) {
             (_, (true, true)) => Some(Either::Right([*self.from, *self.to])),
-            ((true, _), (_, true)) => Some(if rhs.from != self.to {
-                Either::Right([*rhs.from, *self.to])
+            ((true, _), (_, true)) => Some(if other.from != self.to {
+                Either::Right([*other.from, *self.to])
             } else {
                 Either::Left(*self.to)
             }),
-            ((true, _), (true, _)) => Some(if rhs.from != self.from {
-                Either::Right([*rhs.from, *self.from])
+            ((true, _), (true, _)) => Some(if other.from != self.from {
+                Either::Right([*other.from, *self.from])
             } else {
                 Either::Left(*self.from)
             }),
-            ((_, true), (true, _)) => Some(if rhs.to != self.from {
-                Either::Right([*rhs.to, *self.from])
+            ((_, true), (true, _)) => Some(if other.to != self.from {
+                Either::Right([*other.to, *self.from])
             } else {
                 Either::Left(*self.from)
             }),
-            ((_, true), (_, true)) => Some(if rhs.to != self.to {
-                Either::Right([*rhs.to, *self.to])
+            ((_, true), (_, true)) => Some(if other.to != self.to {
+                Either::Right([*other.to, *self.to])
             } else {
                 Either::Left(*self.to)
             }),
@@ -206,7 +206,7 @@ mod tests {
         struct Test<'a> {
             name: &'a str,
             arc: Arc<'a, f64>,
-            rhs: Arc<'a, f64>,
+            other: Arc<'a, f64>,
             want: Option<Either<Point<f64>, [Point<f64>; 2]>>,
         }
 
@@ -217,7 +217,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_4, 0.].into(),
                     to: &[FRAC_PI_4, FRAC_PI_2].into(),
                 },
@@ -229,7 +229,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, FRAC_PI_2].into(),
                     to: &[FRAC_PI_2, PI].into(),
                 },
@@ -241,7 +241,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
                     to: &[FRAC_PI_2, FRAC_PI_4].into(),
                 },
@@ -253,7 +253,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
@@ -265,7 +265,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
@@ -277,7 +277,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, FRAC_PI_2].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
@@ -289,7 +289,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, PI].into(),
                 },
@@ -301,7 +301,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[PI, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, PI].into(),
                     to: &[PI, 0.].into(),
                 },
@@ -313,19 +313,19 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[PI, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, PI].into(),
                     to: &[0., 0.].into(),
                 },
                 want: None,
             },
             Test {
-                name: "coincident arcs when rhs is shorter",
+                name: "coincident arcs when other is shorter",
                 arc: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_4, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
@@ -335,12 +335,12 @@ mod tests {
                 ])),
             },
             Test {
-                name: "coincident arcs when rhs is larger",
+                name: "coincident arcs when other is larger",
                 arc: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_4].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
@@ -350,12 +350,12 @@ mod tests {
                 ])),
             },
             Test {
-                name: "coincident arcs when arc contains rhs",
+                name: "coincident arcs when arc contains other",
                 arc: Arc {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_8, 0.].into(),
                     to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
                 },
@@ -365,12 +365,12 @@ mod tests {
                 ])),
             },
             Test {
-                name: "coincident arcs when rhs contains arc",
+                name: "coincident arcs when other contains arc",
                 arc: Arc {
                     from: &[FRAC_PI_2, FRAC_PI_8].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2 - FRAC_PI_8].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
@@ -385,7 +385,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[PI, 0.].into(),
                 },
@@ -400,7 +400,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 },
-                rhs: Arc {
+                other: Arc {
                     from: &[PI, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
@@ -417,7 +417,7 @@ mod tests {
                 absolute: 0.0.into(),
             };
 
-            let got = test.arc.intersection(&test.rhs, &tolerance);
+            let got = test.arc.intersection(&test.other, &tolerance);
             assert_eq!(got, test.want, "{}", test.name);
         });
     }

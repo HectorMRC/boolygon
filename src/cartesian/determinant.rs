@@ -17,24 +17,13 @@ where
     }
 }
 
-impl<T> From<(&Segment<'_, T>, &Point<T>)> for Determinant<T>
-where
-    T: Copy + Sub<Output = T> + Mul<Output = T>,
-{
-    /// Being `A` and `B` the endpoints of the given [`Segment`], and `C` the given [`Point`],
-    /// returns the determinant of the matrix representing the direction vector `AB` and `AC`.
-    fn from((segment, point): (&Segment<'_, T>, &Point<T>)) -> Self {
-        Self::from([segment.from, segment.to, point])
-    }
-}
-
-impl<T> From<[&Segment<'_, T>; 2]> for Determinant<T>
+impl<T> Determinant<T>
 where
     T: Copy + Sub<Output = T> + Mul<Output = T>,
 {
     /// Returns the determinant of the matrix representing the direction vectors of the given
     /// [`Segment`]s.
-    fn from([a, b]: [&Segment<'_, T>; 2]) -> Self {
+    pub(crate) fn new(a: &Segment<'_, T>, b: &Segment<'_, T>) -> Self {
         Self((a.to.x - a.from.x) * (b.to.y - b.from.y) - (b.to.x - b.from.x) * (a.to.y - a.from.y))
     }
 }

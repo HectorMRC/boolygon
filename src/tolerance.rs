@@ -33,9 +33,9 @@ pub struct Tolerance<T> {
 pub trait IsClose {
     type Tolerance;
 
-    /// Returns true if, and only if, self and rhs are close enough given a tolerance;
-    /// otherwise returns false.
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool;
+    /// Returns true if, and only if, this and the other are close enough given a
+    /// tolerance; otherwise returns false.
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool;
 }
 
 impl<T> IsClose for T
@@ -44,10 +44,10 @@ where
 {
     type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        (*self - *rhs).abs()
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
+        (*self - *other).abs()
             <= Self::max(
-                tolerance.relative.0 * Self::max(self.abs(), rhs.abs()),
+                tolerance.relative.0 * Self::max(self.abs(), other.abs()),
                 tolerance.absolute.0,
             )
     }

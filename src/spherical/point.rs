@@ -75,8 +75,8 @@ where
 {
     type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        self.0.is_close(&rhs.0, tolerance)
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
+        self.0.is_close(&other.0, tolerance)
     }
 }
 
@@ -164,8 +164,8 @@ where
 {
     type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        self.0.is_close(&rhs.0, tolerance)
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
+        self.0.is_close(&other.0, tolerance)
     }
 }
 
@@ -248,9 +248,9 @@ where
     type Scalar = T;
 
     /// Returns the [great-circle distance](https://en.wikipedia.org/wiki/Great-circle_distance)
-    /// from this point to rhs.
-    fn distance(&self, rhs: &Self) -> T {
-        Geographic::from(*self).distance(&(*rhs).into())
+    /// from this point to the other.
+    fn distance(&self, other: &Self) -> T {
+        Geographic::from(*self).distance(&(*other).into())
     }
 }
 
@@ -260,9 +260,9 @@ where
 {
     type Tolerance = Tolerance<T>;
 
-    fn is_close(&self, rhs: &Self, tolerance: &Self::Tolerance) -> bool {
-        self.inclination.is_close(&rhs.inclination, tolerance)
-            && self.azimuth.is_close(&rhs.azimuth, tolerance)
+    fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
+        self.inclination.is_close(&other.inclination, tolerance)
+            && self.azimuth.is_close(&other.azimuth, tolerance)
     }
 }
 
