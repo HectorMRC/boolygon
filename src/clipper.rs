@@ -144,27 +144,9 @@ where
 
         let mut intersectionless_search = Resume::<IntersectionlessSearch<U>>::new(0);
         while let Some(position) = intersectionless_search.next(&graph) {
-            let Some(node) = &graph.nodes[position] else {
-                continue;
-            };
-
-            // Dodge pseudo-intersection nodes by taking the midpoint.
-            let node = if node.is_pseudo_intersection
-                && let Some(next) = &graph.nodes[node.next]
+            if let Some(node) = &graph.nodes[position]
+                && !Op::is_output((&self).into(), node, &self.tolerance)
             {
-                &Node {
-                    vertex: U::Edge::new(&node.vertex, &next.vertex).midpoint(),
-                    previous: position,
-                    intersection: None,
-                    is_pseudo_intersection: false,
-                    siblings: Default::default(),
-                    ..*node
-                }
-            } else {
-                node
-            };
-
-            if !Op::is_output((&self).into(), node, &self.tolerance) {
                 continue;
             };
 
@@ -250,22 +232,17 @@ where
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (position, node) = self
+        let position = self
             .graph
             .nodes
             .get(self.next..)?
             .iter()
             .enumerate()
             .filter_map(|(position, node)| node.as_ref().map(|node| (position, node)))
-            .find(|(_, node)| node.is_intersection())
-            .map(|(position, node)| (position + self.next, node))?;
+            .find(|(_, node)| node.intersection.has_siblings())
+            .map(|(position, _)| position + self.next)?;
 
         self.next = position + 1;
-
-        if !node.is_intersection() {
-            return self.next();
-        }
-
         Some(position)
     }
 }
@@ -318,14 +295,14 @@ where
         let current = self.next?;
         let node = self.graph.nodes[current].take()?;
 
-        if node.is_intersection() {
+        if node.intersection.has_siblings() {
             self.direction = Op::direction(&node);
         }
 
         let candidate = self.direction.next(&node);
         self.next = self.graph.nodes[candidate].as_mut().and_then(|next| {
-            if next.is_intersection() {
-                next.siblings.pop_first()
+            if next.intersection.has_siblings() {
+                next.intersection.siblings.pop_first()
             } else {
                 Some(candidate)
             }
@@ -333,11 +310,12 @@ where
 
         if self.terminal.is_empty() {
             self.terminal
-                .extend(node.siblings.iter().copied().chain([current]));
+                .extend(node.intersection.siblings.iter().copied().chain([current]));
         } else if let Some(next) = self.next {
             self.closed = self.terminal.contains(&next);
         } else {
             self.closed = node
+                .intersection
                 .siblings
                 .iter()
                 .filter_map(|&sibling| self.graph.nodes[sibling].as_ref())

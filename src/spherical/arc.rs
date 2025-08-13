@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{graph::Intersection, spherical::Point, Edge, IsClose, Tolerance, Vertex as _};
+use crate::{either::Either, spherical::Point, Edge, IsClose, Tolerance, Vertex as _};
 
 /// The undirected arc between two endpoints.
 #[derive(Debug)]
@@ -48,7 +48,7 @@ where
         &self,
         rhs: &Self,
         tolerance: &Tolerance<T>,
-    ) -> Option<Intersection<Self::Vertex>> {
+    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>> {
         if self.is_antipodal() {
             let point = self.midpoint();
             let first_half = Arc::new(self.from, &point);
@@ -58,7 +58,7 @@ where
                 return rhs.intersection(&second_half, tolerance);
             };
 
-            if first_intersection.is_range() {
+            if first_intersection.is_right() {
                 return Some(first_intersection);
             }
 
@@ -67,9 +67,7 @@ where
             };
 
             return match (first_intersection, second_intersection) {
-                (Intersection::Single(start), Intersection::Single(end)) => {
-                    Some(Intersection::Range { start, end })
-                }
+                (Either::Left(start), Either::Left(end)) => Some(Either::Right([start, end])),
                 (_, intersection_range) => Some(intersection_range),
             };
         }
@@ -82,31 +80,31 @@ where
 
         // TODO: remove this if statements
         if self.contains(rhs.from, tolerance) {
-            return Some(Intersection::Single(*rhs.from));
+            return Some(Either::Left(*rhs.from));
         }
 
         if self.contains(rhs.to, tolerance) {
-            return Some(Intersection::Single(*rhs.to));
+            return Some(Either::Left(*rhs.to));
         }
 
         if rhs.contains(self.from, tolerance) {
-            return Some(Intersection::Single(*self.from));
+            return Some(Either::Left(*self.from));
         }
 
         if rhs.contains(self.to, tolerance) {
-            return Some(Intersection::Single(*self.to));
+            return Some(Either::Left(*self.to));
         }
 
         let lambda = T::one() / direction.magnitude();
 
         let intersection = (direction * lambda).into();
         if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
-            return Some(Intersection::Single(intersection));
+            return Some(Either::Left(intersection));
         }
 
         let intersection = (direction * -lambda).into();
         if self.contains(&intersection, tolerance) && rhs.contains(&intersection, tolerance) {
-            return Some(Intersection::Single(intersection));
+            return Some(Either::Left(intersection));
         }
 
         None
@@ -128,23 +126,20 @@ where
         from.cross(&to).normal()
     }
 
-    /// Being self and rhs two arcs lying on the same great circle, returns the [`Intersection`]
+    /// Being self and rhs two arcs lying on the same great circle, returns the intersection
     /// between them, if any.
     fn co_great_circular_common_points(
         &self,
         rhs: &Self,
         tolerance: &Tolerance<T>,
-    ) -> Option<Intersection<Point<T>>> {
+    ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
         let self_containement = (
             self.contains(&rhs.from, tolerance),
             self.contains(&rhs.to, tolerance),
         );
 
         if let (true, true) = self_containement {
-            return Some(Intersection::Range {
-                start: *rhs.from,
-                end: *rhs.to,
-            });
+            return Some(Either::Right([*rhs.from, *rhs.to]));
         }
 
         let rhs_containement = (
@@ -153,33 +148,21 @@ where
         );
 
         match (self_containement, rhs_containement) {
-            (_, (true, true)) => Some(Intersection::Range {
-                start: *self.from,
-                end: *self.to,
-            }),
+            (_, (true, true)) => Some(Either::Right([*self.from, *self.to])),
             ((true, _), (true, _)) => Some(if self.from != rhs.from {
-                Intersection::Range {
-                    start: *self.from,
-                    end: *self.from,
-                }
+                Either::Right([*self.from, *self.from])
             } else {
-                Intersection::Single(*self.from)
+                Either::Left(*self.from)
             }),
             ((_, true), (true, _)) => Some(if self.to != rhs.from {
-                Intersection::Range {
-                    start: *self.to,
-                    end: *self.from,
-                }
+                Either::Right([*self.to, *self.from])
             } else {
-                Intersection::Single(*self.to)
+                Either::Left(*self.to)
             }),
             ((_, true), (_, true)) => Some(if self.to != rhs.to {
-                Intersection::Range {
-                    start: *self.to,
-                    end: *self.to,
-                }
+                Either::Right([*self.to, *self.to])
             } else {
-                Intersection::Single(*self.to)
+                Either::Left(*self.to)
             }),
             _ => None,
         }
@@ -208,8 +191,9 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
+        either::Either,
         spherical::{Arc, Point},
-        Edge, Intersection, Tolerance,
+        Edge, Tolerance,
     };
 
     #[test]
@@ -218,7 +202,7 @@ mod tests {
             name: &'a str,
             arc: Arc<'a, f64>,
             rhs: Arc<'a, f64>,
-            want: Option<Intersection<Point<f64>>>,
+            want: Option<Either<Point<f64>, [Point<f64>; 2]>>,
         }
 
         vec![
@@ -232,7 +216,7 @@ mod tests {
                     from: &[FRAC_PI_4, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
                     to: &[FRAC_PI_4, FRAC_PI_4].into(),
                 },
-                want: Some(Intersection::Single([0.61547970867038715, 0.].into())),
+                want: Some(Either::Left([0.61547970867038715, 0.].into())),
             },
             Test {
                 name: "perpendicular with endpoint in line",
@@ -244,7 +228,7 @@ mod tests {
                     from: &[FRAC_PI_4, 0.].into(),
                     to: &[FRAC_PI_4, FRAC_PI_4].into(),
                 },
-                want: Some(Intersection::Single([FRAC_PI_4, 0.].into())),
+                want: Some(Either::Left([FRAC_PI_4, 0.].into())),
             },
             Test {
                 name: "arcs starting at the same point",
@@ -256,7 +240,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Intersection::Single([0., 0.].into())),
+                want: Some(Either::Left([0., 0.].into())),
             },
             Test {
                 name: "arcs ending at the same point",
@@ -268,7 +252,7 @@ mod tests {
                     from: &[FRAC_PI_2, FRAC_PI_2].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Intersection::Single([FRAC_PI_2, 0.].into())),
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "connected arcs",
@@ -280,7 +264,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Intersection::Single([FRAC_PI_2, 0.].into())),
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "co-great-circular arcs ending at the same point",
@@ -292,7 +276,7 @@ mod tests {
                     from: &[PI, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Intersection::Single([FRAC_PI_2, 0.].into())),
+                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "co-great-circular arcs with no common point",
@@ -328,10 +312,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_4, 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [0., 0.].into(),
-                    end: [FRAC_PI_4, 0.].into(),
-                }),
+                want: Some(Either::Right([[0., 0.].into(), [FRAC_PI_4, 0.].into()])),
             },
             Test {
                 name: "coincident arcs when rhs is larger",
@@ -343,10 +324,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [0., 0.].into(),
-                    end: [FRAC_PI_2, 0.].into(),
-                }),
+                want: Some(Either::Right([[0., 0.].into(), [FRAC_PI_2, 0.].into()])),
             },
             Test {
                 name: "rhs inside arc",
@@ -358,10 +336,10 @@ mod tests {
                     from: &[FRAC_PI_8, 0.].into(),
                     to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [FRAC_PI_8, 0.].into(),
-                    end: [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
-                }),
+                want: Some(Either::Right([
+                    [FRAC_PI_8, 0.].into(),
+                    [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                ])),
             },
             Test {
                 name: "arc inside rhs",
@@ -373,10 +351,10 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [FRAC_PI_8, 0.].into(),
-                    end: [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
-                }),
+                want: Some(Either::Right([
+                    [FRAC_PI_8, 0.].into(),
+                    [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
+                ])),
             },
         ]
         .into_iter()

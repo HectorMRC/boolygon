@@ -1,4 +1,5 @@
 mod clipper;
+mod either;
 mod graph;
 mod shape;
 mod tolerance;
@@ -9,7 +10,7 @@ pub mod cartesian;
 pub mod spherical;
 
 pub use self::clipper::Operands;
-pub use self::graph::Intersection;
+pub use self::either::Either;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
@@ -45,7 +46,7 @@ pub trait Edge<'a> {
         &self,
         rhs: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> Option<Intersection<Self::Vertex>>;
+    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
 
     /// Returns the starting endpoint of the edge.
     fn start(&self) -> &Self::Vertex;

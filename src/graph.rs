@@ -3,7 +3,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
 };
 
-use crate::{Edge, Geometry, IsClose, Shape, Vertex};
+use crate::{either::Either, Edge, Geometry, IsClose, Shape, Vertex};
 
 /// The role of the boundary at the inner position in the [`Graph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,22 +37,6 @@ pub(crate) struct Boundary {
     pub(crate) role: BoundaryRole,
 }
 
-/// The intersection between two edges.
-#[derive(Debug, PartialEq, Eq)]
-pub enum Intersection<T> {
-    /// The intersection is a single point between the endpoints.
-    Single(T),
-    /// Both edges are collinear and the intersection is not a point, but a range.
-    Range { start: T, end: T },
-}
-
-impl<T> Intersection<T> {
-    /// Return true if, and only if, this is an  range.
-    pub(crate) fn is_range(&self) -> bool {
-        matches!(self, Intersection::Range { start: _, end: _ })
-    }
-}
-
 /// The kind of intersection being represented by a [`Node`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum IntersectionKind {
@@ -72,6 +56,33 @@ impl IntersectionKind {
     }
 }
 
+/// The intersection data of a [`Node`].
+#[derive(Debug, Default)]
+pub(crate) struct Intersection {
+    /// If true, this intersection is a vertex from this or the oposite shape.
+    pub(crate) is_pseudo: bool,
+    /// Whether the boundary is entering or exiting the opposite one.
+    pub(crate) kind: Option<IntersectionKind>,
+    /// Vertices from the oposite shape located at the same point.
+    pub(crate) siblings: BTreeSet<usize>,
+}
+
+impl FromIterator<usize> for Intersection {
+    fn from_iter<T: IntoIterator<Item = usize>>(iter: T) -> Self {
+        Self {
+            siblings: FromIterator::from_iter(iter),
+            ..Default::default()
+        }
+    }
+}
+
+impl Intersection {
+    /// Returns true if, and only if, this intersection has siblings.
+    pub(crate) fn has_siblings(&self) -> bool {
+        !self.siblings.is_empty()
+    }
+}
+
 /// A vertex and its metadata inside a graph.
 #[derive(Debug)]
 pub(crate) struct Node<T>
@@ -86,23 +97,8 @@ where
     pub(crate) previous: usize,
     /// The index of the node following this one.
     pub(crate) next: usize,
-    /// Being this node an intersection, determines whether the boundary is entering or exiting the
-    /// opposite one.
-    pub(crate) intersection: Option<IntersectionKind>,
-    /// Being this node an intersection, marks it as pseudo-intersection.
-    pub(crate) is_pseudo_intersection: bool,
-    /// Vertices from the oposite shape located at the same point.
-    pub(crate) siblings: BTreeSet<usize>,
-}
-
-impl<T> Node<T>
-where
-    T: Geometry,
-{
-    /// Returns true if, and only if, this node has siblings.
-    pub(crate) fn is_intersection(&self) -> bool {
-        !self.siblings.is_empty()
-    }
+    /// The intersection info of this node.
+    pub(crate) intersection: Intersection
 }
 
 /// A graph of vertices and its relations.
@@ -210,7 +206,7 @@ where
                     // Mark this intersection point as been visited by this edge. This will allow
                     // siblings from the oposite shape to know about its index in the graph.
                     visited.insert((edge, intersection_point), index);
-                    
+
                     // Count this intersection into the corresponding boundary.
                     self.boundaries[boundary.position()].intersection_count += 1;
 
@@ -235,16 +231,16 @@ where
                         .inspect(|&sibling| {
                             // While searching for siblings, update their siblings list by adding
                             // the index of this intersection.
-                            self.nodes[sibling].siblings.insert(index);
+                            self.nodes[sibling].intersection.siblings.insert(index);
                         })
-                        .collect();
+                        .collect::<Vec<_>>();
 
                     if [first, last].contains(&intersection_point) {
                         // If the intersection point is any of the endpoints of the edge, do not
                         // create any node in the graph. Instead finds that endpoint and update
                         // the siblings list.
-                        self.nodes[index].siblings.extend(siblings);
-                        self.nodes[index].is_pseudo_intersection = true;
+                        self.nodes[index].intersection.siblings.extend(siblings);
+                        self.nodes[index].intersection.is_pseudo = true;
                     } else {
                         // Cut the edge and register the new vertex.
                         let next = self.nodes[previous].next;
@@ -255,12 +251,10 @@ where
 
                         self.nodes.push(Node {
                             vertex: intersection_point,
+                            intersection: FromIterator::from_iter(siblings),
                             boundary,
                             previous,
                             next,
-                            intersection: None,
-                            is_pseudo_intersection: false,
-                            siblings,
                         });
                     };
 
@@ -311,16 +305,16 @@ where
                             subject_edge.intersection(&clip_edge, self.tolerance)
                         {
                             intersections = match intersection {
-                                Intersection::Single(vertex) => {
+                                Either::Left(vertex) => {
                                     intersections.with_intersection(EdgeIntersection {
                                         vertex,
                                         subject: subject_index,
                                         clip: clip_index,
                                     })
                                 }
-                                Intersection::Range { start, end } => {
+                                Either::Right([first, second]) => {
                                     let intersection = EdgeIntersection {
-                                        vertex: start,
+                                        vertex: first,
                                         subject: subject_index,
                                         clip: clip_index,
                                     };
@@ -328,7 +322,7 @@ where
                                     intersections
                                         .with_intersection(EdgeIntersection { ..intersection })
                                         .with_intersection(EdgeIntersection {
-                                            vertex: end,
+                                            vertex: second,
                                             ..intersection
                                         })
                                 }
@@ -350,7 +344,7 @@ where
             BoundaryRole::Clip(_) => self.subject,
         };
 
-        let previous = if node.is_intersection() {
+        let previous = if node.intersection.has_siblings() {
             let previous = &self.nodes[node.previous];
             &T::Edge::new(&previous.vertex, &node.vertex).midpoint()
         } else {
@@ -367,9 +361,15 @@ where
     /// Returns true if, and only if, the given the [`Node`] at the given position is indeed an intersection.
     fn is_intersection(&self, position: usize) -> bool {
         let node = &self.nodes[position];
+        let previous = &self.nodes[node.previous];
+        let next = &self.nodes[node.next];
 
-        let previous = T::Edge::new(&node.vertex, &self.nodes[node.previous].vertex).midpoint();
-        let next = T::Edge::new(&node.vertex, &self.nodes[node.next].vertex).midpoint();
+        if previous.intersection.is_pseudo && next.intersection.is_pseudo {
+            return false;
+        }
+
+        let previous = T::Edge::new(&node.vertex, &previous.vertex).midpoint();
+        let next = T::Edge::new(&node.vertex, &next.vertex).midpoint();
         let oposite = match node.boundary {
             BoundaryRole::Subject(_) => self.clip,
             BoundaryRole::Clip(_) => self.subject,
@@ -381,16 +381,17 @@ where
     /// Downgrades the [`Node`] at the given position from intersection to non-intersection.
     fn downgrade_intersection(&mut self, position: usize) {
         let node = &mut self.nodes[position];
-        if !node.is_intersection() {
+        if !node.intersection.has_siblings() {
             return;
         }
 
         let boundary = &mut self.boundaries[node.boundary.position()];
         boundary.intersection_count = boundary
             .intersection_count
-            .saturating_sub(if node.is_pseudo_intersection { 2 } else { 1 });
+            .saturating_sub(if node.intersection.is_pseudo { 2 } else { 1 });
 
-        std::mem::replace(&mut self.nodes[position].siblings, Default::default())
+        node.intersection.kind.take();
+        std::mem::replace(&mut self.nodes[position].intersection.siblings, Default::default())
             .into_iter()
             .for_each(|sibling| self.downgrade_intersection(sibling));
     }
@@ -404,10 +405,10 @@ where
             let mut intersection_kind = self.intersection_kind(start);
 
             while let Some(node) = intersection_traversal.next(&self.nodes) {
-                if self.nodes[node].is_pseudo_intersection && !self.is_intersection(node) {
+                if self.nodes[node].intersection.is_pseudo && !self.is_intersection(node) {
                     self.downgrade_intersection(node);
                 } else {
-                    self.nodes[node].intersection = Some(intersection_kind);
+                    self.nodes[node].intersection.kind = Some(intersection_kind);
                     intersection_kind = intersection_kind.oposite();
                 }
             }
@@ -480,8 +481,6 @@ where
                     previous: offset + ((index - 1) % total_vertices),
                     next: offset + ((index + 1) % total_vertices),
                     intersection: Default::default(),
-                    is_pseudo_intersection: false,
-                    siblings: BTreeSet::new(),
                 });
             }
         }
@@ -571,7 +570,7 @@ impl IntersectionSearch {
         let node = &nodes[current];
         self.next = Some(node.next);
 
-        if !node.is_intersection() {
+        if !node.intersection.has_siblings() {
             return self.next(nodes);
         }
 

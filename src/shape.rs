@@ -58,13 +58,19 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => !ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => !ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => {
+                        !ops.clip.contains(&node.vertex, tolerance)
+                            || ops.clip.is_boundary(&node.vertex, tolerance)
+                    }
+                    BoundaryRole::Clip(_) => {
+                        !ops.subject.contains(&node.vertex, tolerance)
+                            || ops.subject.is_boundary(&node.vertex, tolerance)
+                    }
                 }
             }
 
             fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection else {
+                let Some(intersection) = node.intersection.kind else {
                     return Direction::Forward;
                 };
 
@@ -98,13 +104,19 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => !ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => {
+                        !ops.clip.contains(&node.vertex, tolerance)
+                            && !ops.clip.is_boundary(&node.vertex, tolerance)
+                    }
+                    BoundaryRole::Clip(_) => {
+                        ops.subject.contains(&node.vertex, tolerance)
+                            && !ops.subject.is_boundary(&node.vertex, tolerance)
+                    }
                 }
             }
 
             fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection else {
+                let Some(intersection) = node.intersection.kind else {
                     return if node.boundary.is_subject() {
                         Direction::Forward
                     } else {
@@ -143,13 +155,19 @@ where
                 tolerance: &<T::Vertex as IsClose>::Tolerance,
             ) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => {
+                        ops.clip.contains(&node.vertex, tolerance)
+                            || ops.clip.is_boundary(&node.vertex, tolerance)
+                    }
+                    BoundaryRole::Clip(_) => {
+                        ops.subject.contains(&node.vertex, tolerance)
+                            || ops.subject.is_boundary(&node.vertex, tolerance)
+                    }
                 }
             }
 
             fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection else {
+                let Some(intersection) = node.intersection.kind else {
                     return Direction::Forward;
                 };
 
@@ -207,6 +225,18 @@ where
                 boundary
             }],
         }
+    }
+
+    /// Returns true if, and only if, the given [`Vertex`] lies on the boundaries of this shape.
+    pub(crate) fn is_boundary(
+        &self,
+        vertex: &T::Vertex,
+        tolerance: &<T::Vertex as IsClose>::Tolerance,
+    ) -> bool {
+        self.boundaries
+            .iter()
+            .flat_map(|boundary| boundary.edges())
+            .any(|segment| segment.contains(vertex, tolerance))
     }
 
     /// Returns the amount of vertices in this shape.

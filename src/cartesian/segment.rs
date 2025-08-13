@@ -2,7 +2,7 @@ use num_traits::{Float, Signed};
 
 use crate::{
     cartesian::{determinant::Determinant, Point},
-    graph::Intersection,
+    either::Either,
     Edge, IsClose, Tolerance, Vertex as _,
 };
 
@@ -37,7 +37,11 @@ where
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(&self, rhs: &Self, _: &Tolerance<T>) -> Option<Intersection<Self::Vertex>> {
+    fn intersection(
+        &self,
+        rhs: &Self,
+        _: &Tolerance<T>,
+    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>> {
         let determinant = Determinant::from([self, rhs]).into_inner();
 
         if determinant.is_zero() {
@@ -68,7 +72,7 @@ where
             return Default::default();
         }
 
-        Some(Intersection::Single(Point {
+        Some(Either::Left(Point {
             x: self.from.x + t * (self.to.x - self.from.x),
             y: self.from.y + t * (self.to.y - self.from.y),
         }))
@@ -85,8 +89,11 @@ where
 {
     /// Being zero the determinant of self and rhs, returns the single common [`Point`] between
     /// them, if any.
-    fn collinear_common_points(&self, rhs: &Segment<'_, T>) -> Option<Intersection<Point<T>>> {
-        let project_on_x = self.to.x - self.from.x > self.to.y - self.from.y;
+    fn collinear_common_points(
+        &self,
+        rhs: &Segment<'_, T>,
+    ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
+        let project_on_x = (self.to.x - self.from.x).abs() > (self.to.y - self.from.y).abs();
         let project = |point: &Point<T>| -> T {
             if project_on_x {
                 point.x
@@ -95,7 +102,6 @@ where
             }
         };
 
-        // TODO: direction should not matter.
         let self_from = project(self.from);
         let self_to = project(self.to);
         let rhs_from = project(rhs.from);
@@ -117,12 +123,12 @@ where
         }
 
         if start == end {
-            return unproject(start).map(Intersection::Single);
+            return unproject(start).map(Either::Left);
         }
 
         return match (unproject(start), unproject(end)) {
-            (Some(start), Some(end)) => Some(Intersection::Range { start, end }),
-            (Some(endpoint), _) | (_, Some(endpoint)) => Some(Intersection::Single(endpoint)),
+            (Some(start), Some(end)) => Some(Either::Right([start, end])),
+            (Some(endpoint), _) | (_, Some(endpoint)) => Some(Either::Left(endpoint)),
             _ => Default::default(),
         };
     }
@@ -142,7 +148,7 @@ where
 mod tests {
     use crate::{
         cartesian::{Point, Segment},
-        graph::Intersection,
+        either::Either,
         Edge,
     };
 
@@ -152,7 +158,7 @@ mod tests {
             name: &'a str,
             segment: Segment<'a, f64>,
             rhs: Segment<'a, f64>,
-            want: Option<Intersection<Point<f64>>>,
+            want: Option<Either<Point<f64>, [Point<f64>; 2]>>,
         }
 
         vec![
@@ -178,7 +184,7 @@ mod tests {
                     from: &[0., 4.].into(),
                     to: &[4., 0.].into(),
                 },
-                want: Some(Intersection::Single([2., 2.].into())),
+                want: Some(Either::Left([2., 2.].into())),
             },
             Test {
                 name: "perpendicular with endpoint in line",
@@ -190,7 +196,7 @@ mod tests {
                     from: &[2., 2.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Intersection::Single([2., 0.].into())),
+                want: Some(Either::Left([2., 0.].into())),
             },
             Test {
                 name: "perpendicular segments starting at the same point",
@@ -202,7 +208,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
-                want: Some(Intersection::Single([0., 0.].into())),
+                want: Some(Either::Left([0., 0.].into())),
             },
             Test {
                 name: "perpendicular segments ending at the same point",
@@ -214,7 +220,7 @@ mod tests {
                     from: &[0., 8.].into(),
                     to: &[4., 4.].into(),
                 },
-                want: Some(Intersection::Single([4., 4.].into())),
+                want: Some(Either::Left([4., 4.].into())),
             },
             Test {
                 name: "none-collinear parallel segments",
@@ -238,7 +244,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., -4.].into(),
                 },
-                want: Some(Intersection::Single([0., 0.].into())),
+                want: Some(Either::Left([0., 0.].into())),
             },
             Test {
                 name: "collinear segments ending at the same point",
@@ -250,7 +256,7 @@ mod tests {
                     from: &[-4., -4.].into(),
                     to: &[0., 0.].into(),
                 },
-                want: Some(Intersection::Single([0., 0.].into())),
+                want: Some(Either::Left([0., 0.].into())),
             },
             Test {
                 name: "collinear segments with no common point",
@@ -274,10 +280,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 2.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [0., 0.].into(),
-                    end: [2., 2.].into(),
-                }),
+                want: Some(Either::Right([[0., 0.].into(), [2., 2.].into()])),
             },
             Test {
                 name: "coincident segments when rhs is larger",
@@ -289,10 +292,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[8., 8.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [4., 4.].into(),
-                    end: [8., 8.].into(),
-                }),
+                want: Some(Either::Right([[4., 4.].into(), [8., 8.].into()])),
             },
             Test {
                 name: "coincident segments when rhs is constained",
@@ -304,10 +304,7 @@ mod tests {
                     from: &[1., 1.].into(),
                     to: &[3., 3.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [1., 1.].into(),
-                    end: [3., 3.].into(),
-                }),
+                want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
             },
             Test {
                 name: "coincident segments when rhs constains",
@@ -319,10 +316,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[4., 4.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [1., 1.].into(),
-                    end: [3., 3.].into(),
-                }),
+                want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
             },
             Test {
                 name: "coincident when none is fully contained",
@@ -334,10 +328,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [0., 0.].into(),
-                    end: [1., 0.].into(),
-                }),
+                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
             },
             Test {
                 name: "coincident when none is fully contained",
@@ -349,10 +340,19 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Intersection::Range {
-                    start: [0., 0.].into(),
-                    end: [1., 0.].into(),
-                }),
+                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
+            },
+            Test {
+                name: "coincident at oposite direction when none is fully contained",
+                segment: Segment {
+                    from: &[1., 0.].into(),
+                    to: &[-1., 0.].into(),
+                },
+                rhs: Segment {
+                    from: &[0., 0.].into(),
+                    to: &[2., 0.].into(),
+                },
+                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
             },
         ]
         .into_iter()

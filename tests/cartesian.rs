@@ -17,7 +17,7 @@ pub fn cartesian() {
     let end = SystemTime::now();
 
     println!(
-        "Duration: {} s",
+        "Duration: {} ms",
         end.duration_since(start).unwrap().as_millis()
     );
 }

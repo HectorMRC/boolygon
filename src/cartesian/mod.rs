@@ -21,22 +21,45 @@ mod tests {
         }
 
         vec![
-            // Test {
-            //     name: "same geometry",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     want: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            // },
-            // Test {
-            //     name: "horizontally aligned squares",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
-            //     want: Shape::new(vec![
-            //         [0., 0.], [4., 0.],
-            //         [8., 0.], [8., 4.],
-            //         [4., 4.], [0., 4.]
-            //     ]),
-            // },
+            Test {
+                name: "same geometry",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                want: Shape {
+                    boundaries: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                    ],
+                },
+            },
+            Test {
+                name: "horizontally aligned squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
+                want: Shape::new(vec![
+                    [0., 0.],
+                    [4., 0.],
+                    [8., 0.],
+                    [8., 4.],
+                    [4., 4.],
+                    [0., 4.],
+                ]),
+            },
+            Test {
+                name: "horizontal partial overlapping squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 4.], [6., 4.], [6., 8.], [2., 8.]]),
+                want: Shape::new(vec![
+                    [0., 0.],
+                    [4., 0.],
+                    [4., 4.],
+                    [6., 4.],
+                    [6., 8.],
+                    [2., 8.],
+                    [2., 4.],
+                    [0., 4.],
+                ]),
+            },
             // Test {
             //     name: "horizontal overlapping squares",
             //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
@@ -244,18 +267,24 @@ mod tests {
         }
 
         vec![
-            // Test {
-            //     name: "same geometry",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     want: None,
-            // },
-            // Test {
-            //     name: "horizontally aligned squares",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
-            //     want: None,
-            // },
+            Test {
+                name: "same geometry",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                want: None,
+            },
+            Test {
+                name: "horizontally aligned squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
+                want: Some(Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]])),
+            },
+            Test {
+                name: "horizontal partial overlapping squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 4.], [6., 4.], [6., 8.], [2., 8.]]),
+                want: Some(Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [2., 4.], [0., 4.]])),
+            },
             // Test {
             //     name: "horizontal overlapping squares",
             //     subject: Shape::new(vec!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
@@ -398,28 +427,34 @@ mod tests {
         }
 
         vec![
-            // Test {
-            //     name: "same geometry",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     want: Some(Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]])),
-            // },
-            // Test {
-            //     name: "horizontally aligned squares",
-            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
-            //     want: None,
-            // },
+            Test {
+                name: "same geometry",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                want: Some(Shape {
+                    boundaries: vec![
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                        vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]].into(),
+                    ],
+                }),
+            },
+            Test {
+                name: "horizontally aligned squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[4., 0.], [8., 0.], [8., 4.], [4., 4.]]),
+                want: Some(Shape::new(vec![[4., 0.], [4., 4.]])),
+            },
+            Test {
+                name: "horizontal partial overlapping squares",
+                subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[2., 4.], [6., 4.], [6., 8.], [2., 8.]]),
+                want: Some(Shape::new(vec![[4., 4.], [2., 4.]])),
+            },
             // Test {
             //     name: "horizontal overlapping squares",
-            //     subject: Shape::new(vec!([0., 0.], [4., 0.], [4., 4.], [0., 4.])),
-            //     clip: Shape::new(vec!([2., 0.], [6., 0.], [6., 4.], [2., 4.])),
-            //     want: Some(Shape::new(vec!(
-            //         [2., 0.],
-            //         [4., 0.],
-            //         [4., 4.],
-            //         [2., 4.]
-            //     ))),
+            //     subject: Shape::new(vec![[0., 0.], [4., 0.], [4., 4.], [0., 4.]]),
+            //     clip: Shape::new(vec![[2., 0.], [6., 0.], [6., 4.], [2., 4.]]),
+            //     want: Some(Shape::new(vec![[2., 0.], [4., 0.], [4., 4.], [2., 4.]])),
             // },
             Test {
                 name: "diagonal overlapping squares",
