@@ -45,7 +45,7 @@ where
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of this shape and the other.
-    pub fn or(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Self {
+    pub fn or(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
@@ -87,7 +87,6 @@ where
             .with_subject(self)
             .with_clip(other)
             .execute()
-            .expect("union should always return a shape")
     }
 
     /// Returns the difference of the other shape on this one.

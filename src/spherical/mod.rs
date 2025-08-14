@@ -18,7 +18,7 @@ mod tests {
             name: &'static str,
             subject: Shape<Polygon<f64>>,
             clip: Shape<Polygon<f64>>,
-            want: Shape<Polygon<f64>>,
+            want: Option<Shape<Polygon<f64>>>,
         }
 
         vec![
@@ -59,7 +59,7 @@ mod tests {
                     [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
@@ -74,7 +74,7 @@ mod tests {
                             [PI, 0.]
                         ),
                     ],
-                },
+                }),
             },
             Test {
                 name: "non-overlapping triangles",
@@ -90,7 +90,7 @@ mod tests {
                     [PI, 0.];
                     [0., 0.]
                 )),
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![
                         spherical_polygon!(
                             [0., 0.],
@@ -105,7 +105,7 @@ mod tests {
                             [0., 0.]
                         ),
                     ],
-                },
+                }),
             },
             Test {
                 name: "clip enclosing subject",
@@ -121,12 +121,12 @@ mod tests {
                     [FRAC_PI_2, FRAC_PI_2];
                     [PI, 0.]
                 )),
-                want: Shape::new(spherical_polygon!(
+                want: Some(Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
                     [PI, 0.]
-                )),
+                ))),
             },
             Test {
                 name: "subject enclosing clip",
@@ -142,12 +142,12 @@ mod tests {
                     [FRAC_PI_2 - FRAC_PI_8, FRAC_PI_2 - FRAC_PI_8];
                     [PI, 0.]
                 )),
-                want: Shape::new(spherical_polygon!(
+                want: Some(Shape::new(spherical_polygon!(
                     [0., 0.],
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2];
                     [PI, 0.]
-                )),
+                ))),
             },
             Test {
                 name: "subject intersecting clip",
@@ -165,7 +165,7 @@ mod tests {
                     [FRAC_PI_2, PI];
                     [FRAC_PI_2, 3. * FRAC_PI_2]
                 )),
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![spherical_polygon!(
                         [FRAC_PI_2, 0.],
                         [PI, 0.],
@@ -173,7 +173,7 @@ mod tests {
                         [FRAC_PI_2, 3. * FRAC_PI_2];
                         [PI - FRAC_PI_8, 3. * FRAC_PI_2]
                     )],
-                },
+                }),
             },
             Test {
                 name: "subject with hole enclosing clip",
@@ -202,13 +202,13 @@ mod tests {
                     [FRAC_PI_4 + FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
-                want: Shape::new(spherical_polygon!(
+                want: Some(Shape::new(spherical_polygon!(
                     [FRAC_PI_2, 0.],
                     [FRAC_PI_2, FRAC_PI_2],
                     [FRAC_PI_2, PI],
                     [FRAC_PI_2, 3. * FRAC_PI_2];
                     [PI, 0.]
-                )),
+                ))),
             },
             Test {
                 name: "subject with hole excluding clip",
@@ -237,7 +237,7 @@ mod tests {
                     [FRAC_PI_8, 3. * FRAC_PI_2];
                     [PI, 0.]
                 )),
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
@@ -261,7 +261,7 @@ mod tests {
                             [PI, 0.]
                         ),
                     ],
-                },
+                }),
             },
             Test {
                 name: "subject with hole intersecting clip",
@@ -290,7 +290,7 @@ mod tests {
                     [FRAC_PI_2, PI];
                     [FRAC_PI_2, 3. * FRAC_PI_2]
                 )),
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
@@ -307,7 +307,7 @@ mod tests {
                            [PI, 0.]
                         ),
                     ],
-                },
+                }),
             },
             Test {
                 name: "subject with hole intersecting clip with hole",
@@ -347,7 +347,7 @@ mod tests {
                         ),
                     ],
                 },
-                want: Shape {
+                want: Some(Shape {
                     boundaries: vec![
                         spherical_polygon!(
                             [FRAC_PI_2, 0.],
@@ -378,7 +378,7 @@ mod tests {
                             [PI, 0.]
                         ),
                     ],
-                },
+                }),
             },
         ]
         .into_iter()
