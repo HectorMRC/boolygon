@@ -2,14 +2,12 @@ use boolygon::{cartesian::Polygon, Shape, Tolerance};
 use criterion::{criterion_group, BatchSize, Criterion};
 use rand::Rng;
 
-type Sample = [[f64; 2]; 100];
+type Sample = [[f64; 2]; 1000];
 
 fn random_shape() -> Shape<Polygon<f64>> {
     let mut rng = rand::rng();
 
-    Shape::from(Polygon::from(
-        rng.random::<Sample>().to_vec(),
-    ))
+    Shape::from(Polygon::from(rng.random::<Sample>().to_vec()))
 }
 
 fn random_operands() -> [Shape<Polygon<f64>>; 2] {
