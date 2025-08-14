@@ -15,9 +15,9 @@ fn random_operands() -> [Shape<Polygon<f64>>; 2] {
 }
 
 pub fn large_shapes(criterion: &mut Criterion) {
-    let mut group = criterion.benchmark_group("large shapes");
+    let mut group = criterion.benchmark_group("cartesian/large_shapes");
 
-    group.bench_function("join", |b| {
+    group.bench_function("union", |b| {
         b.iter_batched(
             || random_operands(),
             |[subject, clip]| {
