@@ -59,7 +59,12 @@ impl IntersectionKind {
 /// The intersection data of a [`Node`].
 #[derive(Debug, Default)]
 pub(crate) struct Intersection {
-    /// If true, this intersection is a vertex from this or the oposite shape.
+    /// Indicates whether this intersection is a pseudo-intersection.
+    ///
+    /// A pseudo-intersection occurs when the endpoint of an edge (A) lies on another edge (B). In
+    /// this case, the boundary of A might not actually cross B; the two boundaries may be merely
+    /// touching. Such a point may not represent a true intersection and could need to be treated
+    /// as a regular vertex instead.
     pub(crate) is_pseudo: bool,
     /// Whether the boundary is entering or exiting the opposite one.
     pub(crate) kind: Option<IntersectionKind>,
