@@ -134,8 +134,8 @@ where
         tolerance: &Tolerance<T>,
     ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
         let self_containement = (
-            self.contains(&other.from, tolerance),
-            self.contains(&other.to, tolerance),
+            self.contains(other.from, tolerance),
+            self.contains(other.to, tolerance),
         );
 
         if let (true, true) = self_containement {
@@ -143,8 +143,8 @@ where
         }
 
         let other_containement = (
-            other.contains(&self.from, tolerance),
-            other.contains(&self.to, tolerance),
+            other.contains(self.from, tolerance),
+            other.contains(self.to, tolerance),
         );
 
         match (self_containement, other_containement) {

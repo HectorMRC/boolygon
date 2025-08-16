@@ -396,12 +396,9 @@ where
             .saturating_sub(if node.intersection.is_pseudo { 2 } else { 1 });
 
         node.intersection.kind.take();
-        std::mem::replace(
-            &mut self.nodes[position].intersection.siblings,
-            Default::default(),
-        )
-        .into_iter()
-        .for_each(|sibling| self.downgrade_intersection(sibling));
+        std::mem::take(&mut self.nodes[position].intersection.siblings)
+            .into_iter()
+            .for_each(|sibling| self.downgrade_intersection(sibling));
     }
 
     /// Computes the [`Status`] of each intersection [`Node`] in the graph.
