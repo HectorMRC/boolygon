@@ -9,7 +9,7 @@ use crate::{
 pub struct Unknown;
 
 /// A direction to follow when traversing a boundary.
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Direction {
     /// Use the `next` field of the [`Node`].
     #[default]
@@ -30,7 +30,7 @@ impl Direction {
         }
     }
 
-    fn is_forward(&self) -> bool {
+    pub(crate) fn is_forward(&self) -> bool {
         matches!(self, Self::Forward)
     }
 }
@@ -118,41 +118,37 @@ impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
     }
 }
 
-impl<U, Op, Tol> Clipper<Op, Shape<U>, Shape<U>, Tol>
+impl<T, Op, Tol> Clipper<Op, Shape<T>, Shape<T>, Tol>
 where
-    U: Geometry + Clone + IntoIterator<Item = U::Vertex>,
-    U::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
-    for<'a> U::Edge<'a>: Edge<'a>,
-    <U::Vertex as Vertex>::Scalar: Copy + PartialOrd,
-    Op: Operator<U>,
+    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
+    T::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
+    for<'a> T::Edge<'a>: Edge<'a>,
+    <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
+    Op: Operator<T>,
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
-    pub(crate) fn execute(self) -> Option<Shape<U>> {
+    pub(crate) fn execute(self) -> Option<Shape<T>> {
         let mut graph = GraphBuilder::new(&self.tolerance)
             .with_subject(&self.subject)
             .with_clip(&self.clip)
             .build();
 
         let mut output_boundaries = Vec::new();
-        let mut intersection_search = Resume::<IntersectionSearch<U>>::new(0);
+        let mut intersection_search = Resume::<IntersectionSearch<T>>::new(0);
         while let Some(position) = intersection_search.next(&graph) {
             let boundary = Follow::new::<Op>(&mut graph, position).collect();
-            if let Some(boundary) = U::from_raw((&self).into(), boundary, &self.tolerance) {
+            if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {
                 output_boundaries.push(boundary);
             };
         }
 
-        let mut intersectionless_search = Resume::<IntersectionlessSearch<U>>::new(0);
+        let mut intersectionless_search = Resume::<IntersectionlessSearch<T>>::new(0);
         while let Some(position) = intersectionless_search.next(&graph) {
-            if let Some(node) = &graph.nodes[position]
-                && !Op::is_output((&self).into(), node, &self.tolerance)
-            {
-                continue;
-            };
-
-            let boundary = Drain::new(&mut graph, position).collect::<Op>();
-            if let Some(boundary) = U::from_raw((&self).into(), boundary, &self.tolerance) {
-                output_boundaries.push(boundary);
+            if self.output_intersectionless_boundary(&graph, position) {
+                let boundary = Drain::new(&mut graph, position).collect::<Op>();
+                if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {
+                    output_boundaries.push(boundary);
+                };
             };
         }
 
@@ -163,6 +159,37 @@ where
         Some(Shape {
             boundaries: output_boundaries,
         })
+    }
+}
+
+impl<T, Op, Tol> Clipper<Op, Shape<T>, Shape<T>, Tol>
+where
+    T: Geometry,
+    T::Vertex: IsClose<Tolerance = Tol>,
+    Op: Operator<T>,
+{
+    /// Being the boundary starting at the given position an intersectionless boundary, return true
+    /// if, and only if, the boundary should be included in the output.
+    fn output_intersectionless_boundary(&self, graph: &Graph<T>, position: usize) -> bool {
+        let Some(node) = &graph.nodes[position] else {
+            return false;
+        };
+
+        let Some(next) = &graph.nodes[node.next] else {
+            return false;
+        };
+
+        Op::is_output(
+            self.into(),
+            &Node {
+                vertex: T::Edge::new(&node.vertex, &next.vertex).midpoint(),
+                previous: position,
+                next: node.next,
+                boundary: node.boundary,
+                intersection: Default::default(),
+            },
+            &self.tolerance,
+        )
     }
 }
 
@@ -239,7 +266,8 @@ where
             .iter()
             .enumerate()
             .filter_map(|(position, node)| node.as_ref().map(|node| (position, node)))
-            .find(|(_, node)| node.boundary.is_subject() && node.intersection.has_siblings())
+            .filter(|(_, node)| node.boundary.is_subject())
+            .find(|(_, node)| node.intersection.has_siblings())
             .map(|(position, _)| position + self.next)?;
 
         self.next = position + 1;
@@ -274,8 +302,8 @@ where
     graph: &'a mut Graph<T>,
     next: Option<usize>,
     direction: Direction,
-    operator: PhantomData<Op>,
     terminal: Vec<usize>,
+    operator: PhantomData<Op>,
     closed: bool,
 }
 
@@ -283,7 +311,7 @@ impl<T, Op> Iterator for Follow<'_, T, Op>
 where
     T: Geometry,
     T::Vertex: Copy + PartialEq,
-    Op: Operator<T>,
+    Op: Operator<T>
 {
     type Item = Node<T>;
 
@@ -341,6 +369,7 @@ where
             .and_then(|position| self.graph.nodes[position].as_ref())
             .map(|node| Op::direction(node))
             .unwrap_or_default();
+
         let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
 
         if !orientation.is_forward() {
@@ -361,8 +390,8 @@ where
             graph,
             next: Some(start),
             direction: Direction::Forward,
-            operator: PhantomData::<Op>,
             terminal: Default::default(),
+            operator: PhantomData,
             closed: false,
         }
     }
@@ -493,8 +522,8 @@ pub struct Operands<'a, T> {
     pub clip: &'a Shape<T>,
 }
 
-impl<'a, U, Op, Tol> From<&'a Clipper<Op, Shape<U>, Shape<U>, Tol>> for Operands<'a, U> {
-    fn from(clipper: &'a Clipper<Op, Shape<U>, Shape<U>, Tol>) -> Self {
+impl<'a, T, Op, Tol> From<&'a Clipper<Op, Shape<T>, Shape<T>, Tol>> for Operands<'a, T> {
+    fn from(clipper: &'a Clipper<Op, Shape<T>, Shape<T>, Tol>) -> Self {
         Operands {
             subject: &clipper.subject,
             clip: &clipper.clip,

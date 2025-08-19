@@ -5,7 +5,7 @@ use num_traits::{Float, Signed};
 use crate::{
     cartesian::{determinant::Determinant, Point, Segment},
     clipper::Operands,
-    Edge, Geometry, RightHanded, Tolerance,
+    Geometry, RightHanded, Tolerance,
 };
 
 /// A polygon in the plain.
@@ -109,26 +109,67 @@ where
         self
     }
 
-    fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
-        // Returns true if, and only if, the point is on the left of the infinite line containing
-        // the given segment.
-        let left_of = |segment: &Segment<'_, T>| {
-            Determinant::from([segment.from, segment.to, point])
-                .into_inner()
-                .is_positive()
-        };
+    fn winding(&self, point: &Point<T>, _: &Tolerance<T>) -> isize {
+        /// The winding number derived from an infinite ray along the x-axis.
+        #[derive(Default)]
+        struct Winding {
+            /// The winding number towards the -x.
+            left: isize,
+            /// The winding number towards +x.
+            right: isize,
+        }
 
-        self.edges().fold(0, |wn, segment| {
-            if segment.contains(point, tolerance)
-                || segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment)
-            {
-                wn + 1
-            } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
-                wn - 1
-            } else {
-                wn
+        impl From<Winding> for isize {
+            fn from(winding: Winding) -> Self {
+                // If winding.right == 0 the point either is outside the polygon, then
+                // winding.left == 0 as well; or belongs to a right-most edge, then 
+                // winding.left != 0 and should be used instead.
+
+                if winding.right == 0 {
+                    winding.left
+                } else {
+                    winding.right
+                }
             }
-        })
+        }
+
+        self.edges()
+            .fold(Winding::default(), |winding, segment| {
+                // If determinant > 0 then the point is on the left side of the edge.
+                // Else if determinant < 0 then the point is on the right side of the edge.
+                // Otherwise the point lies on the edge.
+                let determinant = Determinant::from([segment.from, segment.to, point]).into_inner();
+
+                Winding {
+                    right: if segment.from.y <= point.y
+                        && segment.to.y >= point.y
+                        && determinant > T::zero()
+                    {
+                        winding.right + 1
+                    } else if segment.from.y >= point.y
+                        && segment.to.y <= point.y
+                        && determinant < T::zero()
+                    {
+                        winding.right - 1
+                    } else {
+                        winding.right
+                    },
+                    left: if segment.from.y <= point.y
+                        && segment.to.y >= point.y
+                        && determinant < T::zero()
+                    {
+                        winding.left - 1
+                    } else if segment.from.y >= point.y
+                        && segment.to.y <= point.y
+                        && determinant > T::zero()
+                    {
+                        winding.left + 1
+                    } else {
+                        winding.left
+                    },
+                }
+            })
+            .into()
     }
 }
 
@@ -181,22 +222,34 @@ mod tests {
                 want: -1,
             },
             Test {
+                name: "top-left vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [0., 4.].into(),
+                want: 1,
+            },
+            Test {
                 name: "bottom-left vertex of polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [0., 0.].into(),
-                want: 3,
+                want: 1,
             },
             Test {
                 name: "top-right vertex of polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [4., 4.].into(),
-                want: 2,
+                want: 1,
+            },
+            Test {
+                name: "bottom-right vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [4., 0.].into(),
+                want: 1,
             },
             Test {
                 name: "midpoint of left-most edge",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [0., 2.].into(),
-                want: 2,
+                want: 1,
             },
             Test {
                 name: "midpoint of right-most edge",
