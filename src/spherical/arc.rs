@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{either::Either, spherical::Point, Edge, IsClose, Tolerance, Vertex as _};
+use crate::{either::Either, spherical::Point, Edge, IsClose, Orientation, Tolerance, Vertex as _};
 
 /// The undirected arc between two endpoints.
 #[derive(Debug)]
@@ -110,8 +110,8 @@ where
         None
     }
 
-    fn start(&self) -> &Self::Vertex {
-        self.from
+    fn orientation(&self, _point: &Self::Vertex) -> Option<Orientation> {
+        todo!()
     }
 }
 

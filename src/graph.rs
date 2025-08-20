@@ -46,16 +46,6 @@ pub(crate) enum IntersectionKind {
     Exit,
 }
 
-impl IntersectionKind {
-    /// Returns the oposite intersection type.
-    pub(crate) fn oposite(self) -> Self {
-        match self {
-            Self::Entry => Self::Exit,
-            Self::Exit => Self::Entry,
-        }
-    }
-}
-
 /// The intersection data of a [`Node`].
 #[derive(Debug, Default)]
 pub(crate) struct Intersection {
@@ -167,13 +157,13 @@ where
     fn with_intersections(mut self) -> Self {
         let intersections = self.intersections();
         let mut visited = PartialOrdBTreeMap::new();
-        for (edge, mut intersection_indexes) in intersections.by_edge {
+        for (current, mut intersection_indexes) in intersections.by_edge {
             let &Node {
                 vertex: first,
                 boundary,
                 next,
                 ..
-            } = &self.nodes[edge];
+            } = &self.nodes[current];
 
             let last = self.nodes[next].vertex;
 
@@ -189,14 +179,14 @@ where
 
             intersection_indexes
                 .chunk_by(|&a, &b| intersections.all[a].vertex == intersections.all[b].vertex)
-                .fold(edge, |previous, chunk| {
+                .fold(current, |previous, chunk| {
                     let intersection_point = intersections.all[chunk[0]].vertex;
 
                     let index = if intersection_point == first {
                         // If the intersection point equals the edge starting point there is
                         // nothing to add into the graph. The index of this intersection in the
                         // graph is the index of the starting point.
-                        edge
+                        current
                     } else if intersection_point == last {
                         // Likewise, if the intersection point equals the edge final point there is
                         // nothing to add into the graph. The index of this intersection in the
@@ -210,10 +200,14 @@ where
 
                     // Mark this intersection point as been visited by this edge. This will allow
                     // siblings from the oposite shape to know about its index in the graph.
-                    visited.insert((edge, intersection_point), index);
+                    visited.insert((current, intersection_point), index);
 
-                    // Count this intersection into the corresponding boundary.
-                    self.boundaries[boundary.position()].intersection_count += 1;
+                    // If index == next there is another edge in which index == current. To avoid
+                    // counting the same pseudo-intersections twice, just discard one endpoint.
+                    if index != next {
+                        // Count this intersection into the corresponding boundary.
+                        self.boundaries[boundary.position()].intersection_count += 1;
+                    }
 
                     let siblings = chunk
                         .iter()
@@ -221,7 +215,7 @@ where
                             // Select the oposite shape of this intersection.
                             // e.g. If this edge belong to the clip shape, return the subject edge
                             // involved in the intersection.
-                            if edge == intersections.all[index].clip {
+                            if current == intersections.all[index].clip {
                                 intersections.all[index].subject
                             } else {
                                 intersections.all[index].clip
@@ -240,7 +234,7 @@ where
                         })
                         .collect::<Vec<_>>();
 
-                    if [first, last].contains(&intersection_point) {
+                    if [current, next].contains(&index) {
                         // If the intersection point is any of the endpoints of the edge, do not
                         // create any node in the graph. Instead finds that endpoint and update
                         // the siblings list.
@@ -272,7 +266,7 @@ where
 
     /// Returns the graph.
     pub(crate) fn build(self) -> Graph<T> {
-        let builder = self.with_intersections().with_statuses();
+        let builder = self.with_intersections().with_intersection_kinds();
 
         Graph {
             nodes: builder.nodes.into_iter().map(Some).collect(),
@@ -344,22 +338,18 @@ where
     /// Returns the [`IntersectionKind`] corresponding to the [`Node`] at the given position.
     fn intersection_kind(&self, position: usize) -> IntersectionKind {
         let node = &self.nodes[position];
-        let boundary = match &node.boundary {
+        let target = match &node.boundary {
             BoundaryRole::Subject(_) => self.clip,
             BoundaryRole::Clip(_) => self.subject,
         };
 
-        let previous = if node.intersection.has_siblings() {
-            let previous = &self.nodes[node.previous];
-            &T::Edge::new(&previous.vertex, &node.vertex).midpoint()
-        } else {
-            &node.vertex
-        };
+        let next = &self.nodes[node.next];
+        let next = &T::Edge::new(&next.vertex, &node.vertex).midpoint();
 
-        if boundary.contains(previous, self.tolerance) {
-            IntersectionKind::Exit
-        } else {
+        if target.contains(next, self.tolerance) {
             IntersectionKind::Entry
+        } else {
+            IntersectionKind::Exit
         }
     }
 
@@ -384,38 +374,56 @@ where
     }
 
     /// Downgrades the [`Node`] at the given position from intersection to non-intersection.
-    fn downgrade_intersection(&mut self, position: usize) {
+    fn remove_intersection(&mut self, position: usize) {
         let node = &mut self.nodes[position];
         if !node.intersection.has_siblings() {
             return;
         }
 
         let boundary = &mut self.boundaries[node.boundary.position()];
-        boundary.intersection_count = boundary
-            .intersection_count
-            .saturating_sub(if node.intersection.is_pseudo { 2 } else { 1 });
+        boundary.intersection_count = boundary.intersection_count.saturating_sub(1);
 
         node.intersection.kind.take();
         std::mem::take(&mut self.nodes[position].intersection.siblings)
             .into_iter()
-            .for_each(|sibling| self.downgrade_intersection(sibling));
+            .for_each(|sibling| {
+                let sibling = &mut self.nodes[sibling];
+                if sibling.intersection.siblings.contains(&position) {
+                    let boundary = &mut self.boundaries[sibling.boundary.position()];
+                    boundary.intersection_count = boundary.intersection_count.saturating_sub(1);
+
+                    sibling.intersection.siblings.remove(&position);
+                }
+            });
     }
 
-    /// Computes the [`Status`] of each intersection [`Node`] in the graph.
-    fn with_statuses(mut self) -> Self {
+    /// Computes the [`IntersectionKind`] of each intersection [`Node`] in the graph.
+    fn with_intersection_kinds(mut self) -> Self {
         for boundary in 0..self.boundaries.len() {
             let start = self.boundaries[boundary].start;
 
             let mut intersection_traversal = IntersectionSearch::new(start);
-            let mut intersection_kind = self.intersection_kind(start);
+            // let mut intersection_kind = self.intersection_kind(start);
 
             while let Some(node) = intersection_traversal.next(&self.nodes) {
-                if self.nodes[node].intersection.is_pseudo && !self.is_intersection(node) {
-                    self.downgrade_intersection(node);
-                } else {
-                    self.nodes[node].intersection.kind = Some(intersection_kind);
-                    intersection_kind = intersection_kind.oposite();
-                }
+                // if self.nodes[node].intersection.is_pseudo && !self.is_intersection(node) {
+                //     self.remove_intersection(node);
+                // } else {
+                //     self.nodes[node].intersection.kind = Some(intersection_kind);
+                //     intersection_kind = intersection_kind.oposite();
+                // }
+
+                let node = &self.nodes[node];
+                // node
+                //     .intersection
+                //     .siblings
+                //     .iter()
+                //     .copied()
+                //     .map(|sibling| &self.nodes[sibling])
+                //     .filter(|sibling| !sibling.intersection.is_pseudo)
+                //     .map(|sibling| T::Edge::new(&sibling.vertex, &self.nodes[sibling.next].vertex))
+                //     .any;
+                
             }
         }
 

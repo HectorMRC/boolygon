@@ -1,9 +1,7 @@
 use num_traits::{Float, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point},
-    either::Either,
-    Edge, IsClose, Tolerance, Vertex as _,
+    cartesian::{determinant::Determinant, Point}, either::Either, Edge, IsClose, Orientation, Tolerance, Vertex as _
 };
 
 /// The straight line between two endpoints.
@@ -78,9 +76,18 @@ where
             y: self.from.y + t * (self.to.y - self.from.y),
         }))
     }
+    
+    fn orientation(&self, point: &Self::Vertex) -> Option<Orientation> {
+        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
+        if determinant > T::zero() {
+            return Some(Orientation::Left);
+        }
 
-    fn start(&self) -> &Self::Vertex {
-        self.from
+        if determinant < T::zero() {
+            return Some(Orientation::Right);
+        }
+
+        None
     }
 }
 

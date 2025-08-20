@@ -23,6 +23,24 @@ pub trait Vertex {
     fn distance(&self, other: &Self) -> Self::Scalar;
 }
 
+/// The position of a [`Vertex`] relative to an [`Edge`].
+pub enum Orientation {
+    Left,
+    Right,
+}
+
+impl Orientation {
+    /// Returns true if, and only if, is [`Orientation::Left`].
+    fn is_left(&self) -> bool {
+        matches!(self, Self::Left)
+    }
+
+    /// Returns true if, and only if, is [`Orientation::Right`].
+    fn is_right(&self) -> bool {
+        matches!(self, Self::Right)
+    }
+}
+
 /// An edge delimited by two vertices in a [`Geometry`].
 pub trait Edge<'a> {
     /// The endpoint type of the edge.
@@ -48,8 +66,9 @@ pub trait Edge<'a> {
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
 
-    /// Returns the starting endpoint of the edge.
-    fn start(&self) -> &Self::Vertex;
+    /// Returns the orientation of the given point relative to the infinite line containing this
+    /// edge or [`None`] if is collinear.
+    fn orientation(&self, point: &Self::Vertex) -> Option<Orientation>;
 }
 
 /// A [`Geometry`] whose orientation is defined by the right-hand rule.

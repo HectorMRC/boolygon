@@ -3,9 +3,7 @@ use std::cmp::Ordering;
 use num_traits::{Float, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point, Segment},
-    clipper::Operands,
-    Edge, Geometry, RightHanded, Tolerance,
+    cartesian::{determinant::Determinant, Point, Segment}, clipper::Operands, Edge, Geometry, Orientation, RightHanded, Tolerance
 };
 
 /// A polygon in the plain.
@@ -110,25 +108,33 @@ where
     }
 
     fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
-        // Returns true if, and only if, the point is on the left of the infinite line containing
-        // the given segment.
-        let left_of = |segment: &Segment<'_, T>| {
-            Determinant::from([segment.from, segment.to, point])
-                .into_inner()
-                .is_positive()
-        };
+        let (global_winding, local_winding) =
+            self.edges().fold((0, 0), |(global, local), segment| {
+                if let Some(orientation) = segment.orientation(point) {
+                    match orientation {
+                        Orientation::Left => if segment.from.y <= point.y && segment.to.y >= point.y {
+                            return (global + 1, local)
+                        },
+                        Orientation::Right => if segment.from.y >= point.y && segment.to.y <= point.y {
+                            return (global - 1, local)
+                        },
+                    }
+                } else if segment.contains(point, tolerance) {
+                    if segment.from.y < segment.to.y {
+                        return (global, local + 1);
+                    } else if segment.from.y > segment.to.y {
+                        return (global, local - 1);
+                    }
+                }
+                
+                (global, local)
+            });
 
-        self.edges().fold(0, |wn, segment| {
-            if segment.contains(point, tolerance)
-                || segment.from.y <= point.y && segment.to.y > point.y && left_of(&segment)
-            {
-                wn + 1
-            } else if segment.from.y > point.y && segment.to.y <= point.y && !left_of(&segment) {
-                wn - 1
-            } else {
-                wn
-            }
-        })
+        if global_winding != 0 {
+            global_winding
+        } else {
+            local_winding
+        }
     }
 }
 
@@ -181,22 +187,34 @@ mod tests {
                 want: -1,
             },
             Test {
+                name: "top-left vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [0., 4.].into(),
+                want: 1,
+            },
+            Test {
                 name: "bottom-left vertex of polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [0., 0.].into(),
-                want: 3,
+                want: 1,
             },
             Test {
                 name: "top-right vertex of polygon",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [4., 4.].into(),
-                want: 2,
+                want: 1,
+            },
+            Test {
+                name: "bottom-right vertex of polygon",
+                polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
+                point: [4., 0.].into(),
+                want: 1,
             },
             Test {
                 name: "midpoint of left-most edge",
                 polygon: vec![[4., 0.], [4., 4.], [0., 4.], [0., 0.]].into(),
                 point: [0., 2.].into(),
-                want: 2,
+                want: 1,
             },
             Test {
                 name: "midpoint of right-most edge",
