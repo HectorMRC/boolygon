@@ -3,7 +3,7 @@ use std::{fmt::Debug, marker::PhantomData};
 use crate::{
     clipper::{Clipper, Direction, Operator},
     graph::{BoundaryRole, IntersectionKind, Node},
-    Edge, Geometry, IsClose, Operands, Vertex,
+    Context, Edge, Geometry, IsClose, Vertex,
 };
 
 /// A combination of disjoint boundaries.
@@ -52,25 +52,26 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(
-                ops: Operands<'a, T>,
-                node: &'a Node<T>,
-                tolerance: &<T::Vertex as IsClose>::Tolerance,
-            ) -> bool {
+            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => !ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => !ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
+                    BoundaryRole::Clip(_) => !ctx.subject.contains(&node.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection.kind else {
+            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
+                let Some(intersection) = node
+                    .intersection
+                    .as_ref()
+                    .map(|intersection| intersection.kind)
+                else {
                     return Direction::Forward;
                 };
 
                 match intersection {
                     IntersectionKind::Entry => Direction::Backward,
                     IntersectionKind::Exit => Direction::Forward,
+                    _ => Direction::Forward,
                 }
             }
         }
@@ -91,19 +92,19 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(
-                ops: Operands<'a, T>,
-                node: &'a Node<T>,
-                tolerance: &<T::Vertex as IsClose>::Tolerance,
-            ) -> bool {
+            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => !ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
+                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection.kind else {
+            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
+                let Some(intersection) = node
+                    .intersection
+                    .as_ref()
+                    .map(|intersection| intersection.kind)
+                else {
                     return if node.boundary.is_subject() {
                         Direction::Forward
                     } else {
@@ -116,6 +117,7 @@ where
                     (BoundaryRole::Subject(_), IntersectionKind::Exit) => Direction::Forward,
                     (BoundaryRole::Clip(_), IntersectionKind::Entry) => Direction::Forward,
                     (BoundaryRole::Clip(_), IntersectionKind::Exit) => Direction::Backward,
+                    _ => Direction::Forward,
                 }
             }
         }
@@ -136,25 +138,26 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(
-                ops: Operands<'a, T>,
-                node: &'a Node<T>,
-                tolerance: &<T::Vertex as IsClose>::Tolerance,
-            ) -> bool {
+            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
                 match node.boundary {
-                    BoundaryRole::Subject(_) => ops.clip.contains(&node.vertex, tolerance),
-                    BoundaryRole::Clip(_) => ops.subject.contains(&node.vertex, tolerance),
+                    BoundaryRole::Subject(_) => ctx.clip.contains(&node.vertex, ctx.tolerance),
+                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(node: &Node<T>) -> Direction {
-                let Some(intersection) = node.intersection.kind else {
+            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
+                let Some(intersection) = node
+                    .intersection
+                    .as_ref()
+                    .map(|intersection| intersection.kind)
+                else {
                     return Direction::Forward;
                 };
 
                 match intersection {
                     IntersectionKind::Entry => Direction::Forward,
                     IntersectionKind::Exit => Direction::Backward,
+                    _ => Direction::Forward,
                 }
             }
         }

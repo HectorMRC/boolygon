@@ -4,7 +4,7 @@ use geocart::{
 };
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{clipper::Operands, spherical::Arc, Edge, Geometry, RightHanded, Tolerance};
+use crate::{clipper::Context, spherical::Arc, Edge, Geometry, Tolerance};
 
 use super::Point;
 
@@ -40,27 +40,6 @@ where
     }
 }
 
-impl<T> RightHanded for Polygon<T>
-where
-    T: Signed + Float + FloatConst + Euclid,
-{
-    fn is_clockwise(&self) -> bool {
-        // Since the exterior point of the polygon is used as the observer, the actual orientation
-        // is inverted. That implies that if the product of the polygon's normal and its exterior
-        // is positive (counterclockwise from the observer's perspective), an observer inside
-        // perceives the polygon's orientation as clockwise.
-
-        self.edges()
-            .fold(Cartesian::origin(), |normal, edge| {
-                let from = Cartesian::from(*edge.from);
-                let to = Cartesian::from(*edge.to);
-                normal + from.cross(&to)
-            })
-            .dot(&self.exterior.into())
-            > T::zero()
-    }
-}
-
 impl<T> Geometry for Polygon<T>
 where
     T: Signed + Float + FloatConst + Euclid,
@@ -72,7 +51,7 @@ where
         Self: 'a;
 
     fn from_raw(
-        operands: Operands<Self>,
+        operands: Context<Self>,
         vertices: Vec<Self::Vertex>,
         tolerance: &Tolerance<T>,
     ) -> Option<Self> {
@@ -147,6 +126,22 @@ where
             })
             .fold(0, |wn, arc| if left_of(&arc) { wn + 1 } else { wn - 1 })
     }
+
+    fn is_clockwise(&self) -> bool {
+        // Since the exterior point of the polygon is used as the observer, the actual orientation
+        // is inverted. That implies that if the product of the polygon's normal and its exterior
+        // is positive (counterclockwise from the observer's perspective), an observer inside
+        // perceives the polygon's orientation as clockwise.
+
+        self.edges()
+            .fold(Cartesian::origin(), |normal, edge| {
+                let from = Cartesian::from(*edge.from);
+                let to = Cartesian::from(*edge.to);
+                normal + from.cross(&to)
+            })
+            .dot(&self.exterior.into())
+            > T::zero()
+    }
 }
 
 impl<T> IntoIterator for Polygon<T> {
@@ -195,7 +190,7 @@ mod tests {
 
     use crate::{
         spherical::{Point, Polygon},
-        Geometry, RightHanded, Tolerance,
+        Geometry, Tolerance,
     };
 
     #[test]

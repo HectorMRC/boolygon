@@ -1,4 +1,8 @@
-use std::marker::PhantomData;
+use std::{
+    marker::PhantomData,
+    rc::Rc,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 use crate::{
     graph::{Graph, GraphBuilder, Node},
@@ -42,18 +46,14 @@ where
 {
     /// Returns true if, and only if, the given node belongs to the output of the clipping
     /// operation.
-    fn is_output<'a>(
-        ops: Operands<'a, T>,
-        node: &'a Node<T>,
-        tolerance: &<T::Vertex as IsClose>::Tolerance,
-    ) -> bool;
+    fn is_output(ctx: Context<'_, T>, node: &Node<T>) -> bool;
 
     /// Returns the direction to take from the given node.
-    fn direction(node: &Node<T>) -> Direction;
+    fn direction(ctx: Context<'_, T>, node: &Node<T>) -> Direction;
 }
 
 /// Implements the clipping algorithm.                                                                                                                                    
-pub(crate) struct Clipper<Operator, Subject, Clip, Tolerance> {
+pub(crate) struct Clipper<Subject, Clip, Operator, Tolerance> {
     pub(crate) tolerance: Tolerance,
     operator: PhantomData<Operator>,
     subject: Subject,
@@ -71,8 +71,8 @@ impl Default for Clipper<Unknown, Unknown, Unknown, Unknown> {
     }
 }
 
-impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
-    pub(crate) fn with_operator<Operator>(self) -> Clipper<Operator, Sub, Clip, Tol> {
+impl<Sub, Clip, Op, Tol> Clipper<Sub, Clip, Op, Tol> {
+    pub(crate) fn with_operator<Operator>(self) -> Clipper<Sub, Clip, Operator, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -82,11 +82,11 @@ impl<Op, Sub, Clip, Tol> Clipper<Op, Sub, Clip, Tol> {
     }
 }
 
-impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
+impl<Clip, Op, Tol> Clipper<Unknown, Clip, Op, Tol> {
     pub(crate) fn with_subject<U>(
         self,
         subject: impl Into<Shape<U>>,
-    ) -> Clipper<Op, Shape<U>, Clip, Tol> {
+    ) -> Clipper<Shape<U>, Clip, Op, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -96,8 +96,8 @@ impl<Op, Clip, Tol> Clipper<Op, Unknown, Clip, Tol> {
     }
 }
 
-impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
-    pub(crate) fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Op, Sub, Shape<U>, Tol> {
+impl<Sub, Op, Tol> Clipper<Sub, Unknown, Op, Tol> {
+    pub(crate) fn with_clip<U>(self, clip: impl Into<Shape<U>>) -> Clipper<Sub, Shape<U>, Op, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -107,8 +107,8 @@ impl<Op, Sub, Tol> Clipper<Op, Sub, Unknown, Tol> {
     }
 }
 
-impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
-    pub(crate) fn with_tolerance<Tol>(self, tolerance: Tol) -> Clipper<Op, Sub, Clip, Tol> {
+impl<Sub, Clip, Op> Clipper<Sub, Clip, Op, Unknown> {
+    pub(crate) fn with_tolerance<Tol>(self, tolerance: Tol) -> Clipper<Sub, Clip, Op, Tol> {
         Clipper {
             operator: PhantomData,
             subject: self.subject,
@@ -118,7 +118,7 @@ impl<Op, Sub, Clip> Clipper<Op, Sub, Clip, Unknown> {
     }
 }
 
-impl<T, Op, Tol> Clipper<Op, Shape<T>, Shape<T>, Tol>
+impl<T, Op, Tol> Clipper<Shape<T>, Shape<T>, Op, Tol>
 where
     T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
     T::Vertex: IsClose<Tolerance = Tol> + Copy + PartialEq + PartialOrd,
@@ -136,8 +136,9 @@ where
         let mut output_boundaries = Vec::new();
         let mut intersection_search = Resume::<IntersectionSearch<T>>::new(0);
         while let Some(position) = intersection_search.next(&graph) {
-            let boundary = Follow::new::<Op>(&mut graph, position).collect();
-            if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {
+            if let Some(boundary) = self.follow(&mut graph, position).collect()
+                && let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance)
+            {
                 output_boundaries.push(boundary);
             };
         }
@@ -145,9 +146,9 @@ where
         let mut intersectionless_search = Resume::<IntersectionlessSearch<T>>::new(0);
         while let Some(position) = intersectionless_search.next(&graph) {
             if let Some(node) = &graph.nodes[position]
-                && Op::is_output((&self).into(), node, &self.tolerance)
+                && Op::is_output((&self).into(), node)
             {
-                let boundary = Drain::new(&mut graph, position).collect::<Op>();
+                let boundary = self.drain(&mut graph, position).collect::<Op>();
                 if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {
                     output_boundaries.push(boundary);
                 };
@@ -161,6 +162,33 @@ where
         Some(Shape {
             boundaries: output_boundaries,
         })
+    }
+}
+
+impl<'a, T, Op, Tol> Clipper<Shape<T>, Shape<T>, Op, Tol>
+where
+    T: Geometry,
+    T::Vertex: IsClose<Tolerance = Tol>,
+{
+    fn follow(&'a self, graph: &'a mut Graph<T>, start: usize) -> Follow<'a, T, Op> {
+        Follow {
+            graph,
+            next: Some(start),
+            direction: Direction::Forward,
+            operator: PhantomData::<Op>,
+            terminal: Vec::with_capacity(2),
+            context: self.into(),
+            closed: Default::default(),
+        }
+    }
+
+    fn drain(&'a self, graph: &'a mut Graph<T>, start: usize) -> Drain<'a, T> {
+        Drain {
+            graph,
+            context: self.into(),
+            next: None,
+            start,
+        }
     }
 }
 
@@ -236,8 +264,8 @@ where
             .get(self.next..)?
             .iter()
             .enumerate()
-            .filter_map(|(position, node)| node.as_ref().map(|node| (position, node)))
-            .find(|(_, node)| node.boundary.is_subject() && node.intersection.has_siblings())
+            .filter_map(|(position, node)| Some((position, node.as_ref()?)))
+            .find(|(_, node)| node.boundary.is_subject() && node.intersection.is_some())
             .map(|(position, _)| position + self.next)?;
 
         self.next = position + 1;
@@ -270,11 +298,12 @@ where
     T: Geometry,
 {
     graph: &'a mut Graph<T>,
-    next: Option<usize>,
     direction: Direction,
-    operator: PhantomData<Op>,
+    next: Option<usize>,
     terminal: Vec<usize>,
-    closed: bool,
+    closed: Rc<AtomicBool>,
+    context: Context<'a, T>,
+    operator: PhantomData<Op>,
 }
 
 impl<T, Op> Iterator for Follow<'_, T, Op>
@@ -286,40 +315,45 @@ where
     type Item = Node<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.closed {
+        if self.closed.load(Ordering::Relaxed) {
             return None;
         }
 
         let current = self.next?;
         let node = self.graph.nodes[current].take()?;
 
-        if node.intersection.has_siblings() {
-            self.direction = Op::direction(&node);
+        if node.intersection.is_some() {
+            self.direction = Op::direction(self.context, &node);
         }
 
         let candidate = self.direction.next(&node);
         self.next = self.graph.nodes[candidate].as_mut().and_then(|next| {
-            if next.intersection.has_siblings() {
-                next.intersection.siblings.pop_first()
-            } else {
-                Some(candidate)
-            }
+            next.intersection
+                .as_ref()
+                .map(|intersection| intersection.sibling)
+                .or(Some(candidate))
         });
 
         if self.terminal.is_empty() {
-            self.terminal
-                .extend(node.intersection.siblings.iter().copied().chain([current]));
+            self.terminal.extend(
+                node.intersection
+                    .iter()
+                    .map(|intersection| intersection.sibling)
+                    .chain([current]),
+            );
         } else if let Some(next) = self.next {
-            self.closed = self.terminal.contains(&next);
+            self.closed
+                .store(self.terminal.contains(&next), Ordering::Relaxed);
         } else {
-            self.closed = node
-                .intersection
-                .siblings
-                .iter()
-                .filter_map(|&sibling| self.graph.nodes[sibling].as_ref())
-                .map(|sibling| sibling.next)
-                .chain([self.direction.next(&node)])
-                .any(|node| self.terminal.contains(&node));
+            self.closed.store(
+                node.intersection
+                    .iter()
+                    .filter_map(|intersection| self.graph.nodes[intersection.sibling].as_ref())
+                    .map(|sibling| sibling.next)
+                    .chain([self.direction.next(&node)])
+                    .any(|node| self.terminal.contains(&node)),
+                Ordering::Relaxed,
+            );
         };
 
         Some(node)
@@ -333,36 +367,25 @@ where
     Op: Operator<T>,
 {
     /// Returns the full path yielded by this iterator.
-    fn collect(self) -> Vec<T::Vertex> {
+    fn collect(self) -> Option<Vec<T::Vertex>> {
         let orientation = self
             .next
             .and_then(|position| self.graph.nodes[position].as_ref())
-            .map(|node| Op::direction(node))
+            .map(|node| Op::direction(self.context, node))
             .unwrap_or_default();
+
+        let is_closed = self.closed.clone();
         let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
+
+        if !is_closed.load(Ordering::Relaxed) {
+            return None;
+        }
 
         if !orientation.is_forward() {
             boundary.reverse();
         }
 
-        boundary
-    }
-}
-
-impl<'a, T> Follow<'a, T, Unknown>
-where
-    T: Geometry,
-{
-    /// Returns a new iterator that begins at the given position.
-    fn new<Op>(graph: &'a mut Graph<T>, start: usize) -> Follow<'a, T, Op> {
-        Follow {
-            graph,
-            next: Some(start),
-            direction: Direction::Forward,
-            operator: PhantomData::<Op>,
-            terminal: Default::default(),
-            closed: false,
-        }
+        Some(boundary)
     }
 }
 
@@ -421,6 +444,7 @@ where
     T: Geometry,
 {
     graph: &'a mut Graph<T>,
+    context: Context<'a, T>,
     next: Option<usize>,
     start: usize,
 }
@@ -458,7 +482,7 @@ where
     {
         let orientation = self.graph.nodes[self.start]
             .as_ref()
-            .map(|node| Op::direction(node))
+            .map(|node| Op::direction(self.context, node))
             .unwrap_or_default();
 
         let mut boundary = self.map(|node| node.vertex).collect::<Vec<_>>();
@@ -471,31 +495,43 @@ where
     }
 }
 
-impl<'a, T> Drain<'a, T>
+/// The context of a clipping operation.
+pub struct Context<'a, T>
 where
     T: Geometry,
 {
-    fn new(graph: &'a mut Graph<T>, start: usize) -> Self {
+    /// The shape being clipped in this operation.
+    pub subject: &'a Shape<T>,
+    /// The clip shape involved in this operation.
+    pub clip: &'a Shape<T>,
+    /// The tolerance being used in this operation.
+    pub tolerance: &'a <T::Vertex as IsClose>::Tolerance,
+}
+
+impl<T> Copy for Context<'_, T> where T: Geometry {}
+impl<T> Clone for Context<'_, T>
+where
+    T: Geometry,
+{
+    fn clone(&self) -> Self {
         Self {
-            graph,
-            next: None,
-            start,
+            subject: self.subject,
+            clip: self.clip,
+            tolerance: self.tolerance,
         }
     }
 }
 
-/// The subject and clip operands of a clipping operation.
-#[derive(Debug, Clone, Copy)]
-pub struct Operands<'a, T> {
-    pub subject: &'a Shape<T>,
-    pub clip: &'a Shape<T>,
-}
-
-impl<'a, T, Op, Tol> From<&'a Clipper<Op, Shape<T>, Shape<T>, Tol>> for Operands<'a, T> {
-    fn from(clipper: &'a Clipper<Op, Shape<T>, Shape<T>, Tol>) -> Self {
-        Operands {
+impl<'a, T, Op, Tol> From<&'a Clipper<Shape<T>, Shape<T>, Op, Tol>> for Context<'a, T>
+where
+    T: Geometry,
+    T::Vertex: IsClose<Tolerance = Tol>,
+{
+    fn from(clipper: &'a Clipper<Shape<T>, Shape<T>, Op, Tol>) -> Self {
+        Context {
             subject: &clipper.subject,
             clip: &clipper.clip,
+            tolerance: &clipper.tolerance,
         }
     }
 }

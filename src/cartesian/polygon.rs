@@ -1,9 +1,11 @@
 use std::cmp::Ordering;
 
-use num_traits::{Float, Signed};
+use num_traits::{Float, FloatConst, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point, Segment}, clipper::Operands, Edge, Geometry, Orientation, RightHanded, Tolerance
+    cartesian::{determinant::Determinant, Point, Segment},
+    clipper::Context,
+    Edge, Geometry, Tolerance,
 };
 
 /// A polygon in the plain.
@@ -47,10 +49,65 @@ where
     }
 }
 
-impl<T> RightHanded for Polygon<T>
+impl<T> Geometry for Polygon<T>
 where
-    T: Signed + Float,
+    T: Signed + Float + FloatConst,
 {
+    type Vertex = Point<T>;
+    type Edge<'a>
+        = Segment<'a, T>
+    where
+        Self: 'a;
+
+    fn from_raw(_: Context<Self>, vertices: Vec<Self::Vertex>, _: &Tolerance<T>) -> Option<Self> {
+        Some(vertices.into())
+    }
+
+    fn total_vertices(&self) -> usize {
+        self.vertices.len()
+    }
+
+    fn edges(&self) -> impl Iterator<Item = Segment<'_, T>> {
+        self.vertices()
+            .zip(self.vertices().skip(1))
+            .map(|(from, to)| Segment { from, to })
+    }
+
+    fn reversed(mut self) -> Self {
+        self.vertices.reverse();
+        self
+    }
+
+    fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
+        let (global_winding, local_winding) =
+            self.edges().fold((0, 0), |(global, local), segment| {
+                if segment.contains(point, tolerance) {
+                    if segment.from.y < segment.to.y {
+                        return (global, local + 1);
+                    } else if segment.from.y > segment.to.y {
+                        return (global, local - 1);
+                    }
+                }
+
+                let determinant = Determinant::from([segment.from, segment.to, point]).into_inner();
+                if determinant > T::zero() && segment.from.y <= point.y && segment.to.y >= point.y {
+                    return (global + 1, local);
+                }
+
+                if determinant < T::zero() && segment.from.y >= point.y && segment.to.y <= point.y {
+                    return (global - 1, local);
+                }
+
+                (global, local)
+            });
+
+        if global_winding != 0 {
+            global_winding
+        } else {
+            local_winding
+        }
+    }
+
     fn is_clockwise(&self) -> bool {
         self.vertices
             .iter()
@@ -78,66 +135,6 @@ where
     }
 }
 
-impl<T> Geometry for Polygon<T>
-where
-    T: Signed + Float,
-{
-    type Vertex = Point<T>;
-    type Edge<'a>
-        = Segment<'a, T>
-    where
-        Self: 'a;
-
-    fn from_raw(_: Operands<Self>, vertices: Vec<Self::Vertex>, _: &Tolerance<T>) -> Option<Self> {
-        Some(vertices.into())
-    }
-
-    fn total_vertices(&self) -> usize {
-        self.vertices.len()
-    }
-
-    fn edges(&self) -> impl Iterator<Item = Segment<'_, T>> {
-        self.vertices()
-            .zip(self.vertices().skip(1))
-            .map(|(from, to)| Segment { from, to })
-    }
-
-    fn reversed(mut self) -> Self {
-        self.vertices.reverse();
-        self
-    }
-
-    fn winding(&self, point: &Point<T>, tolerance: &Tolerance<T>) -> isize {
-        let (global_winding, local_winding) =
-            self.edges().fold((0, 0), |(global, local), segment| {
-                if let Some(orientation) = segment.orientation(point) {
-                    match orientation {
-                        Orientation::Left => if segment.from.y <= point.y && segment.to.y >= point.y {
-                            return (global + 1, local)
-                        },
-                        Orientation::Right => if segment.from.y >= point.y && segment.to.y <= point.y {
-                            return (global - 1, local)
-                        },
-                    }
-                } else if segment.contains(point, tolerance) {
-                    if segment.from.y < segment.to.y {
-                        return (global, local + 1);
-                    } else if segment.from.y > segment.to.y {
-                        return (global, local - 1);
-                    }
-                }
-                
-                (global, local)
-            });
-
-        if global_winding != 0 {
-            global_winding
-        } else {
-            local_winding
-        }
-    }
-}
-
 impl<T> IntoIterator for Polygon<T> {
     type Item = Point<T>;
     type IntoIter = std::vec::IntoIter<Point<T>>;
@@ -161,7 +158,7 @@ impl<T> Polygon<T> {
 mod tests {
     use crate::{
         cartesian::{point::Point, Polygon},
-        Geometry, RightHanded,
+        Geometry,
     };
 
     #[test]

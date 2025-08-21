@@ -9,13 +9,14 @@ pub mod cartesian;
 #[cfg(feature = "spherical")]
 pub mod spherical;
 
-pub use self::clipper::Operands;
+pub use self::clipper::Context;
 pub use self::either::Either;
+pub use self::graph::IntersectionKind;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
 /// A vertex from a [`Geometry`].
-pub trait Vertex {
+pub trait Vertex: IsClose {
     /// The scalar type in this vertex's space.
     type Scalar;
 
@@ -23,28 +24,21 @@ pub trait Vertex {
     fn distance(&self, other: &Self) -> Self::Scalar;
 }
 
-/// The position of a [`Vertex`] relative to an [`Edge`].
-pub enum Orientation {
-    Left,
-    Right,
-}
-
-impl Orientation {
-    /// Returns true if, and only if, is [`Orientation::Left`].
-    fn is_left(&self) -> bool {
-        matches!(self, Self::Left)
-    }
-
-    /// Returns true if, and only if, is [`Orientation::Right`].
-    fn is_right(&self) -> bool {
-        matches!(self, Self::Right)
-    }
+/// The local information of an intersection [`Vertex`].
+pub struct Environs<'a, T>
+where
+    T: ?Sized,
+{
+    /// The vertex before the intersection.
+    tail: &'a T,
+    /// Ther vertex after the intersection.
+    head: &'a T,
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
 pub trait Edge<'a> {
     /// The endpoint type of the edge.
-    type Vertex: Vertex + IsClose;
+    type Vertex: Vertex;
 
     /// Returns an edge from the given endpoints.
     fn new(from: &'a Self::Vertex, to: &'a Self::Vertex) -> Self;
@@ -66,19 +60,17 @@ pub trait Edge<'a> {
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
 
-    /// Returns the orientation of the given point relative to the infinite line containing this
-    /// edge or [`None`] if is collinear.
-    fn orientation(&self, point: &Self::Vertex) -> Option<Orientation>;
-}
-
-/// A [`Geometry`] whose orientation is defined by the right-hand rule.
-pub trait RightHanded {
-    /// Returns true if, and only if, this geometry is oriented clockwise.
-    fn is_clockwise(&self) -> bool;
+    /// Returns the [`IntersectionKind`] of the given intersection vertex and local information.
+    fn intersection_kind(
+        intersection: &'a Self::Vertex,
+        subject: Environs<'a, Self::Vertex>,
+        sibling: Environs<'a, Self::Vertex>,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> IntersectionKind;
 }
 
 /// A geometry in an arbitrary space.
-pub trait Geometry: Sized + RightHanded {
+pub trait Geometry: Sized {
     /// The type of the vertices this geometry is made of.
     type Vertex: Vertex + IsClose;
 
@@ -89,7 +81,7 @@ pub trait Geometry: Sized + RightHanded {
 
     /// Tries to construct a geometry from the given raw data.
     fn from_raw(
-        operands: Operands<Self>,
+        operands: Context<Self>,
         vertices: Vec<Self::Vertex>,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Self>;
@@ -110,11 +102,6 @@ pub trait Geometry: Sized + RightHanded {
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> isize;
 
-    fn contains(
-        &self,
-        vertex: &Self::Vertex,
-        tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> bool {
-        self.winding(vertex, tolerance) != 0
-    }
+    /// Returns true if, and only if, this geometry is oriented clockwise.
+    fn is_clockwise(&self) -> bool;
 }

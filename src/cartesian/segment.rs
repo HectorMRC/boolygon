@@ -1,7 +1,10 @@
-use num_traits::{Float, Signed};
+use num_traits::{Float, FloatConst, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point}, either::Either, Edge, IsClose, Orientation, Tolerance, Vertex as _
+    cartesian::{determinant::Determinant, Point},
+    either::Either,
+    graph::IntersectionKind,
+    Edge, Environs, IsClose, Tolerance, Vertex,
 };
 
 /// The straight line between two endpoints.
@@ -15,7 +18,7 @@ pub struct Segment<'a, T> {
 
 impl<'a, T> Edge<'a> for Segment<'a, T>
 where
-    T: Signed + Float,
+    T: Signed + Float + FloatConst,
 {
     type Vertex = Point<T>;
 
@@ -76,18 +79,60 @@ where
             y: self.from.y + t * (self.to.y - self.from.y),
         }))
     }
-    
-    fn orientation(&self, point: &Self::Vertex) -> Option<Orientation> {
-        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
-        if determinant > T::zero() {
-            return Some(Orientation::Left);
+
+    fn intersection_kind(
+        intersection: &'a Self::Vertex,
+        subject: Environs<'a, Self::Vertex>,
+        sibling: Environs<'a, Self::Vertex>,
+        tolerance: &<Self::Vertex as IsClose>::Tolerance,
+    ) -> IntersectionKind {
+        let tail = Self::new(&subject.tail, intersection);
+        let head = Self::new(intersection, &subject.head);
+
+        let other_tail = Segment::new(&sibling.tail, intersection);
+        let other_head = Segment::new(intersection, &sibling.head);
+
+        let overlap = |edge: &Self| {
+            let midpoint = edge.midpoint();
+
+            other_tail.contains(&midpoint, tolerance)
+                || other_head.contains(&midpoint, tolerance)
+                || edge.contains(&other_tail.midpoint(), tolerance)
+                || edge.contains(&other_head.midpoint(), tolerance)
+        };
+
+        let angle = |other: &Self::Vertex| {
+            let atan = (other.y - intersection.y).atan2(other.x - intersection.x);
+            if atan < T::zero() {
+                atan + T::TAU()
+            } else {
+                atan
+            }
+        };
+
+        let inside = |alpha| {
+            let other_tail_angle = angle(&sibling.tail);
+            let other_head_angle = angle(&sibling.head);
+
+            if other_tail_angle < other_head_angle {
+                alpha < other_tail_angle || other_head_angle < alpha
+            } else {
+                other_head_angle < alpha && alpha < other_tail_angle
+            }
+        };
+
+        let tail_is_inside = overlap(&tail) || inside(angle(subject.tail));
+        let head_is_inside = overlap(&head) || inside(angle(subject.head));
+
+        if tail_is_inside == head_is_inside {
+            return IntersectionKind::Vertex;
         }
 
-        if determinant < T::zero() {
-            return Some(Orientation::Right);
+        if head_is_inside {
+            IntersectionKind::Entry
+        } else {
+            IntersectionKind::Exit
         }
-
-        None
     }
 }
 
@@ -155,7 +200,7 @@ where
 
 impl<T> Segment<'_, T>
 where
-    T: Signed + Float,
+    T: Signed + Float + FloatConst,
 {
     /// Returns the distance between the two endpoints of the segment.
     fn length(&self) -> T {
@@ -168,7 +213,8 @@ mod tests {
     use crate::{
         cartesian::{Point, Segment},
         either::Either,
-        Edge,
+        graph::IntersectionKind,
+        Edge, Environs,
     };
 
     #[test]
@@ -365,6 +411,148 @@ mod tests {
         .into_iter()
         .for_each(|test| {
             let got = test.segment.intersection(&test.other, &Default::default());
+            assert_eq!(got, test.want, "{}", test.name);
+        });
+    }
+
+    #[test]
+    fn intersection_kind() {
+        struct Test<'a> {
+            name: &'a str,
+            intersection: Point<f64>,
+            subject: Environs<'a, Point<f64>>,
+            other: Environs<'a, Point<f64>>,
+            want: IntersectionKind,
+        }
+
+        vec![
+            Test {
+                name: "entering at edge",
+                intersection: [1., 1.].into(),
+                subject: Environs {
+                    tail: &[0., 1.].into(),
+                    head: &[2., 1.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 2.].into(),
+                    head: &[1., 0.].into(),
+                },
+                want: IntersectionKind::Entry,
+            },
+            Test {
+                name: "exiting at edge",
+                intersection: [1., 1.].into(),
+                subject: Environs {
+                    tail: &[0., 1.].into(),
+                    head: &[2., 1.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 0.].into(),
+                    head: &[1., 2.].into(),
+                },
+                want: IntersectionKind::Exit,
+            },
+            Test {
+                name: "entering at corner",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 2.].into(),
+                    head: &[1., 0.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Entry,
+            },
+            Test {
+                name: "exiting at corner",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 0.].into(),
+                    head: &[1., 2.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Exit,
+            },
+            Test {
+                name: "touching edge from the inside",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 0.].into(),
+                    head: &[1., 2.].into(),
+                },
+                other: Environs {
+                    tail: &[0., 2.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Vertex,
+            },
+            Test {
+                name: "touching edge from the outside",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 0.].into(),
+                    head: &[1., 2.].into(),
+                },
+                other: Environs {
+                    tail: &[0., 0.].into(),
+                    head: &[0., 2.].into(),
+                },
+                want: IntersectionKind::Vertex,
+            },
+            Test {
+                name: "joining edge from the inside",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 0.].into(),
+                    head: &[1., 1.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Vertex,
+            },
+            Test {
+                name: "joining edge from the outside",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 2.].into(),
+                    head: &[0., 0.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Entry,
+            },
+            Test {
+                name: "always on the edge",
+                intersection: [0., 1.].into(),
+                subject: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                other: Environs {
+                    tail: &[1., 1.].into(),
+                    head: &[0., 0.].into(),
+                },
+                want: IntersectionKind::Vertex,
+            },
+        ]
+        .into_iter()
+        .for_each(|test| {
+            let tolerance = Default::default();
+            let got = Segment::intersection_kind(
+                &test.intersection,
+                test.subject,
+                test.other,
+                &tolerance,
+            );
             assert_eq!(got, test.want, "{}", test.name);
         });
     }

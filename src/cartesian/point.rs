@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul, Sub};
 
-use num_traits::Float;
+use num_traits::{Float, FloatConst, Signed};
 
 use crate::{IsClose, Tolerance, Vertex};
 
@@ -63,7 +63,7 @@ where
 
 impl<T> Vertex for Point<T>
 where
-    T: Copy + Float,
+    T: Copy + Signed + Float + FloatConst,
 {
     type Scalar = T;
 
