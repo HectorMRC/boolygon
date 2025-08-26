@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, collections::BTreeMap};
 
-use crate::{either::Either, Edge, Environs, Geometry, IsClose, Shape, Vertex};
+use crate::{Edge, Geometry, IsClose, MaybePair, Neighbors, Shape, Vertex};
 
 /// The role of the boundary at the inner position in the [`Graph`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,8 +26,8 @@ impl BoundaryRole {
 
 /// A boundary in the [`Graph`].
 pub(crate) struct Boundary {
-    /// The amount of intersections in this boundary.
-    pub(crate) intersection_count: usize,
+    /// If true, at least one vertex of this boundary has been consumed.
+    pub(crate) visited: bool,
     /// The index in the [`Graph`] at which this boundary begins.
     pub(crate) start: usize,
     /// The role of this boundary
@@ -47,8 +47,8 @@ pub enum IntersectionKind {
 }
 
 impl IntersectionKind {
-    /// Returns true if, and only if, this is an [`IntersectionKind::Vertex`].
-    pub(crate) fn _is_vertex(&self) -> bool {
+    /// Returns true if, and only if, this is [`IntersectionKind::Vertex`].
+    pub(crate) fn is_vertex(&self) -> bool {
         matches!(self, Self::Vertex)
     }
 }
@@ -107,6 +107,19 @@ where
             nodes: Default::default(),
             boundaries: Default::default(),
         }
+    }
+}
+
+impl<T> Graph<T>
+where
+    T: Geometry,
+{
+    /// Takes from the graph the [`Node`] at the given position, marking the corresponding boundary
+    /// as visited.
+    pub(crate) fn take(&mut self, position: usize) -> Option<Node<T>> {
+        self.nodes[position]
+            .take()
+            .inspect(|node| self.boundaries[node.boundary.position()].visited = true)
     }
 }
 
@@ -209,7 +222,6 @@ where
                         });
                     };
 
-                    self.boundaries[boundary.position()].intersection_count += 1;
                     visited.insert(intersection_point, index);
                     index
                 });
@@ -231,13 +243,13 @@ where
                             Intersection {
                                 kind: T::Edge::intersection_kind(
                                     &node.vertex,
-                                    Environs {
+                                    Neighbors {
                                         tail: &self.nodes[node.previous].vertex,
                                         head: &self.nodes[node.next].vertex,
                                     },
-                                    Environs {
+                                    Neighbors {
                                         tail: &self.nodes[sibling.previous].vertex,
-                                        head: &self.nodes[node.next].vertex,
+                                        head: &self.nodes[sibling.next].vertex,
                                     },
                                     self.tolerance,
                                 ),
@@ -290,14 +302,14 @@ where
                             subject_edge.intersection(&clip_edge, self.tolerance)
                         {
                             intersections = match intersection {
-                                Either::Left(vertex) => {
+                                MaybePair::Single(vertex) => {
                                     intersections.with_intersection(EdgeIntersection {
                                         vertex,
                                         subject: subject_index,
                                         clip: clip_index,
                                     })
                                 }
-                                Either::Right([first, second]) => {
+                                MaybePair::Pair([first, second]) => {
                                     let intersection = EdgeIntersection {
                                         vertex: first,
                                         subject: subject_index,
@@ -369,7 +381,7 @@ where
             let offset = self.nodes.len();
             let role = role(self.boundaries.len());
             self.boundaries.push(Boundary {
-                intersection_count: 0,
+                visited: false,
                 start: offset,
                 role,
             });
