@@ -1,6 +1,6 @@
 mod clipper;
-mod either;
 mod graph;
+mod pair;
 mod shape;
 mod tolerance;
 
@@ -10,8 +10,8 @@ pub mod cartesian;
 pub mod spherical;
 
 pub use self::clipper::Context;
-pub use self::either::Either;
 pub use self::graph::IntersectionKind;
+pub use self::pair::MaybePair;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
 
@@ -24,15 +24,17 @@ pub trait Vertex: IsClose {
     fn distance(&self, other: &Self) -> Self::Scalar;
 }
 
-/// The local information of an intersection [`Vertex`].
-pub struct Environs<'a, T>
-where
-    T: ?Sized,
-{
-    /// The vertex before the intersection.
-    tail: &'a T,
-    /// Ther vertex after the intersection.
-    head: &'a T,
+/// The local information of a [`Vertex`].
+pub struct Neighbors<'a, T> {
+    /// The vertex before.
+    pub tail: &'a T,
+    /// The vertex after.
+    pub head: &'a T,
+}
+
+pub enum Side {
+    Left,
+    Right
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
@@ -58,15 +60,17 @@ pub trait Edge<'a> {
         &self,
         other: &Self,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>>;
+    ) -> Option<MaybePair<Self::Vertex>>;
 
     /// Returns the [`IntersectionKind`] of the given intersection vertex and local information.
     fn intersection_kind(
         intersection: &'a Self::Vertex,
-        subject: Environs<'a, Self::Vertex>,
-        sibling: Environs<'a, Self::Vertex>,
+        neighbors: Neighbors<'a, Self::Vertex>,
+        sibling_neighbors: Neighbors<'a, Self::Vertex>,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> IntersectionKind;
+
+    fn side(&self, point: &Self::Vertex) -> Option<Side>;
 }
 
 /// A geometry in an arbitrary space.

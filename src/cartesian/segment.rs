@@ -1,10 +1,7 @@
 use num_traits::{Float, FloatConst, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point},
-    either::Either,
-    graph::IntersectionKind,
-    Edge, Environs, IsClose, Tolerance, Vertex,
+    cartesian::{determinant::Determinant, Point}, graph::IntersectionKind, Edge, IsClose, MaybePair, Neighbors, Side, Tolerance, Vertex
 };
 
 /// The straight line between two endpoints.
@@ -42,7 +39,7 @@ where
         &self,
         other: &Self,
         _: &Tolerance<T>,
-    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>> {
+    ) -> Option<MaybePair<Self::Vertex>> {
         let determinant = self.determinant(other).into_inner();
 
         if determinant.is_zero() {
@@ -74,7 +71,7 @@ where
             return Default::default();
         }
 
-        Some(Either::Left(Point {
+        Some(MaybePair::Single(Point {
             x: self.from.x + t * (self.to.x - self.from.x),
             y: self.from.y + t * (self.to.y - self.from.y),
         }))
@@ -82,23 +79,23 @@ where
 
     fn intersection_kind(
         intersection: &'a Self::Vertex,
-        subject: Environs<'a, Self::Vertex>,
-        sibling: Environs<'a, Self::Vertex>,
+        neighbors: Neighbors<'a, Self::Vertex>,
+        sibling_neighbors: Neighbors<'a, Self::Vertex>,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> IntersectionKind {
-        let tail = Self::new(&subject.tail, intersection);
-        let head = Self::new(intersection, &subject.head);
+        let tail = Self::new(&neighbors.tail, intersection);
+        let head = Self::new(intersection, &neighbors.head);
 
-        let other_tail = Segment::new(&sibling.tail, intersection);
-        let other_head = Segment::new(intersection, &sibling.head);
+        let sibling_tail = Segment::new(&sibling_neighbors.tail, intersection);
+        let sibling_head = Segment::new(intersection, &sibling_neighbors.head);
 
         let overlap = |edge: &Self| {
             let midpoint = edge.midpoint();
 
-            other_tail.contains(&midpoint, tolerance)
-                || other_head.contains(&midpoint, tolerance)
-                || edge.contains(&other_tail.midpoint(), tolerance)
-                || edge.contains(&other_head.midpoint(), tolerance)
+            sibling_tail.contains(&midpoint, tolerance)
+                || sibling_head.contains(&midpoint, tolerance)
+                || edge.contains(&sibling_tail.midpoint(), tolerance)
+                || edge.contains(&sibling_head.midpoint(), tolerance)
         };
 
         let angle = |other: &Self::Vertex| {
@@ -111,18 +108,18 @@ where
         };
 
         let inside = |alpha| {
-            let other_tail_angle = angle(&sibling.tail);
-            let other_head_angle = angle(&sibling.head);
+            let sibling_tail_angle = angle(&sibling_neighbors.tail);
+            let sibling_head_angle = angle(&sibling_neighbors.head);
 
-            if other_tail_angle < other_head_angle {
-                alpha < other_tail_angle || other_head_angle < alpha
+            if sibling_tail_angle < sibling_head_angle {
+                alpha < sibling_tail_angle || sibling_head_angle < alpha
             } else {
-                other_head_angle < alpha && alpha < other_tail_angle
+                sibling_head_angle < alpha && alpha < sibling_tail_angle
             }
         };
 
-        let tail_is_inside = overlap(&tail) || inside(angle(subject.tail));
-        let head_is_inside = overlap(&head) || inside(angle(subject.head));
+        let tail_is_inside = overlap(&tail) || inside(angle(neighbors.tail));
+        let head_is_inside = overlap(&head) || inside(angle(neighbors.head));
 
         if tail_is_inside == head_is_inside {
             return IntersectionKind::Vertex;
@@ -133,6 +130,19 @@ where
         } else {
             IntersectionKind::Exit
         }
+    }
+
+    fn side(&self, point: &Self::Vertex) -> Option<Side> {
+        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
+        if determinant > T::zero() {
+            return Some(Side::Left);
+        }
+
+        if determinant < T::zero() {
+            return Some(Side::Right);
+        }
+
+        None
     }
 }
 
@@ -145,7 +155,7 @@ where
     fn collinear_common_points(
         &self,
         other: &Segment<'_, T>,
-    ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
+    ) -> Option<MaybePair<Point<T>>> {
         let project_on_x = (self.to.x - self.from.x).abs() > (self.to.y - self.from.y).abs();
         let project = |point: &Point<T>| -> T {
             if project_on_x {
@@ -176,12 +186,12 @@ where
         }
 
         if first == second {
-            return unproject(first).map(Either::Left);
+            return unproject(first).map(MaybePair::Single);
         }
 
         match (unproject(first), unproject(second)) {
-            (Some(first), Some(second)) => Some(Either::Right([first, second])),
-            (Some(point), _) | (_, Some(point)) => Some(Either::Left(point)),
+            (Some(first), Some(second)) => Some(MaybePair::Pair([first, second])),
+            (Some(point), _) | (_, Some(point)) => Some(MaybePair::Single(point)),
             _ => Default::default(),
         }
     }
@@ -212,9 +222,8 @@ where
 mod tests {
     use crate::{
         cartesian::{Point, Segment},
-        either::Either,
         graph::IntersectionKind,
-        Edge, Environs,
+        Edge, Neighbors, MaybePair,
     };
 
     #[test]
@@ -223,7 +232,7 @@ mod tests {
             name: &'a str,
             segment: Segment<'a, f64>,
             other: Segment<'a, f64>,
-            want: Option<Either<Point<f64>, [Point<f64>; 2]>>,
+            want: Option<MaybePair<Point<f64>>>,
         }
 
         vec![
@@ -249,7 +258,7 @@ mod tests {
                     from: &[0., 4.].into(),
                     to: &[4., 0.].into(),
                 },
-                want: Some(Either::Left([2., 2.].into())),
+                want: Some(MaybePair::Single([2., 2.].into())),
             },
             Test {
                 name: "perpendicular with endpoint in line",
@@ -261,7 +270,7 @@ mod tests {
                     from: &[2., 2.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Either::Left([2., 0.].into())),
+                want: Some(MaybePair::Single([2., 0.].into())),
             },
             Test {
                 name: "perpendicular segments starting at the same point",
@@ -273,7 +282,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., 4.].into(),
                 },
-                want: Some(Either::Left([0., 0.].into())),
+                want: Some(MaybePair::Single([0., 0.].into())),
             },
             Test {
                 name: "perpendicular segments ending at the same point",
@@ -285,7 +294,7 @@ mod tests {
                     from: &[0., 8.].into(),
                     to: &[4., 4.].into(),
                 },
-                want: Some(Either::Left([4., 4.].into())),
+                want: Some(MaybePair::Single([4., 4.].into())),
             },
             Test {
                 name: "none-collinear parallel segments",
@@ -309,7 +318,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[-4., -4.].into(),
                 },
-                want: Some(Either::Left([0., 0.].into())),
+                want: Some(MaybePair::Single([0., 0.].into())),
             },
             Test {
                 name: "collinear segments ending at the same point",
@@ -321,7 +330,7 @@ mod tests {
                     from: &[-4., -4.].into(),
                     to: &[0., 0.].into(),
                 },
-                want: Some(Either::Left([0., 0.].into())),
+                want: Some(MaybePair::Single([0., 0.].into())),
             },
             Test {
                 name: "collinear segments with no common point",
@@ -345,7 +354,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 2.].into(),
                 },
-                want: Some(Either::Right([[0., 0.].into(), [2., 2.].into()])),
+                want: Some(MaybePair::Pair([[0., 0.].into(), [2., 2.].into()])),
             },
             Test {
                 name: "coincident segments when other is larger",
@@ -357,7 +366,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[8., 8.].into(),
                 },
-                want: Some(Either::Right([[4., 4.].into(), [8., 8.].into()])),
+                want: Some(MaybePair::Pair([[4., 4.].into(), [8., 8.].into()])),
             },
             Test {
                 name: "coincident segments when segment contains other",
@@ -369,7 +378,7 @@ mod tests {
                     from: &[1., 1.].into(),
                     to: &[3., 3.].into(),
                 },
-                want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
+                want: Some(MaybePair::Pair([[1., 1.].into(), [3., 3.].into()])),
             },
             Test {
                 name: "coincident segments when other constains segment",
@@ -381,7 +390,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[4., 4.].into(),
                 },
-                want: Some(Either::Right([[1., 1.].into(), [3., 3.].into()])),
+                want: Some(MaybePair::Pair([[1., 1.].into(), [3., 3.].into()])),
             },
             Test {
                 name: "coincident when none is fully contained",
@@ -393,7 +402,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
+                want: Some(MaybePair::Pair([[0., 0.].into(), [1., 0.].into()])),
             },
             Test {
                 name: "coincident at oposite direction when none is fully contained",
@@ -405,7 +414,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[2., 0.].into(),
                 },
-                want: Some(Either::Right([[0., 0.].into(), [1., 0.].into()])),
+                want: Some(MaybePair::Pair([[0., 0.].into(), [1., 0.].into()])),
             },
         ]
         .into_iter()
@@ -420,8 +429,8 @@ mod tests {
         struct Test<'a> {
             name: &'a str,
             intersection: Point<f64>,
-            subject: Environs<'a, Point<f64>>,
-            other: Environs<'a, Point<f64>>,
+            subject: Neighbors<'a, Point<f64>>,
+            other: Neighbors<'a, Point<f64>>,
             want: IntersectionKind,
         }
 
@@ -429,11 +438,11 @@ mod tests {
             Test {
                 name: "entering at edge",
                 intersection: [1., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[0., 1.].into(),
                     head: &[2., 1.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 2.].into(),
                     head: &[1., 0.].into(),
                 },
@@ -442,11 +451,11 @@ mod tests {
             Test {
                 name: "exiting at edge",
                 intersection: [1., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[0., 1.].into(),
                     head: &[2., 1.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 0.].into(),
                     head: &[1., 2.].into(),
                 },
@@ -455,11 +464,11 @@ mod tests {
             Test {
                 name: "entering at corner",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 2.].into(),
                     head: &[1., 0.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },
@@ -468,11 +477,11 @@ mod tests {
             Test {
                 name: "exiting at corner",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 0.].into(),
                     head: &[1., 2.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },
@@ -481,11 +490,11 @@ mod tests {
             Test {
                 name: "touching edge from the inside",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 0.].into(),
                     head: &[1., 2.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[0., 2.].into(),
                     head: &[0., 0.].into(),
                 },
@@ -494,11 +503,11 @@ mod tests {
             Test {
                 name: "touching edge from the outside",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 0.].into(),
                     head: &[1., 2.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[0., 0.].into(),
                     head: &[0., 2.].into(),
                 },
@@ -507,11 +516,11 @@ mod tests {
             Test {
                 name: "joining edge from the inside",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 0.].into(),
                     head: &[1., 1.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },
@@ -520,11 +529,11 @@ mod tests {
             Test {
                 name: "joining edge from the outside",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 2.].into(),
                     head: &[0., 0.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },
@@ -533,11 +542,11 @@ mod tests {
             Test {
                 name: "always on the edge",
                 intersection: [0., 1.].into(),
-                subject: Environs {
+                subject: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },
-                other: Environs {
+                other: Neighbors {
                     tail: &[1., 1.].into(),
                     head: &[0., 0.].into(),
                 },

@@ -3,9 +3,7 @@ use std::cmp::Ordering;
 use num_traits::{Float, FloatConst, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point, Segment},
-    clipper::Context,
-    Edge, Geometry, Tolerance,
+    cartesian::{determinant::Determinant, Point, Segment}, clipper::Context, Edge, Geometry, Side, Tolerance
 };
 
 /// A polygon in the plain.
@@ -89,16 +87,11 @@ where
                     }
                 }
 
-                let determinant = Determinant::from([segment.from, segment.to, point]).into_inner();
-                if determinant > T::zero() && segment.from.y <= point.y && segment.to.y >= point.y {
-                    return (global + 1, local);
+                match segment.side(point) {
+                    Some(Side::Left) if segment.from.y <= point.y && segment.to.y >= point.y => (global + 1, local),
+                    Some(Side::Right) if segment.from.y >= point.y && segment.to.y <= point.y => (global - 1, local),
+                    _ => (global, local)
                 }
-
-                if determinant < T::zero() && segment.from.y >= point.y && segment.to.y <= point.y {
-                    return (global - 1, local);
-                }
-
-                (global, local)
             });
 
         if global_winding != 0 {

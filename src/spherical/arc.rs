@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{either::Either, spherical::Point, Edge, Environs, IntersectionKind, IsClose, Tolerance, Vertex as _};
+use crate::{spherical::Point, Edge, Neighbors, MaybePair, IntersectionKind, IsClose, Tolerance, Vertex as _};
 
 /// The undirected arc between two endpoints.
 #[derive(Debug)]
@@ -48,7 +48,7 @@ where
         &self,
         other: &Self,
         tolerance: &Tolerance<T>,
-    ) -> Option<Either<Self::Vertex, [Self::Vertex; 2]>> {
+    ) -> Option<MaybePair<Self::Vertex>> {
         if self.is_antipodal() {
             let point = self.midpoint();
             let first_half = Arc::new(self.from, &point);
@@ -58,7 +58,7 @@ where
                 return other.intersection(&second_half, tolerance);
             };
 
-            if first_intersection.is_right() {
+            if matches!(first_intersection, MaybePair::Pair(_)) {
                 return Some(first_intersection);
             }
 
@@ -67,7 +67,7 @@ where
             };
 
             return match (first_intersection, second_intersection) {
-                (Either::Left(start), Either::Left(end)) => Some(Either::Right([start, end])),
+                (MaybePair::Single(start), MaybePair::Single(end)) => Some(MaybePair::Pair([start, end])),
                 (_, intersection_range) => Some(intersection_range),
             };
         }
@@ -80,31 +80,31 @@ where
 
         // TODO: remove this if statements
         if self.contains(other.from, tolerance) {
-            return Some(Either::Left(*other.from));
+            return Some(MaybePair::Single(*other.from));
         }
 
         if self.contains(other.to, tolerance) {
-            return Some(Either::Left(*other.to));
+            return Some(MaybePair::Single(*other.to));
         }
 
         if other.contains(self.from, tolerance) {
-            return Some(Either::Left(*self.from));
+            return Some(MaybePair::Single(*self.from));
         }
 
         if other.contains(self.to, tolerance) {
-            return Some(Either::Left(*self.to));
+            return Some(MaybePair::Single(*self.to));
         }
 
         let lambda = T::one() / direction.magnitude();
 
         let intersection = (direction * lambda).into();
         if self.contains(&intersection, tolerance) && other.contains(&intersection, tolerance) {
-            return Some(Either::Left(intersection));
+            return Some(MaybePair::Single(intersection));
         }
 
         let intersection = (direction * -lambda).into();
         if self.contains(&intersection, tolerance) && other.contains(&intersection, tolerance) {
-            return Some(Either::Left(intersection));
+            return Some(MaybePair::Single(intersection));
         }
 
         None
@@ -112,10 +112,14 @@ where
 
     fn intersection_kind(
         _intersection: &'a Self::Vertex,
-        _subject: Environs<'a, Self::Vertex>,
-        _sibling: Environs<'a, Self::Vertex>,
+        _neighbors: Neighbors<'a, Self::Vertex>,
+        _sibling_neighbors: Neighbors<'a, Self::Vertex>,
         _tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> IntersectionKind {
+        todo!()
+    }
+
+    fn side(&self, _point: &Self::Vertex) -> Option<crate::Side> {
         todo!()
     }
 }
@@ -137,14 +141,14 @@ where
         &self,
         other: &Self,
         tolerance: &Tolerance<T>,
-    ) -> Option<Either<Point<T>, [Point<T>; 2]>> {
+    ) -> Option<MaybePair<Point<T>>> {
         let self_containement = (
             self.contains(other.from, tolerance),
             self.contains(other.to, tolerance),
         );
 
         if let (true, true) = self_containement {
-            return Some(Either::Right([*other.from, *other.to]));
+            return Some(MaybePair::Pair([*other.from, *other.to]));
         }
 
         let other_containement = (
@@ -153,26 +157,26 @@ where
         );
 
         match (self_containement, other_containement) {
-            (_, (true, true)) => Some(Either::Right([*self.from, *self.to])),
+            (_, (true, true)) => Some(MaybePair::Pair([*self.from, *self.to])),
             ((true, _), (_, true)) => Some(if other.from != self.to {
-                Either::Right([*other.from, *self.to])
+                MaybePair::Pair([*other.from, *self.to])
             } else {
-                Either::Left(*self.to)
+                MaybePair::Single(*self.to)
             }),
             ((true, _), (true, _)) => Some(if other.from != self.from {
-                Either::Right([*other.from, *self.from])
+                MaybePair::Pair([*other.from, *self.from])
             } else {
-                Either::Left(*self.from)
+                MaybePair::Single(*self.from)
             }),
             ((_, true), (true, _)) => Some(if other.to != self.from {
-                Either::Right([*other.to, *self.from])
+                MaybePair::Pair([*other.to, *self.from])
             } else {
-                Either::Left(*self.from)
+                MaybePair::Single(*self.from)
             }),
             ((_, true), (_, true)) => Some(if other.to != self.to {
-                Either::Right([*other.to, *self.to])
+                MaybePair::Pair([*other.to, *self.to])
             } else {
-                Either::Left(*self.to)
+                MaybePair::Single(*self.to)
             }),
             _ => None,
         }
@@ -201,9 +205,7 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
-        either::Either,
-        spherical::{Arc, Point},
-        Edge, Tolerance,
+        spherical::{Arc, Point}, Edge, MaybePair, Tolerance
     };
 
     #[test]
@@ -212,7 +214,7 @@ mod tests {
             name: &'a str,
             arc: Arc<'a, f64>,
             other: Arc<'a, f64>,
-            want: Option<Either<Point<f64>, [Point<f64>; 2]>>,
+            want: Option<MaybePair<Point<f64>>>,
         }
 
         vec![
@@ -250,7 +252,7 @@ mod tests {
                     from: &[FRAC_PI_2, 3. * FRAC_PI_2 + FRAC_PI_4].into(),
                     to: &[FRAC_PI_2, FRAC_PI_4].into(),
                 },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+                want: Some(MaybePair::Single([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "perpendicular arcs starting at the same point",
@@ -262,7 +264,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+                want: Some(MaybePair::Single([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "perpendicular arcs starting at the same point",
@@ -274,7 +276,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Either::Left([0., 0.].into())),
+                want: Some(MaybePair::Single([0., 0.].into())),
             },
             Test {
                 name: "perpendicular arcs ending at the same point",
@@ -286,7 +288,7 @@ mod tests {
                     from: &[FRAC_PI_2, FRAC_PI_2].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Either::Left([FRAC_PI_2, 0.].into())),
+                want: Some(MaybePair::Single([FRAC_PI_2, 0.].into())),
             },
             Test {
                 name: "co-great-circular arcs starting at the same point",
@@ -298,7 +300,7 @@ mod tests {
                     from: &[0., 0.].into(),
                     to: &[FRAC_PI_2, PI].into(),
                 },
-                want: Some(Either::Left([0., 0.].into())),
+                want: Some(MaybePair::Single([0., 0.].into())),
             },
             Test {
                 name: "co-great-circular arcs ending at the same point",
@@ -310,7 +312,7 @@ mod tests {
                     from: &[FRAC_PI_2, PI].into(),
                     to: &[PI, 0.].into(),
                 },
-                want: Some(Either::Left([PI, 0.].into())),
+                want: Some(MaybePair::Single([PI, 0.].into())),
             },
             Test {
                 name: "co-great-circular arcs with no common point",
@@ -334,7 +336,7 @@ mod tests {
                     from: &[FRAC_PI_4, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_4, 0.].into(),
                     [FRAC_PI_2, 0.].into(),
                 ])),
@@ -349,7 +351,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_2, 0.].into(),
                     [FRAC_PI_2, FRAC_PI_4].into(),
                 ])),
@@ -364,7 +366,7 @@ mod tests {
                     from: &[FRAC_PI_8, 0.].into(),
                     to: &[FRAC_PI_2 - FRAC_PI_8, 0.].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_8, 0.].into(),
                     [FRAC_PI_2 - FRAC_PI_8, 0.].into(),
                 ])),
@@ -379,7 +381,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[FRAC_PI_2, FRAC_PI_2].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_2, FRAC_PI_8].into(),
                     [FRAC_PI_2, FRAC_PI_2 - FRAC_PI_8].into(),
                 ])),
@@ -394,7 +396,7 @@ mod tests {
                     from: &[FRAC_PI_2, 0.].into(),
                     to: &[PI, 0.].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_2, 0.].into(),
                     [FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 ])),
@@ -409,7 +411,7 @@ mod tests {
                     from: &[PI, 0.].into(),
                     to: &[FRAC_PI_2, 0.].into(),
                 },
-                want: Some(Either::Right([
+                want: Some(MaybePair::Pair([
                     [FRAC_PI_2, 0.].into(),
                     [FRAC_PI_2 + FRAC_PI_4, 0.].into(),
                 ])),
