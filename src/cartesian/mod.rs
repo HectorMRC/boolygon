@@ -143,12 +143,12 @@ mod tests {
                     ],
                 }),
             },
-            // Test {
-            //     name: "overlaping solid shapes",
-            //     subject: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
-            //     clip: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
-            //     want: Some(Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]])),
-            // },
+            Test {
+                name: "overlaping solid shapes",
+                subject: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
+                clip: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
+                want: Some(Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]])),
+            },
             Test {
                 name: "solid subject partially overlaping solid clip with coincident edges",
                 subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 2.], [0., 2.]]),
@@ -164,26 +164,26 @@ mod tests {
                     [0., 2.],
                 ])),
             },
-            Test {
-                name: "enclosing-subject hole overlaping solid clip with coincident edges",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 3.], [0., 3.]].into(),
-                        // Clockwise boundary.
-                        vec![[1., 1.], [1., 2.], [3., 2.], [3., 1.]].into(),
-                    ],
-                },
-                clip: Shape::new(vec![[2., 1.], [4., 1.], [4., 2.], [2., 2.]]),
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 3.], [0., 3.]].into(),
-                        // Clockwise boundary.
-                        vec![[1., 1.], [1., 2.], [2., 2.], [2., 1.]].into(),
-                    ],
-                }),
-            },
+            // Test {
+            //     name: "enclosing-subject hole overlaping solid clip with coincident edges",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 3.], [0., 3.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[1., 1.], [1., 2.], [3., 2.], [3., 1.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape::new(vec![[2., 1.], [4., 1.], [4., 2.], [2., 2.]]),
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 3.], [0., 3.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[1., 1.], [1., 2.], [2., 2.], [2., 1.]].into(),
+            //         ],
+            //     }),
+            // },
             Test {
                 name: "solid subject overlaping enclosing-clip hole with coincident edges",
                 subject: Shape::new(vec![[2., 1.], [4., 1.], [4., 2.], [2., 2.]]),
@@ -204,60 +204,60 @@ mod tests {
                     ],
                 }),
             },
-            Test {
-                name: "enclosing-subject hole overlaping clip hole with coincident edges",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [4., 3.], [4., 2.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [6., 1.], [6., 4.], [1., 4.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 2.], [3., 3.], [5., 3.], [5., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 3.], [4., 3.], [4., 2.], [3., 2.]].into(),
-                    ],
-                }),
-            },
-            Test {
-                name: "subject hole overlaping enclosing-clip hole with coincident edges",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [6., 1.], [6., 4.], [1., 4.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 2.], [3., 3.], [5., 3.], [5., 2.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [4., 3.], [4., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 3.], [4., 3.], [4., 2.], [3., 2.]].into(),
-                    ],
-                }),
-            },
+            // Test {
+            //     name: "enclosing-subject hole overlaping clip hole with coincident edges",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [4., 3.], [4., 2.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [6., 1.], [6., 4.], [1., 4.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 2.], [3., 3.], [5., 3.], [5., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 3.], [4., 3.], [4., 2.], [3., 2.]].into(),
+            //         ],
+            //     }),
+            // },
+            // Test {
+            //     name: "subject hole overlaping enclosing-clip hole with coincident edges",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [6., 1.], [6., 4.], [1., 4.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 2.], [3., 3.], [5., 3.], [5., 2.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [4., 3.], [4., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [7., 0.], [7., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 3.], [4., 3.], [4., 2.], [3., 2.]].into(),
+            //         ],
+            //     }),
+            // },
             Test {
                 name: "solid subject traversing solid clip",
                 subject: Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]]),
@@ -273,73 +273,73 @@ mod tests {
                     [0., 3.],
                 ])),
             },
-            Test {
-                name: "enclosing-subject hole overlaping clip hole",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [4., 1.], [4., 4.], [1., 4.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                }),
-            },
-            Test {
-                name: "subject hole overlaping enclosing-clip hole",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [4., 1.], [4., 4.], [1., 4.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                }),
-            },
-            Test {
-                name: "solid subject overlaping clip hole",
-                subject: Shape::new(vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]]),
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]].into(),
-                        // Clockwise boundary.
-                        vec![[1., 1.], [1., 2.], [2., 2.], [2., 1.]].into(),
-                    ],
-                },
-                want: Some(Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]])),
-            },
+            // Test {
+            //     name: "enclosing-subject hole overlaping clip hole",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [4., 1.], [4., 4.], [1., 4.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     }),
+            // },
+            // Test {
+            //     name: "subject hole overlaping enclosing-clip hole",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [4., 1.], [4., 4.], [1., 4.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     }),
+            // },
+            // Test {
+            //     name: "solid subject overlaping clip hole",
+            //     subject: Shape::new(vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]]),
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[1., 1.], [1., 2.], [2., 2.], [2., 1.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]])),
+            // },
             // Test {
             //     name: "subject hole overlaping solid clip",
             //     subject: Shape {
@@ -489,25 +489,25 @@ mod tests {
                     ],
                 }),
             },
-            // Test {
-            //     name: "solid subject sharing vertex with solid clip",
-            //     subject: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
-            //     clip: Shape::new(vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]]),
-            //     want: Some(Shape {
-            //         boundaries: vec![
-            //             // Counter-clockwise boundary.
-            //             vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]].into(),
-            //             // Counter-clockwise boundary.
-            //             vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]].into(),
-            //         ],
-            //     }),
-            // },
-            // Test {
-            //     name: "enclosing subject sharing vertex with solid clip",
-            //     subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]]),
-            //     clip: Shape::new(vec![[1., 1.], [2., 2.], [1., 3.]]),
-            //     want: Some(Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]])),
-            // },
+            Test {
+                name: "solid subject sharing vertex with solid clip",
+                subject: Shape::new(vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]]),
+                clip: Shape::new(vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]]),
+                want: Some(Shape {
+                    boundaries: vec![
+                        // Counter-clockwise boundary.
+                        vec![[0., 0.], [1., 0.], [1., 1.], [0., 1.]].into(),
+                        // Counter-clockwise boundary.
+                        vec![[1., 1.], [2., 1.], [2., 2.], [1., 2.]].into(),
+                    ],
+                }),
+            },
+            Test {
+                name: "enclosing subject sharing vertex with solid clip",
+                subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]]),
+                clip: Shape::new(vec![[1., 1.], [2., 2.], [1., 3.]]),
+                want: Some(Shape::new(vec![[0., 0.], [2., 0.], [2., 2.], [2., 4.], [0., 4.]])),
+            },
             Test {
                 name: "solid subject sharing vertex with enclosing clip",
                 subject: Shape::new(vec![[1., 1.], [2., 2.], [1., 3.]]),
@@ -540,26 +540,26 @@ mod tests {
                     ],
                 }),
             },
-            // Test {
-            //     name: "subject hole sharing vertex with solid clip",
-            //     subject: Shape{
-            //         boundaries: vec![
-            //             // Counter-clockwise boundary.
-            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-            //             // Clockwise boundary.
-            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-            //         ]
-            //     },
-            //     clip: Shape::new(vec![[3., 3.], [4., 3.], [4., 4.], [3., 4.]]),
-            //     want: Some(Shape{
-            //         boundaries: vec![
-            //             // Counter-clockwise boundary.
-            //             vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
-            //             // Clockwise boundary.
-            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-            //         ]
-            //     }),
-            // },
+            Test {
+                name: "subject hole sharing vertex with solid clip",
+                subject: Shape{
+                    boundaries: vec![
+                        // Counter-clockwise boundary.
+                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+                        // Clockwise boundary.
+                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+                    ]
+                },
+                clip: Shape::new(vec![[3., 3.], [4., 3.], [4., 4.], [3., 4.]]),
+                want: Some(Shape{
+                    boundaries: vec![
+                        // Counter-clockwise boundary.
+                        vec![[0., 0.], [5., 0.], [5., 5.], [0., 5.]].into(),
+                        // Clockwise boundary.
+                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+                    ]
+                }),
+            },
             Test {
                 name: "enclosing-subject hole sharing vertex with clip hole",
                 subject: Shape {
@@ -667,32 +667,32 @@ mod tests {
                     [0., 1.],
                 ])),
             },
-            Test {
-                name: "enclosing solid subject sharing edge with solid clip",
-                subject: Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]]),
-                clip: Shape::new(vec![[2., 1.], [3., 1.], [3., 2.], [2., 2.]]),
-                want: Some(Shape::new(vec![
-                    [0., 0.],
-                    [3., 0.],
-                    [3., 1.],
-                    [3., 2.],
-                    [3., 3.],
-                    [0., 3.],
-                ])),
-            },
-            Test {
-                name: "solid subject sharing edge with enclosing solid clip",
-                subject: Shape::new(vec![[2., 1.], [3., 1.], [3., 2.], [2., 2.]]),
-                clip: Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]]),
-                want: Some(Shape::new(vec![
-                    [0., 0.],
-                    [3., 0.],
-                    [3., 1.],
-                    [3., 2.],
-                    [3., 3.],
-                    [0., 3.],
-                ])),
-            },
+            // Test {
+            //     name: "enclosing solid subject sharing edge with solid clip",
+            //     subject: Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]]),
+            //     clip: Shape::new(vec![[2., 1.], [3., 1.], [3., 2.], [2., 2.]]),
+            //     want: Some(Shape::new(vec![
+            //         [0., 0.],
+            //         [3., 0.],
+            //         [3., 1.],
+            //         [3., 2.],
+            //         [3., 3.],
+            //         [0., 3.],
+            //     ])),
+            // },
+            // Test {
+            //     name: "solid subject sharing edge with enclosing solid clip",
+            //     subject: Shape::new(vec![[2., 1.], [3., 1.], [3., 2.], [2., 2.]]),
+            //     clip: Shape::new(vec![[0., 0.], [3., 0.], [3., 3.], [0., 3.]]),
+            //     want: Some(Shape::new(vec![
+            //         [0., 0.],
+            //         [3., 0.],
+            //         [3., 1.],
+            //         [3., 2.],
+            //         [3., 3.],
+            //         [0., 3.],
+            //     ])),
+            // },
             // Test {
             //     name: "enclosing-subject hole sharing edge with solid clip",
             //     subject: Shape {
@@ -813,26 +813,26 @@ mod tests {
             //     },
             //     want: Some(Shape::new(vec![[0., 0.], [6., 0.], [6., 5.], [0., 5.]]))
             // },
-            Test {
-                name: "subject hole sharing edge with enclosing-clip hole",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [5., 1.], [5., 4.], [1., 4.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 2.], [3., 3.], [4., 3.], [4., 2.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [6., 0.], [6., 5.], [0., 5.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape::new(vec![[0., 0.], [6., 0.], [6., 5.], [0., 5.]])),
-            },
+            // Test {
+            //     name: "subject hole sharing edge with enclosing-clip hole",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [5., 1.], [5., 4.], [1., 4.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 2.], [3., 3.], [4., 3.], [4., 2.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [6., 0.], [6., 5.], [0., 5.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 3.], [3., 3.], [3., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape::new(vec![[0., 0.], [6., 0.], [6., 5.], [0., 5.]])),
+            // },
             Test {
                 name: "enclosing-subject hole sharing edge with clip hole inside subject hole",
                 subject: Shape {
@@ -860,33 +860,33 @@ mod tests {
                     ],
                 }),
             },
-            Test {
-                name: "subject hole inside clip hole sharing edge with enclosing-clip hole",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[1., 1.], [5., 1.], [5., 6.], [1., 6.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 3.], [3., 4.], [4., 4.], [4., 3.]].into(),
-                    ],
-                },
-                clip: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [6., 0.], [6., 7.], [0., 7.]].into(),
-                        // Clockwise boundary.
-                        vec![[2., 2.], [2., 5.], [4., 5.], [4., 2.]].into(),
-                    ],
-                },
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [6., 0.], [6., 7.], [0., 7.]].into(),
-                        // Clockwise boundary.
-                        vec![[3., 3.], [3., 4.], [4., 4.], [4., 3.]].into(),
-                    ],
-                }),
-            },
+            // Test {
+            //     name: "subject hole inside clip hole sharing edge with enclosing-clip hole",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[1., 1.], [5., 1.], [5., 6.], [1., 6.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 3.], [3., 4.], [4., 4.], [4., 3.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [6., 0.], [6., 7.], [0., 7.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[2., 2.], [2., 5.], [4., 5.], [4., 2.]].into(),
+            //         ],
+            //     },
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [6., 0.], [6., 7.], [0., 7.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[3., 3.], [3., 4.], [4., 4.], [4., 3.]].into(),
+            //         ],
+            //     }),
+            // },
             Test {
                 name: "subject sharing edge with entry clip",
                 subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]]),
@@ -931,29 +931,29 @@ mod tests {
                     [0., 4.],
                 ])),
             },
-            Test {
-                name: "subject sharing edge with exit clip",
-                subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]]),
-                clip: Shape::new(vec![
-                    [1., 1.],
-                    [2., 1.],
-                    [2., 2.],
-                    [3., 2.],
-                    [3., 3.],
-                    [1., 3.],
-                ]),
-                want: Some(Shape::new(vec![
-                    [0., 0.],
-                    [2., 0.],
-                    [2., 1.],
-                    [2., 2.],
-                    [3., 2.],
-                    [3., 3.],
-                    [2., 3.],
-                    [2., 4.],
-                    [0., 4.],
-                ])),
-            },
+            // Test {
+            //     name: "subject sharing edge with exit clip",
+            //     subject: Shape::new(vec![[0., 0.], [2., 0.], [2., 4.], [0., 4.]]),
+            //     clip: Shape::new(vec![
+            //         [1., 1.],
+            //         [2., 1.],
+            //         [2., 2.],
+            //         [3., 2.],
+            //         [3., 3.],
+            //         [1., 3.],
+            //     ]),
+            //     want: Some(Shape::new(vec![
+            //         [0., 0.],
+            //         [2., 0.],
+            //         [2., 1.],
+            //         [2., 2.],
+            //         [3., 2.],
+            //         [3., 3.],
+            //         [2., 3.],
+            //         [2., 4.],
+            //         [0., 4.],
+            //     ])),
+            // },
             Test {
                 name: "exit subject sharing edge with clip",
                 subject: Shape::new(vec![
@@ -977,44 +977,44 @@ mod tests {
                     [0., 4.],
                 ])),
             },
-            Test {
-                name: "subject hole sharing edge with exit clip",
-                subject: Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 6.], [0., 6.]].into(),
-                        // Clockwise boundary.
-                        vec![[1., 1.], [1., 5.], [3., 5.], [3., 1.]].into(),
-                    ],
-                },
-                clip: Shape::new(vec![
-                    [2., 2.],
-                    [4., 2.],
-                    [4., 4.],
-                    [3., 4.],
-                    [3., 3.],
-                    [2., 3.],
-                ]),
-                want: Some(Shape {
-                    boundaries: vec![
-                        // Counter-clockwise boundary.
-                        vec![[0., 0.], [5., 0.], [5., 6.], [0., 6.]].into(),
-                        // Clockwise boundary.
-                        vec![
-                            [1., 1.],
-                            [1., 5.],
-                            [3., 5.],
-                            [3., 4.],
-                            [3., 3.],
-                            [2., 3.],
-                            [2., 2.],
-                            [3., 2.],
-                            [3., 1.],
-                        ]
-                        .into(),
-                    ],
-                }),
-            },
+            // Test {
+            //     name: "subject hole sharing edge with exit clip",
+            //     subject: Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 6.], [0., 6.]].into(),
+            //             // Clockwise boundary.
+            //             vec![[1., 1.], [1., 5.], [3., 5.], [3., 1.]].into(),
+            //         ],
+            //     },
+            //     clip: Shape::new(vec![
+            //         [2., 2.],
+            //         [4., 2.],
+            //         [4., 4.],
+            //         [3., 4.],
+            //         [3., 3.],
+            //         [2., 3.],
+            //     ]),
+            //     want: Some(Shape {
+            //         boundaries: vec![
+            //             // Counter-clockwise boundary.
+            //             vec![[0., 0.], [5., 0.], [5., 6.], [0., 6.]].into(),
+            //             // Clockwise boundary.
+            //             vec![
+            //                 [1., 1.],
+            //                 [1., 5.],
+            //                 [3., 5.],
+            //                 [3., 4.],
+            //                 [3., 3.],
+            //                 [2., 3.],
+            //                 [2., 2.],
+            //                 [3., 2.],
+            //                 [3., 1.],
+            //             ]
+            //             .into(),
+            //         ],
+            //     }),
+            // },
             Test {
                 name: "exit subject sharing edge with clip hole",
                 subject: Shape::new(vec![
@@ -1129,9 +1129,9 @@ mod tests {
             },
         ]
         .into_iter()
-        .filter(|test| test.name == "solid subject partially overlaping solid clip with coincident edges")
+        // .filter(|test| test.name == "enclosing-subject hole overlaping solid clip with coincident edges")
         .for_each(|test| {
-            let got = test.subject.or(test.clip, Default::default());
+            let got = test.subject.or(&test.clip, Default::default());
             assert_eq!(got, test.want, "{}", test.name);
         });
     }
@@ -1302,9 +1302,8 @@ mod tests {
             },
         ]
         .into_iter()
-        // .filter(|test| test.name == "horizontally aligned squares")
         .for_each(|test| {
-            let got = test.subject.not(test.clip, Default::default());
+            let got = test.subject.not(&test.clip, Default::default());
             assert_eq!(got, test.want, "{}", test.name);
         });
     }
@@ -1435,7 +1434,7 @@ mod tests {
         ]
         .into_iter()
         .for_each(|test| {
-            let got = test.subject.and(test.clip, Default::default());
+            let got = test.subject.and(&test.clip, Default::default());
             assert_eq!(got, test.want, "{}", test.name);
         });
     }

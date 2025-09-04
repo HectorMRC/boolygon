@@ -388,7 +388,7 @@ mod tests {
                 absolute: 0.0.into(),
             };
 
-            let got = test.subject.or(test.clip, tolerance);
+            let got = test.subject.or(&test.clip, tolerance);
             assert_eq!(got, test.want, "{}", test.name);
         });
     }
@@ -644,7 +644,7 @@ mod tests {
                 absolute: 0.0.into(),
             };
 
-            let got = test.subject.not(test.clip, tolerance);
+            let got = test.subject.not(&test.clip, tolerance);
             assert_eq!(got, test.want, "{}", test.name);
         });
     }
@@ -886,7 +886,7 @@ mod tests {
                 absolute: 0.0.into(),
             };
 
-            let got = test.subject.and(test.clip, tolerance);
+            let got = test.subject.and(&test.clip, tolerance);
             assert_eq!(got, test.want, "{}", test.name);
         });
     }

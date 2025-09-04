@@ -1,9 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    clipper::{Clipper, Direction, Operator},
-    graph::{BoundaryRole, IntersectionKind, Node},
-    Context, Edge, Geometry, IsClose, Vertex,
+    Corner, Role, 
+    clipper::{Clipper, Direction, Operator}, Context, Edge, Event, Geometry, IsClose, Vertex
 };
 
 /// A combination of disjoint boundaries.
@@ -39,40 +38,41 @@ where
 
 impl<T> Shape<T>
 where
-    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
-    T::Vertex: Copy + PartialEq + PartialOrd,
+    T: Geometry,
+    for<'a> &'a T: IntoIterator<Item = &'a T::Vertex>,
     for<'a> T::Edge<'a>: Edge<'a>,
+    T::Vertex: Copy + PartialEq + PartialOrd,
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of this shape and the other.
-    pub fn or(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
+    pub fn or(&self, other: &Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct OrOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for OrOperator<T>
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => !ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                if corner.intersection.is_some() {
+                    return true;
+                }
+                
+                match corner.role {
+                    Role::Subject => !ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => !ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Option<Direction> {
+                let intersection = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
-                else {
-                    return Direction::Forward;
-                };
+                    .and_then(|intersection| intersection.event)?;
 
-                match intersection {
-                    IntersectionKind::Entry => Direction::Backward,
-                    IntersectionKind::Exit => Direction::Forward,
-                    _ => Direction::Forward,
-                }
+                Some(match intersection {
+                    Event::Entry => Direction::Backward,
+                    Event::Exit => Direction::Forward,
+                })
             }
         }
 
@@ -85,40 +85,32 @@ where
     }
 
     /// Returns the difference of the other shape on this one.
-    pub fn not(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
+    pub fn not(&self, other: &Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct NotOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for NotOperator<T>
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                match corner.role {
+                    Role::Subject => !ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Option<Direction> {
+                let intersection = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
-                else {
-                    return if node.boundary.is_subject() {
-                        Direction::Forward
-                    } else {
-                        Direction::Backward
-                    };
-                };
+                    .and_then(|intersection| intersection.event)?;
 
-                match (node.boundary, intersection) {
-                    (BoundaryRole::Subject(_), IntersectionKind::Entry) => Direction::Backward,
-                    (BoundaryRole::Subject(_), IntersectionKind::Exit) => Direction::Forward,
-                    (BoundaryRole::Clip(_), IntersectionKind::Entry) => Direction::Forward,
-                    (BoundaryRole::Clip(_), IntersectionKind::Exit) => Direction::Backward,
-                    _ => Direction::Forward,
-                }
+                Some(match (corner.role, intersection) {
+                    (Role::Subject, Event::Entry) => Direction::Backward,
+                    (Role::Subject, Event::Exit) => Direction::Forward,
+                    (Role::Clip, Event::Entry) => Direction::Forward,
+                    (Role::Clip, Event::Exit) => Direction::Backward,
+                })
             }
         }
 
@@ -131,34 +123,30 @@ where
     }
 
     /// Returns the intersection of this shape and the other.
-    pub fn and(self, other: Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
+    pub fn and(&self, other: &Self, tolerance: <T::Vertex as IsClose>::Tolerance) -> Option<Self> {
         struct AndOperator<T>(PhantomData<T>);
 
         impl<T> Operator<T> for AndOperator<T>
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                match corner.role {
+                    Role::Subject => ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Option<Direction> {
+                let intersection = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
-                else {
-                    return Direction::Forward;
-                };
+                    .and_then(|intersection| intersection.event)?;
 
-                match intersection {
-                    IntersectionKind::Entry => Direction::Forward,
-                    IntersectionKind::Exit => Direction::Backward,
-                    _ => Direction::Forward,
-                }
+                Some(match intersection {
+                    Event::Entry => Direction::Forward,
+                    Event::Exit => Direction::Backward,
+                })
             }
         }
 
