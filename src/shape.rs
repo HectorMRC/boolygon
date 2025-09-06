@@ -1,9 +1,8 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    clipper::{Clipper, Direction, Operator},
-    graph::{BoundaryRole, IntersectionKind, Node},
-    Context, Edge, Geometry, IsClose, Vertex,
+    Corner, Role, 
+    clipper::{Clipper, Direction, Operator}, Context, Edge, Event, Geometry, IsClose, Vertex
 };
 
 /// A combination of disjoint boundaries.
@@ -39,9 +38,10 @@ where
 
 impl<T> Shape<T>
 where
-    T: Geometry + Clone + IntoIterator<Item = T::Vertex>,
-    T::Vertex: Copy + PartialEq + PartialOrd,
+    T: Geometry,
+    for<'a> &'a T: IntoIterator<Item = &'a T::Vertex>,
     for<'a> T::Edge<'a>: Edge<'a>,
+    T::Vertex: Copy + PartialEq + PartialOrd,
     <T::Vertex as Vertex>::Scalar: Copy + PartialOrd,
 {
     /// Returns the union of this shape and the other.
@@ -52,26 +52,25 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => !ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                match corner.role {
+                    Role::Subject => !ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => !ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Direction {
+                let Some(intersection) = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
+                    .and_then(|intersection| intersection.event)
                 else {
                     return Direction::Forward;
                 };
 
                 match intersection {
-                    IntersectionKind::Entry => Direction::Backward,
-                    IntersectionKind::Exit => Direction::Forward,
-                    _ => Direction::Forward,
+                    Event::Entry => Direction::Backward,
+                    Event::Exit => Direction::Forward,
                 }
             }
         }
@@ -92,32 +91,31 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => !ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                match corner.role {
+                    Role::Subject => !ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Direction {
+                let Some(intersection) = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
+                    .and_then(|intersection| intersection.event)
                 else {
-                    return if node.boundary.is_subject() {
+                    return if corner.role.is_subject() {
                         Direction::Forward
                     } else {
                         Direction::Backward
                     };
                 };
 
-                match (node.boundary, intersection) {
-                    (BoundaryRole::Subject(_), IntersectionKind::Entry) => Direction::Backward,
-                    (BoundaryRole::Subject(_), IntersectionKind::Exit) => Direction::Forward,
-                    (BoundaryRole::Clip(_), IntersectionKind::Entry) => Direction::Forward,
-                    (BoundaryRole::Clip(_), IntersectionKind::Exit) => Direction::Backward,
-                    _ => Direction::Forward,
+                match (corner.role, intersection) {
+                    (Role::Subject, Event::Entry) => Direction::Backward,
+                    (Role::Subject, Event::Exit) => Direction::Forward,
+                    (Role::Clip, Event::Entry) => Direction::Forward,
+                    (Role::Clip, Event::Exit) => Direction::Backward,
                 }
             }
         }
@@ -138,26 +136,25 @@ where
         where
             T: Geometry,
         {
-            fn is_output<'a>(ctx: Context<'a, T>, node: &'a Node<T>) -> bool {
-                match node.boundary {
-                    BoundaryRole::Subject(_) => ctx.clip.contains(&node.vertex, ctx.tolerance),
-                    BoundaryRole::Clip(_) => ctx.subject.contains(&node.vertex, ctx.tolerance),
+            fn is_output<'a>(ctx: Context<'a, T>, corner: Corner<'_, T::Vertex>) -> bool {
+                match corner.role {
+                    Role::Subject => ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
+                    Role::Clip => ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),
                 }
             }
 
-            fn direction(_: Context<'_, T>, node: &Node<T>) -> Direction {
-                let Some(intersection) = node
+            fn direction(_: Context<'_, T>, corner: Corner<'_, T::Vertex>) -> Direction {
+                let Some(intersection) = corner
                     .intersection
                     .as_ref()
-                    .map(|intersection| intersection.kind)
+                    .and_then(|intersection| intersection.event)
                 else {
                     return Direction::Forward;
                 };
 
                 match intersection {
-                    IntersectionKind::Entry => Direction::Forward,
-                    IntersectionKind::Exit => Direction::Backward,
-                    _ => Direction::Forward,
+                    Event::Entry => Direction::Forward,
+                    Event::Exit => Direction::Backward,
                 }
             }
         }

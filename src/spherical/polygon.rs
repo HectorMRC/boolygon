@@ -51,7 +51,7 @@ where
         Self: 'a;
 
     fn from_raw(
-        operands: Context<Self>,
+        ctx: Context<Self>,
         vertices: Vec<Self::Vertex>,
         tolerance: &Tolerance<T>,
     ) -> Option<Self> {
@@ -66,8 +66,8 @@ where
                 .transform(midpoint)
                 .into();
 
-            let subject_contains = operands.subject.contains(&candidate, tolerance);
-            let clip_contains = operands.clip.contains(&candidate, tolerance);
+            let subject_contains = ctx.operands.subject.contains(&candidate, tolerance);
+            let clip_contains = ctx.operands.clip.contains(&candidate, tolerance);
 
             if !subject_contains && !clip_contains {
                 return Some(candidate);
@@ -80,10 +80,11 @@ where
         let mut theta = T::PI() * tolerance.relative.into_inner();
 
         while exterior.is_none() && theta < T::FRAC_PI_8() {
-            exterior = operands
+            exterior = ctx
+                .operands
                 .subject
                 .edges()
-                .chain(operands.clip.edges())
+                .chain(ctx.operands.clip.edges())
                 .find_map(|arc| {
                     closest_exterior_point(&arc, theta)
                         .or_else(|| closest_exterior_point(&arc, -theta))
@@ -144,12 +145,12 @@ where
     }
 }
 
-impl<T> IntoIterator for Polygon<T> {
-    type Item = Point<T>;
-    type IntoIter = std::vec::IntoIter<Point<T>>;
+impl<'a, T> IntoIterator for &'a Polygon<T> {
+    type Item = &'a Point<T>;
+    type IntoIter = std::slice::Iter<'a, Point<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.vertices.into_iter()
+        self.vertices.iter()
     }
 }
 

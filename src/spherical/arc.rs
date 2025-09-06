@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{spherical::Point, Edge, Neighbors, MaybePair, IntersectionKind, IsClose, Tolerance, Vertex as _};
+use crate::{Corner, spherical::Point, Edge, Event, IsClose, MaybePair, Tolerance, Vertex};
 
 /// The undirected arc between two endpoints.
 #[derive(Debug)]
@@ -110,12 +110,10 @@ where
         None
     }
 
-    fn intersection_kind(
-        _intersection: &'a Self::Vertex,
-        _neighbors: Neighbors<'a, Self::Vertex>,
-        _sibling_neighbors: Neighbors<'a, Self::Vertex>,
-        _tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> IntersectionKind {
+    fn event(
+        _corner: Corner<'a, Point<T>>,
+        _tolerance: &Tolerance<T>,
+    ) -> Option<Event> {
         todo!()
     }
 

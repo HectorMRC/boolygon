@@ -9,11 +9,10 @@ pub mod cartesian;
 #[cfg(feature = "spherical")]
 pub mod spherical;
 
-pub use self::clipper::Context;
-pub use self::graph::IntersectionKind;
 pub use self::pair::MaybePair;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
+pub use self::clipper::Context;
 
 /// A vertex from a [`Geometry`].
 pub trait Vertex: IsClose {
@@ -24,7 +23,20 @@ pub trait Vertex: IsClose {
     fn distance(&self, other: &Self) -> Self::Scalar;
 }
 
-/// The local information of a [`Vertex`].
+pub enum Side {
+    Left,
+    Right
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Event {
+    /// The boundary is entering into the other.
+    Entry,
+    /// The boundary is exiting from the other.
+    Exit,
+}
+
+/// The local information of a vertex.
 pub struct Neighbors<'a, T> {
     /// The vertex before.
     pub tail: &'a T,
@@ -32,13 +44,34 @@ pub struct Neighbors<'a, T> {
     pub head: &'a T,
 }
 
-pub enum Side {
-    Left,
-    Right
+pub struct Intersection<'a, T> {
+    pub event: Option<Event>,
+    pub neighbors: Neighbors<'a, T>,
+}
+
+/// The role of an arbitrary entity during a clipping operation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Role {
+    Subject,
+    Clip,
+}
+
+impl Role {
+    /// Returns true if, and only if, this is [`Role::Subject`].
+    pub(crate) fn is_subject(&self) -> bool {
+        matches!(self, Self::Subject)
+    }
+}
+
+pub struct Corner<'a, T> {
+    pub vertex: &'a T,
+    pub neighbors: Neighbors<'a, T>,  
+    pub role: Role,
+    pub intersection: Option<Intersection<'a, T>>
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
-pub trait Edge<'a> {
+pub trait Edge<'a>: Sized {
     /// The endpoint type of the edge.
     type Vertex: Vertex;
 
@@ -62,13 +95,11 @@ pub trait Edge<'a> {
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<MaybePair<Self::Vertex>>;
 
-    /// Returns the [`IntersectionKind`] of the given intersection vertex and local information.
-    fn intersection_kind(
-        intersection: &'a Self::Vertex,
-        neighbors: Neighbors<'a, Self::Vertex>,
-        sibling_neighbors: Neighbors<'a, Self::Vertex>,
+    /// Returns the [`Event`] of the given intersection vertex and local information.
+    fn event(
+        corner: Corner<'a, Self::Vertex>,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
-    ) -> IntersectionKind;
+    ) -> Option<Event>;
 
     fn side(&self, point: &Self::Vertex) -> Option<Side>;
 }
@@ -76,7 +107,7 @@ pub trait Edge<'a> {
 /// A geometry in an arbitrary space.
 pub trait Geometry: Sized {
     /// The type of the vertices this geometry is made of.
-    type Vertex: Vertex + IsClose;
+    type Vertex: Vertex;
 
     /// The type of the edges this geometry is made of.
     type Edge<'a>: Edge<'a, Vertex = Self::Vertex>
