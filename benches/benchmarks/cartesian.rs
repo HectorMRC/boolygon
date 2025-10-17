@@ -21,7 +21,7 @@ pub fn large_shapes(criterion: &mut Criterion) {
         b.iter_batched(
             || random_operands(),
             |[subject, clip]| {
-                subject.or(clip, Tolerance::default());
+                subject.or(&clip, Tolerance::default());
             },
             BatchSize::LargeInput,
         )
@@ -31,7 +31,7 @@ pub fn large_shapes(criterion: &mut Criterion) {
         b.iter_batched(
             || random_operands(),
             |[subject, clip]| {
-                subject.not(clip, Tolerance::default());
+                subject.not(&clip, Tolerance::default());
             },
             BatchSize::LargeInput,
         )
@@ -41,7 +41,7 @@ pub fn large_shapes(criterion: &mut Criterion) {
         b.iter_batched(
             || random_operands(),
             |[subject, clip]| {
-                subject.and(clip, Tolerance::default());
+                subject.and(&clip, Tolerance::default());
             },
             BatchSize::LargeInput,
         )

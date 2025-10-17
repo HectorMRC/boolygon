@@ -128,12 +128,12 @@ where
     }
 }
 
-impl<T> IntoIterator for Polygon<T> {
-    type Item = Point<T>;
-    type IntoIter = std::vec::IntoIter<Point<T>>;
+impl<'a, T> IntoIterator for &'a Polygon<T> {
+    type Item = &'a Point<T>;
+    type IntoIter = std::slice::Iter<'a, Point<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.vertices.into_iter()
+        self.vertices.iter()
     }
 }
 
