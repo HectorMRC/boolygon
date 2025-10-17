@@ -1,4 +1,6 @@
 mod clipper;
+mod clipper2;
+mod direction;
 mod graph;
 mod pair;
 mod shape;
@@ -9,10 +11,10 @@ pub mod cartesian;
 #[cfg(feature = "spherical")]
 pub mod spherical;
 
+pub use self::clipper::Context;
 pub use self::pair::MaybePair;
 pub use self::shape::Shape;
 pub use self::tolerance::{IsClose, Positive, Tolerance};
-pub use self::clipper::Context;
 
 /// A vertex from a [`Geometry`].
 pub trait Vertex: IsClose {
@@ -21,12 +23,6 @@ pub trait Vertex: IsClose {
 
     /// Returns the distance between this vertex and the other.
     fn distance(&self, other: &Self) -> Self::Scalar;
-}
-
-// TODO: check if this is needed.
-pub enum Side {
-    Left,
-    Right
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,11 +60,12 @@ impl Role {
     }
 }
 
+/// The local information of a [`Vertex`] inside a [`Shape`].
 pub struct Corner<'a, T> {
     pub vertex: &'a T,
-    pub neighbors: Neighbors<'a, T>,  
+    pub neighbors: Neighbors<'a, T>,
     pub role: Role,
-    pub intersection: Option<Intersection<'a, T>>
+    pub intersection: Option<Intersection<'a, T>>,
 }
 
 /// An edge delimited by two vertices in a [`Geometry`].
@@ -101,9 +98,6 @@ pub trait Edge<'a>: Sized {
         corner: Corner<'a, Self::Vertex>,
         tolerance: &<Self::Vertex as IsClose>::Tolerance,
     ) -> Option<Event>;
-
-    // TODO: Check if really needed
-    fn side(&self, point: &Self::Vertex) -> Option<Side>;
 }
 
 /// A geometry in an arbitrary space.

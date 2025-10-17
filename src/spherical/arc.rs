@@ -1,7 +1,7 @@
 use geocart::Cartesian;
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{Corner, spherical::Point, Edge, Event, IsClose, MaybePair, Tolerance, Vertex};
+use crate::{Corner, Edge, Event, IsClose, MaybePair, Tolerance, Vertex, spherical::Point};
 
 /// The undirected arc between two endpoints.
 #[derive(Debug)]
@@ -67,7 +67,9 @@ where
             };
 
             return match (first_intersection, second_intersection) {
-                (MaybePair::Single(start), MaybePair::Single(end)) => Some(MaybePair::Pair([start, end])),
+                (MaybePair::Single(start), MaybePair::Single(end)) => {
+                    Some(MaybePair::Pair([start, end]))
+                }
                 (_, intersection_range) => Some(intersection_range),
             };
         }
@@ -110,14 +112,7 @@ where
         None
     }
 
-    fn event(
-        _corner: Corner<'a, Point<T>>,
-        _tolerance: &Tolerance<T>,
-    ) -> Option<Event> {
-        todo!()
-    }
-
-    fn side(&self, _point: &Self::Vertex) -> Option<crate::Side> {
+    fn event(_corner: Corner<'a, Point<T>>, _tolerance: &Tolerance<T>) -> Option<Event> {
         todo!()
     }
 }
@@ -203,7 +198,8 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
-        spherical::{Arc, Point}, Edge, MaybePair, Tolerance
+        Edge, MaybePair, Tolerance,
+        spherical::{Arc, Point},
     };
 
     #[test]

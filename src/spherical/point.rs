@@ -271,8 +271,8 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
     use crate::{
-        spherical::{Azimuth, Inclination},
         IsClose, Tolerance,
+        spherical::{Azimuth, Inclination},
     };
 
     #[test]

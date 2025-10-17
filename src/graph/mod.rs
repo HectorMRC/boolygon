@@ -120,7 +120,9 @@ where
     T: Geometry,
 {
     /// Returns the builder for a new graph.
-    pub(crate) fn builder<'a>(tolerance: &'a <T::Vertex as IsClose>::Tolerance) -> GraphBuilder<'a, T, Unknown, Unknown> {
+    pub(crate) fn builder<'a>(
+        tolerance: &'a <T::Vertex as IsClose>::Tolerance,
+    ) -> GraphBuilder<'a, T, Unknown, Unknown> {
         GraphBuilder {
             vertices: Vec::new(),
             boundaries: Vec::new(),
@@ -133,16 +135,23 @@ where
     pub(crate) fn corner(&self, position: usize) -> Corner<'_, T::Vertex> {
         let node = &self.vertices[position];
 
-        Corner { 
-            neighbors: Neighbors { tail: &self.vertices[node.previous].vertex, head: &self.vertices[node.next].vertex }, 
+        Corner {
+            neighbors: Neighbors {
+                tail: &self.vertices[node.previous].vertex,
+                head: &self.vertices[node.next].vertex,
+            },
             role: self.boundaries[node.boundary].role,
             intersection: node.intersection.as_ref().map(|intersection| {
                 let sibling = &self.vertices[intersection.sibling];
-                
-                crate::Intersection { 
-                event: intersection.event,
-                neighbors: Neighbors { tail: &self.vertices[sibling.previous].vertex, head: &self.vertices[sibling.next].vertex }
-            }}),
+
+                crate::Intersection {
+                    event: intersection.event,
+                    neighbors: Neighbors {
+                        tail: &self.vertices[sibling.previous].vertex,
+                        head: &self.vertices[sibling.next].vertex,
+                    },
+                }
+            }),
             vertex: &node.vertex,
         }
     }

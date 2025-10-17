@@ -1,7 +1,5 @@
 use crate::{Geometry, IsClose, Shape};
 
-use super::Clipper;
-
 /// The operands in a clipping operation.
 pub struct Operands<'a, T> {
     /// The shape being clipped.
@@ -43,22 +41,6 @@ where
         Self {
             operands: self.operands,
             tolerance: self.tolerance,
-        }
-    }
-}
-
-impl<'a, T, Op, Tol> From<&'a Clipper<'a, Shape<T>, Shape<T>, Op, Tol>> for Context<'a, T>
-where
-    T: Geometry,
-    T::Vertex: IsClose<Tolerance = Tol>,
-{
-    fn from(clipper: &'a Clipper<Shape<T>, Shape<T>, Op, Tol>) -> Self {
-        Context {
-            operands: Operands {
-                subject: &clipper.subject,
-                clip: &clipper.clip,
-            },
-            tolerance: &clipper.tolerance,
         }
     }
 }

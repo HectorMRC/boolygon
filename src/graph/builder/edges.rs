@@ -1,4 +1,4 @@
-use crate::{graph::Node, Edge, Geometry};
+use crate::{Edge, Geometry, graph::Node};
 
 /// An edge and its location in the graph.
 pub struct EdgeLocation<'a, T>

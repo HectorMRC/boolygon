@@ -1,56 +1,24 @@
-mod restorable;
-mod context;
 mod clip;
+mod context;
+mod restorable;
 mod traverse;
 
 pub use context::Context;
 
-use std::{marker::PhantomData};
+use std::marker::PhantomData;
 
-use self::restorable::{Resume, IntersectionSearch, UnvisitedSearch};
 use self::clip::Clip;
+use self::restorable::{IntersectionSearch, Resume, UnvisitedSearch};
 use self::traverse::Traverse;
 
 use crate::{
-    graph::{Graph, Node}, Corner, Edge, Geometry, IsClose, Neighbors, Shape, Vertex
+    Corner, Edge, Geometry, IsClose, Neighbors, Shape, Vertex,
+    direction::Direction,
+    graph::{Graph, Node},
 };
 
 /// Marker for yet undefined generic parameters.
 pub struct Unknown;
-
-/// A direction to follow when traversing a boundary.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Direction {
-    /// Use the `next` field of the [`Node`].
-    #[default]
-    Forward,
-    /// Use the `previous` field of the [`Node`].
-    Backward,
-}
-
-impl Direction {
-    /// Returns the index of the node following the given one.
-    fn next<T>(&self, node: &Node<T>) -> usize
-    where
-        T: Geometry,
-    {
-        match self {
-            Direction::Forward => node.next,
-            Direction::Backward => node.previous,
-        }
-    }
-
-    fn is_forward(&self) -> bool {
-        matches!(self, Self::Forward)
-    }
-
-    fn reverse(self) -> Self {
-        match self {
-            Direction::Forward => Direction::Backward,
-            Direction::Backward => Direction::Forward,
-        }
-    }
-}
 
 /// The operation to perform by the clipping algorithm.
 pub(crate) trait Operator<T>
@@ -96,10 +64,7 @@ impl<'a, Sub, Clip, Op, Tol> Clipper<'a, Sub, Clip, Op, Tol> {
 }
 
 impl<'a, Clip, Op, Tol> Clipper<'a, Unknown, Clip, Op, Tol> {
-    pub(crate) fn with_subject<U>(
-        self,
-        subject: &'a Shape<U>,
-    ) -> Clipper<Shape<U>, Clip, Op, Tol> {
+    pub(crate) fn with_subject<U>(self, subject: &'a Shape<U>) -> Clipper<Shape<U>, Clip, Op, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -146,9 +111,9 @@ where
             .with_subject(&self.subject)
             .with_clip(&self.clip)
             .build();
-        
+
         let mut output_boundaries = Vec::new();
-        
+
         let mut intersection_search = Resume::<IntersectionSearch<T>>::new(0);
         while let Some(position) = intersection_search.next(&graph) {
             if let Some(boundary) = self.clip(&mut graph, position).collect()
@@ -162,13 +127,16 @@ where
         while let Some(position) = intersectionless_search.next(&graph) {
             let node = &graph.vertices[position];
             let next = &graph.vertices[node.next];
-            let corner = Corner { 
-                vertex: &T::Edge::new(&node.vertex, &next.vertex).midpoint(), 
-                neighbors: Neighbors { tail: &node.vertex, head: &next.vertex }, 
-                role: graph.boundaries[node.boundary].role, 
-                intersection: None
+            let corner = Corner {
+                vertex: &T::Edge::new(&node.vertex, &next.vertex).midpoint(),
+                neighbors: Neighbors {
+                    tail: &node.vertex,
+                    head: &next.vertex,
+                },
+                role: graph.boundaries[node.boundary].role,
+                intersection: None,
             };
-            
+
             if Op::is_output((&self).into(), corner) {
                 let boundary = self.traverse(&mut graph, position).collect();
                 if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {

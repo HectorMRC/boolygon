@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{graph::{GraphBuilder}, Edge, Geometry, MaybePair, Shape};
+use crate::{Edge, Geometry, MaybePair, Shape, graph::GraphBuilder};
 
 /// The intersection between two edges.
 #[derive(Debug)]
@@ -31,7 +31,9 @@ impl<T> Default for EdgeIntersections<T> {
 }
 
 impl<'a, T> From<&'a GraphBuilder<'_, T, &Shape<T>, &Shape<T>>> for EdgeIntersections<T::Vertex>
-where T: Geometry {
+where
+    T: Geometry,
+{
     fn from(builder: &'a GraphBuilder<T, &Shape<T>, &Shape<T>>) -> Self {
         let mut intersections = EdgeIntersections::default();
         for subject_boundary in builder
