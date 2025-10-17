@@ -1,8 +1,9 @@
 use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    Corner, Role, 
-    clipper::{Clipper, Direction, Operator}, Context, Edge, Event, Geometry, IsClose, Vertex
+    Context, Corner, Edge, Event, Geometry, IsClose, Role, Vertex,
+    clipper::{Clipper, Operator},
+    direction::Direction,
 };
 
 /// A combination of disjoint boundaries.
@@ -56,7 +57,7 @@ where
                 if corner.intersection.is_some() {
                     return true;
                 }
-                
+
                 match corner.role {
                     Role::Subject => !ctx.operands.clip.contains(&corner.vertex, ctx.tolerance),
                     Role::Clip => !ctx.operands.subject.contains(&corner.vertex, ctx.tolerance),

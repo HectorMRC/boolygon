@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{graph::Graph, Geometry};
+use crate::{Geometry, graph::Graph};
 
 /// An iterator whose state that can be restored.
 pub(super) trait Restorable: Iterator<Item = usize> {
@@ -102,7 +102,6 @@ where
         self.next
     }
 }
-
 
 /// Searches for the first [`Node`] in the [`Graph`] belonging to a boundary that has not been visited.
 pub(super) struct UnvisitedSearch<'a, T>

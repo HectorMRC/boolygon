@@ -1,5 +1,5 @@
-use boolygon::{cartesian::Polygon, Shape, Tolerance};
-use criterion::{criterion_group, BatchSize, Criterion};
+use boolygon::{Shape, Tolerance, cartesian::Polygon};
+use criterion::{BatchSize, Criterion, criterion_group};
 use rand::Rng;
 
 type Sample = [[f64; 2]; 1000];

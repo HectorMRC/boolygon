@@ -1,9 +1,10 @@
 use crate::{
-    graph::{Graph, Node},
     Corner, Edge, Geometry, Intersection, IsClose, MaybePair, Neighbors, Shape,
+    direction::Direction,
+    graph::{Graph, Node},
 };
 
-use super::{Clipper, Direction, Operator};
+use super::{Clipper, Operator};
 
 /// Yields each [`Node`] from the [`Graph`] within the path starting at the given position.
 pub(super) struct Clip<'a, T, Op, Tol>
@@ -38,7 +39,7 @@ where
         let Some(sibling) = self.graph.get(intersection.sibling) else {
             self.direction =
                 Op::direction(self.clipper.into(), self.graph.corner(current)).or(self.direction);
-            
+
             self.next = self.direction.map(|direction| direction.next(&node));
             return Some(node);
         };
@@ -147,8 +148,11 @@ where
                 head: &to.vertex,
             },
             role: self.graph.boundaries[node.boundary].role,
-            intersection: if T::Edge::new(&sibling.vertex, &self.graph.vertices[sibling.next].vertex)
-                .contains(&midpoint, &self.clipper.tolerance)
+            intersection: if T::Edge::new(
+                &sibling.vertex,
+                &self.graph.vertices[sibling.next].vertex,
+            )
+            .contains(&midpoint, &self.clipper.tolerance)
             {
                 Some(Intersection {
                     event: None,
@@ -157,8 +161,11 @@ where
                         head: &self.graph.vertices[sibling.next].vertex,
                     },
                 })
-            } else if T::Edge::new(&self.graph.vertices[sibling.previous].vertex, &sibling.vertex)
-                .contains(&midpoint, &self.clipper.tolerance)
+            } else if T::Edge::new(
+                &self.graph.vertices[sibling.previous].vertex,
+                &sibling.vertex,
+            )
+            .contains(&midpoint, &self.clipper.tolerance)
             {
                 Some(Intersection {
                     event: None,

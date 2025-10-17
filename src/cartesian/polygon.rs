@@ -2,8 +2,12 @@ use std::cmp::Ordering;
 
 use num_traits::{Float, FloatConst, Signed};
 
-use crate::{
-    cartesian::{determinant::Determinant, Point, Segment}, clipper::Context, Edge, Geometry, Side, Tolerance
+use crate::{Edge, Geometry, Tolerance, clipper::Context};
+
+use super::{
+    Point,
+    determinant::Determinant,
+    segment::{Segment, Side},
 };
 
 /// A polygon in the plain.
@@ -88,9 +92,13 @@ where
                 }
 
                 match segment.side(point) {
-                    Some(Side::Left) if segment.from.y <= point.y && segment.to.y >= point.y => (global + 1, local),
-                    Some(Side::Right) if segment.from.y >= point.y && segment.to.y <= point.y => (global - 1, local),
-                    _ => (global, local)
+                    Some(Side::Left) if segment.from.y <= point.y && segment.to.y >= point.y => {
+                        (global + 1, local)
+                    }
+                    Some(Side::Right) if segment.from.y >= point.y && segment.to.y <= point.y => {
+                        (global - 1, local)
+                    }
+                    _ => (global, local),
                 }
             });
 
@@ -150,8 +158,8 @@ impl<T> Polygon<T> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        cartesian::{point::Point, Polygon},
         Geometry,
+        cartesian::{Polygon, point::Point},
     };
 
     #[test]

@@ -5,8 +5,10 @@ pub enum MaybePair<T> {
     Pair([T; 2]),
 }
 
-impl<T> MaybePair<T> 
-where T: PartialEq {
+impl<T> MaybePair<T>
+where
+    T: PartialEq,
+{
     /// Returns true if, and only if, the given value is in this [`MaybePair`].
     pub(crate) fn contains(&self, other: &T) -> bool {
         match self {

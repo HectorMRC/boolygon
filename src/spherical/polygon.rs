@@ -1,10 +1,10 @@
 use geocart::{
-    transform::{Rotation, Transform},
     Cartesian,
+    transform::{Rotation, Transform},
 };
 use num_traits::{Euclid, Float, FloatConst, Signed};
 
-use crate::{clipper::Context, spherical::Arc, Edge, Geometry, Tolerance};
+use crate::{Edge, Geometry, Tolerance, clipper::Context, spherical::Arc};
 
 use super::Point;
 
@@ -190,8 +190,8 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
-        spherical::{Point, Polygon},
         Geometry, Tolerance,
+        spherical::{Point, Polygon},
     };
 
     #[test]

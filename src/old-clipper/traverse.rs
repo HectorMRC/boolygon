@@ -1,4 +1,7 @@
-use crate::{graph::{Graph, Node}, Geometry, IsClose, Shape};
+use crate::{
+    Geometry, IsClose, Shape,
+    graph::{Graph, Node},
+};
 
 use super::{Clipper, Operator};
 
@@ -28,7 +31,7 @@ where
         }
 
         let current = self.next.unwrap_or(self.start);
-        
+
         self.graph.vertices[current].visited = true;
         let vertex = &self.graph.vertices[current];
         self.next = Some(vertex.next);
@@ -48,4 +51,3 @@ where
         self.map(|node| node.vertex).collect::<Vec<_>>()
     }
 }
-

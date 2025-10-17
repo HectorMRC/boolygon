@@ -1,7 +1,8 @@
 use num_traits::{Float, FloatConst, Signed};
 
 use crate::{
-    cartesian::{determinant::Determinant, Point}, Corner, Edge, Event, IsClose, MaybePair, Side, Tolerance, Vertex
+    Corner, Edge, Event, IsClose, MaybePair, Tolerance, Vertex,
+    cartesian::{Point, determinant::Determinant},
 };
 
 /// The straight line between two endpoints.
@@ -11,6 +12,12 @@ pub struct Segment<'a, T> {
     pub from: &'a Point<T>,
     /// The last point in the segment.
     pub to: &'a Point<T>,
+}
+
+/// The position of a point relative to a [`Segment`].
+pub enum Side {
+    Left,
+    Right,
 }
 
 impl<'a, T> Edge<'a> for Segment<'a, T>
@@ -35,11 +42,7 @@ where
         (self.from.distance(point) + self.to.distance(point)).is_close(&self.length(), tolerance)
     }
 
-    fn intersection(
-        &self,
-        other: &Self,
-        _: &Tolerance<T>,
-    ) -> Option<MaybePair<Self::Vertex>> {
+    fn intersection(&self, other: &Self, _: &Tolerance<T>) -> Option<MaybePair<Self::Vertex>> {
         let determinant = self.determinant(other).into_inner();
 
         if determinant.is_zero() {
@@ -77,14 +80,13 @@ where
         }))
     }
 
-    fn event(
-        corner: Corner<'a, Point<T>>,
-        tolerance: &Tolerance<T>,
-    ) -> Option<Event> {
+    fn event(corner: Corner<'a, Point<T>>, tolerance: &Tolerance<T>) -> Option<Event> {
         let tail = Self::new(corner.neighbors.tail, corner.vertex);
         let head = Self::new(corner.vertex, &corner.neighbors.head);
 
-        let sibling = corner.intersection.map(|intersection| intersection.neighbors)?;
+        let sibling = corner
+            .intersection
+            .map(|intersection| intersection.neighbors)?;
         let sibling_tail = Segment::new(&sibling.tail, corner.vertex);
         let sibling_head = Segment::new(corner.vertex, &sibling.head);
 
@@ -130,39 +132,17 @@ where
             Some(Event::Exit)
         }
     }
-
-    fn side(&self, point: &Self::Vertex) -> Option<Side> {
-        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
-        if determinant > T::zero() {
-            return Some(Side::Left);
-        }
-
-        if determinant < T::zero() {
-            return Some(Side::Right);
-        }
-
-        None
-    }
 }
 
 impl<T> Segment<'_, T>
 where
     T: Signed + Float,
 {
-    /// Being zero the determinant of self and the other, returns the single common [`Point`]
-    /// between them, if any.
-    fn collinear_common_points(
-        &self,
-        other: &Segment<'_, T>,
-    ) -> Option<MaybePair<Point<T>>> {
+    /// Being zero the determinant of self and other, returns the intersection between
+    /// them, if any.
+    fn collinear_common_points(&self, other: &Segment<'_, T>) -> Option<MaybePair<Point<T>>> {
         let project_on_x = (self.to.x - self.from.x).abs() > (self.to.y - self.from.y).abs();
-        let project = |point: &Point<T>| -> T {
-            if project_on_x {
-                point.x
-            } else {
-                point.y
-            }
-        };
+        let project = |point: &Point<T>| -> T { if project_on_x { point.x } else { point.y } };
 
         let self_from = project(self.from);
         let self_to = project(self.to);
@@ -194,6 +174,20 @@ where
             _ => Default::default(),
         }
     }
+
+    /// Returns the [`Side`] of the given point relative to this segment.
+    pub(super) fn side(&self, point: &Point<T>) -> Option<Side> {
+        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
+        if determinant > T::zero() {
+            return Some(Side::Left);
+        }
+
+        if determinant < T::zero() {
+            return Some(Side::Right);
+        }
+
+        None
+    }
 }
 
 impl<T> Segment<'_, T>
@@ -220,7 +214,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{
-        cartesian::{Point, Segment}, Corner, Neighbors, Intersection, Role, Edge, Event, MaybePair
+        Corner, Edge, Event, Intersection, MaybePair, Neighbors, Role,
+        cartesian::{Point, Segment},
     };
 
     #[test]
@@ -445,7 +440,7 @@ mod tests {
                             tail: &[1., 2.].into(),
                             head: &[1., 0.].into(),
                         },
-                    })
+                    }),
                 },
                 want: Some(Event::Entry),
             },
@@ -464,7 +459,7 @@ mod tests {
                             tail: &[1., 0.].into(),
                             head: &[1., 2.].into(),
                         },
-                    })
+                    }),
                 },
                 want: Some(Event::Exit),
             },
@@ -477,102 +472,135 @@ mod tests {
                         head: &[1., 0.].into(),
                     },
                     role: Role::Subject,
-                    intersection: Some(Intersection { 
-                        event: None, 
+                    intersection: Some(Intersection {
+                        event: None,
                         neighbors: Neighbors {
                             tail: &[1., 1.].into(),
                             head: &[0., 0.].into(),
                         },
-                    })
+                    }),
                 },
                 want: Some(Event::Entry),
             },
-            // Test {
-            //     name: "exiting at corner",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 0.].into(),
-            //         head: &[1., 2.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[1., 1.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     want: Some(Event::Exit),
-            // },
-            // Test {
-            //     name: "touching edge from the inside",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 0.].into(),
-            //         head: &[1., 2.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[0., 2.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     want: None,
-            // },
-            // Test {
-            //     name: "touching edge from the outside",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 0.].into(),
-            //         head: &[1., 2.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[0., 0.].into(),
-            //         head: &[0., 2.].into(),
-            //     },
-            //     want: None,
-            // },
-            // Test {
-            //     name: "joining edge from the inside",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 0.].into(),
-            //         head: &[1., 1.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[1., 1.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     want: None,
-            // },
-            // Test {
-            //     name: "joining edge from the outside",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 2.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[1., 1.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     want: Some(Event::Entry),
-            // },
-            // Test {
-            //     name: "always on the edge",
-            //     intersection: [0., 1.].into(),
-            //     subject: Neighbors {
-            //         tail: &[1., 1.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     other: Neighbors {
-            //         tail: &[1., 1.].into(),
-            //         head: &[0., 0.].into(),
-            //     },
-            //     want: None,
-            // },
+            Test {
+                name: "exiting at corner",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 0.].into(),
+                        head: &[1., 2.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[1., 1.].into(),
+                            head: &[0., 0.].into(),
+                        },
+                    }),
+                },
+                want: Some(Event::Exit),
+            },
+            Test {
+                name: "touching edge from the inside",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 0.].into(),
+                        head: &[1., 2.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[0., 2.].into(),
+                            head: &[0., 0.].into(),
+                        },
+                    }),
+                },
+                want: None,
+            },
+            Test {
+                name: "touching edge from the outside",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 0.].into(),
+                        head: &[1., 2.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[0., 0.].into(),
+                            head: &[0., 2.].into(),
+                        },
+                    }),
+                },
+                want: None,
+            },
+            Test {
+                name: "joining edge from the inside",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 0.].into(),
+                        head: &[1., 1.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[1., 1.].into(),
+                            head: &[0., 0.].into(),
+                        },
+                    }),
+                },
+                want: None,
+            },
+            Test {
+                name: "joining edge from the outside",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 2.].into(),
+                        head: &[0., 0.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[1., 1.].into(),
+                            head: &[0., 0.].into(),
+                        },
+                    }),
+                },
+                want: Some(Event::Entry),
+            },
+            Test {
+                name: "always on the edge",
+                corner: Corner {
+                    vertex: &[0., 1.].into(),
+                    neighbors: Neighbors {
+                        tail: &[1., 1.].into(),
+                        head: &[0., 0.].into(),
+                    },
+                    role: Role::Subject,
+                    intersection: Some(Intersection {
+                        event: None,
+                        neighbors: Neighbors {
+                            tail: &[1., 1.].into(),
+                            head: &[0., 0.].into(),
+                        },
+                    }),
+                },
+                want: None,
+            },
         ]
         .into_iter()
         .for_each(|test| {
             let tolerance = Default::default();
-            let got = Segment::event(
-                test.corner,
-                &tolerance,
-            );
+            let got = Segment::event(test.corner, &tolerance);
 
             assert_eq!(got, test.want, "{}", test.name);
         });

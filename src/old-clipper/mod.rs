@@ -1,10 +1,21 @@
+mod clip;
 mod context;
+mod restorable;
+mod traverse;
+
+pub use context::Context;
 
 use std::marker::PhantomData;
 
-use crate::{direction::Direction, Corner, Edge, Geometry, IsClose, Shape, Vertex};
+use self::clip::Clip;
+use self::restorable::{IntersectionSearch, Resume, UnvisitedSearch};
+use self::traverse::Traverse;
 
-pub use self::context::{Context, Operands};
+use crate::{
+    Corner, Edge, Geometry, IsClose, Neighbors, Shape, Vertex,
+    direction::Direction,
+    graph::{Graph, Node},
+};
 
 /// Marker for yet undefined generic parameters.
 pub struct Unknown;
@@ -53,7 +64,7 @@ impl<'a, Sub, Clip, Op, Tol> Clipper<'a, Sub, Clip, Op, Tol> {
 }
 
 impl<'a, Clip, Op, Tol> Clipper<'a, Unknown, Clip, Op, Tol> {
-    pub(crate) fn with_subject<U>(self, subject: &'a Shape<U>) -> Clipper<'a, Shape<U>, Clip, Op, Tol> {
+    pub(crate) fn with_subject<U>(self, subject: &'a Shape<U>) -> Clipper<Shape<U>, Clip, Op, Tol> {
         Clipper {
             operator: PhantomData,
             tolerance: self.tolerance,
@@ -85,23 +96,6 @@ impl<'a, Sub, Clip, Op> Clipper<'a, Sub, Clip, Op, Unknown> {
     }
 }
 
-impl<'a, T, Op, Tol> Clipper<'a, Shape<T>, Shape<T>, Op, Tol>
-where
-    T: Geometry,
-    T::Vertex: IsClose<Tolerance = Tol>,
-{
-    /// Returns the context of this clipping operation.
-    pub(self) fn context(&self) -> Context<'_, T> {
-        Context {
-            operands: Operands {
-                subject: &self.subject,
-                clip: &self.clip,
-            },
-            tolerance: &self.tolerance,
-        }
-    }
-}
-
 impl<T, Op, Tol> Clipper<'_, Shape<T>, Shape<T>, Op, Tol>
 where
     T: Geometry,
@@ -113,6 +107,76 @@ where
 {
     /// Performs the clipping operation and returns the resulting [`Shape`], if any.
     pub(crate) fn execute(self) -> Option<Shape<T>> {
-        None
+        let mut graph = Graph::builder(&self.tolerance)
+            .with_subject(&self.subject)
+            .with_clip(&self.clip)
+            .build();
+
+        let mut output_boundaries = Vec::new();
+
+        let mut intersection_search = Resume::<IntersectionSearch<T>>::new(0);
+        while let Some(position) = intersection_search.next(&graph) {
+            if let Some(boundary) = self.clip(&mut graph, position).collect()
+                && let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance)
+            {
+                output_boundaries.push(boundary);
+            };
+        }
+
+        let mut intersectionless_search = Resume::<UnvisitedSearch<T>>::new(0);
+        while let Some(position) = intersectionless_search.next(&graph) {
+            let node = &graph.vertices[position];
+            let next = &graph.vertices[node.next];
+            let corner = Corner {
+                vertex: &T::Edge::new(&node.vertex, &next.vertex).midpoint(),
+                neighbors: Neighbors {
+                    tail: &node.vertex,
+                    head: &next.vertex,
+                },
+                role: graph.boundaries[node.boundary].role,
+                intersection: None,
+            };
+
+            if Op::is_output((&self).into(), corner) {
+                let boundary = self.traverse(&mut graph, position).collect();
+                if let Some(boundary) = T::from_raw((&self).into(), boundary, &self.tolerance) {
+                    output_boundaries.push(boundary);
+                };
+            };
+        }
+
+        if output_boundaries.is_empty() {
+            return None;
+        }
+
+        Some(Shape {
+            boundaries: output_boundaries,
+        })
+    }
+}
+
+impl<'a, T, Op, Tol> Clipper<'a, Shape<T>, Shape<T>, Op, Tol>
+where
+    T: Geometry,
+    T::Vertex: IsClose<Tolerance = Tol>,
+    Op: Operator<T>,
+{
+    fn clip(&'a self, graph: &'a mut Graph<T>, start: usize) -> Clip<'a, T, Op, Tol> {
+        Clip {
+            direction: None,
+            clipper: self,
+            graph,
+            next: None,
+            start,
+        }
+    }
+
+    fn traverse(&'a self, graph: &'a mut Graph<T>, start: usize) -> Traverse<'a, T, Op, Tol> {
+        Traverse {
+            clipper: self,
+            graph,
+            next: None,
+            start,
+        }
     }
 }

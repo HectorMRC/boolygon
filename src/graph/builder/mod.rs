@@ -4,11 +4,14 @@ mod intersection;
 
 use std::cmp::Ordering;
 
-use crate::{Corner, Neighbors, graph::{Boundary, Graph, Intersection, Node, Role}, Edge, Geometry, IsClose, Shape, Vertex};
+use crate::{
+    Corner, Edge, Geometry, IsClose, Neighbors, Shape, Vertex,
+    graph::{Boundary, Graph, Intersection, Node, Role},
+};
 
-use self::intersection::{EdgeIntersections};
-use self::btree::{PartialOrdBTreeMap};
-use self::edges::{LocateEdges};
+use self::btree::PartialOrdBTreeMap;
+use self::edges::LocateEdges;
+use self::intersection::EdgeIntersections;
 
 /// Marker for yet undefined generic parameters.
 pub(crate) struct Unknown;
@@ -30,14 +33,17 @@ where
     pub(super) tolerance: &'a <T::Vertex as IsClose>::Tolerance,
 }
 
-impl<'a, T, C> GraphBuilder<'a, T, Unknown, C> 
+impl<'a, T, C> GraphBuilder<'a, T, Unknown, C>
 where
     T: Geometry,
     for<'b> &'b T: IntoIterator<Item = &'b T::Vertex>,
     T::Vertex: Copy,
 {
     /// Sets the subject [`Shape`] into the graph.
-    pub(crate) fn with_subject(self, subject: &'a Shape<T>) -> GraphBuilder<'a, T, &'a Shape<T>, C> {
+    pub(crate) fn with_subject(
+        self,
+        subject: &'a Shape<T>,
+    ) -> GraphBuilder<'a, T, &'a Shape<T>, C> {
         let builder = self.with_shape(Role::Subject, &subject);
 
         GraphBuilder {
@@ -50,7 +56,7 @@ where
     }
 }
 
-impl<'a, T, S> GraphBuilder<'a, T, S, Unknown> 
+impl<'a, T, S> GraphBuilder<'a, T, S, Unknown>
 where
     T: Geometry,
     for<'b> &'b T: IntoIterator<Item = &'b T::Vertex>,
@@ -134,7 +140,7 @@ where
     pub(crate) fn build(mut self) -> Graph<T> {
         let intersections = EdgeIntersections::from(&self);
         let mut visited = PartialOrdBTreeMap::<_, usize>::new();
-        
+
         for (current, mut intersection_indexes) in intersections.by_edge {
             let &Node {
                 vertex: first,
@@ -201,18 +207,15 @@ where
         }
 
         for position in 0..self.vertices.len() {
-            if let Some(intersection) = self.vertices[position]
-                    .intersection
-                    .take()
-            {
+            if let Some(intersection) = self.vertices[position].intersection.take() {
                 let node = &self.vertices[position];
                 let sibling = &self.vertices[intersection.sibling];
 
                 let intersection = Intersection {
                     event: T::Edge::event(
-                        Corner{
+                        Corner {
                             vertex: &node.vertex,
-                            neighbors: Neighbors { 
+                            neighbors: Neighbors {
                                 tail: &self.vertices[node.previous].vertex,
                                 head: &self.vertices[node.next].vertex,
                             },
@@ -223,8 +226,8 @@ where
                                     tail: &self.vertices[sibling.previous].vertex,
                                     head: &self.vertices[sibling.next].vertex,
                                 },
-                            })
-                        },         
+                            }),
+                        },
                         &self.tolerance,
                     ),
                     ..intersection
@@ -234,9 +237,9 @@ where
             }
         }
 
-        Graph { 
-            vertices: self.vertices, 
-            boundaries: self.boundaries, 
+        Graph {
+            vertices: self.vertices,
+            boundaries: self.boundaries,
         }
     }
 }
