@@ -188,7 +188,7 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 [[package]]
 name = "geocart"
 version = "0.1.2"
-source = "git+https://github.com/hectormrc/geocart?branch=main#ef9c73c8b1550026173bf1572b5f835a67b2166e"
+source = "git+https://github.com/hectormrc/geocart?branch=main#a820a5ea7f051b2e0d99109f7a950de29739b237"
 dependencies = [
  "num-traits",
 ]
