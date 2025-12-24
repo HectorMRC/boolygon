@@ -87,10 +87,10 @@ where
         let sibling = corner
             .intersection
             .map(|intersection| intersection.neighbors)?;
-        let sibling_tail = Segment::new(&sibling.tail, corner.vertex);
-        let sibling_head = Segment::new(corner.vertex, &sibling.head);
+        let sibling_tail = Self::new(&sibling.tail, corner.vertex);
+        let sibling_head = Self::new(corner.vertex, &sibling.head);
 
-        let overlap = |edge: &Self| {
+        let overlaps = |edge: &Self| {
             let midpoint = edge.midpoint();
 
             sibling_tail.contains(&midpoint, tolerance)
@@ -108,7 +108,7 @@ where
             }
         };
 
-        let inside = |alpha| {
+        let is_inside = |alpha| {
             let sibling_tail_angle = angle(&sibling.tail);
             let sibling_head_angle = angle(&sibling.head);
 
@@ -119,8 +119,8 @@ where
             }
         };
 
-        let tail_is_inside = overlap(&tail) || inside(angle(corner.neighbors.tail));
-        let head_is_inside = overlap(&head) || inside(angle(corner.neighbors.head));
+        let tail_is_inside = overlaps(&tail) || is_inside(angle(corner.neighbors.tail));
+        let head_is_inside = overlaps(&head) || is_inside(angle(corner.neighbors.head));
 
         if tail_is_inside == head_is_inside {
             return None;
@@ -142,19 +142,19 @@ where
     /// them, if any.
     fn collinear_common_points(&self, other: &Segment<'_, T>) -> Option<MaybePair<Point<T>>> {
         let project_on_x = (self.to.x - self.from.x).abs() > (self.to.y - self.from.y).abs();
-        let project = |point: &Point<T>| -> T { if project_on_x { point.x } else { point.y } };
+        let projection = |point: &Point<T>| -> T { if project_on_x { point.x } else { point.y } };
 
-        let self_from = project(self.from);
-        let self_to = project(self.to);
-        let other_from = project(other.from);
-        let other_to = project(other.to);
+        let self_from = projection(self.from);
+        let self_to = projection(self.to);
+        let other_from = projection(other.from);
+        let other_to = projection(other.to);
 
         let first = T::max(self_from.min(self_to), other_from.min(other_to));
         let second = T::min(self_from.max(self_to), other_from.max(other_to));
 
-        let unproject = |scalar: T| {
+        let inverse_projection = |scalar: T| {
             // parametric function u along self
-            let u = (scalar - project(self.from)) / (project(self.to) - project(self.from));
+            let u = (scalar - projection(self.from)) / (projection(self.to) - projection(self.from));
             (T::zero()..=T::one())
                 .contains(&u)
                 .then(|| *self.from + (*self.to - *self.from) * u)
@@ -165,10 +165,10 @@ where
         }
 
         if first == second {
-            return unproject(first).map(MaybePair::Single);
+            return inverse_projection(first).map(MaybePair::Single);
         }
 
-        match (unproject(first), unproject(second)) {
+        match (inverse_projection(first), inverse_projection(second)) {
             (Some(first), Some(second)) => Some(MaybePair::Pair([first, second])),
             (Some(point), _) | (_, Some(point)) => Some(MaybePair::Single(point)),
             _ => Default::default(),
@@ -177,7 +177,7 @@ where
 
     /// Returns the [`Side`] of the given point relative to this segment.
     pub(super) fn side(&self, point: &Point<T>) -> Option<Side> {
-        let determinant = Determinant::from([self.from, self.to, point]).into_inner();
+        let determinant = Determinant::new(self.from, self.to, point).into_inner();
         if determinant > T::zero() {
             return Some(Side::Left);
         }
@@ -197,7 +197,12 @@ where
     /// Returns the [`Determinant`] of the matrix representing the direction vectors of this and the
     /// other segment
     fn determinant(&self, other: &Self) -> Determinant<T> {
-        Determinant::new(self, other)
+        // Determinant::new(self, other)
+        Determinant::new(
+            &Point::origin(),
+            &Point { x: (self.to.x - self.from.x), y: (self.to.y - self.from.y) }, 
+            &Point { x: (other.to.x - other.from.x), y: (other.to.y - other.from.y) }
+        )
     }
 }
 

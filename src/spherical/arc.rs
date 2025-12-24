@@ -80,22 +80,22 @@ where
             return self.co_great_circular_common_points(other, tolerance);
         }
 
-        // TODO: remove this if statements
-        if self.contains(other.from, tolerance) {
-            return Some(MaybePair::Single(*other.from));
-        }
+        // // TODO: remove this if statements
+        // if self.contains(other.from, tolerance) {
+        //     return Some(MaybePair::Single(*other.from));
+        // }
 
-        if self.contains(other.to, tolerance) {
-            return Some(MaybePair::Single(*other.to));
-        }
+        // if self.contains(other.to, tolerance) {
+        //     return Some(MaybePair::Single(*other.to));
+        // }
 
-        if other.contains(self.from, tolerance) {
-            return Some(MaybePair::Single(*self.from));
-        }
+        // if other.contains(self.from, tolerance) {
+        //     return Some(MaybePair::Single(*self.from));
+        // }
 
-        if other.contains(self.to, tolerance) {
-            return Some(MaybePair::Single(*self.to));
-        }
+        // if other.contains(self.to, tolerance) {
+        //     return Some(MaybePair::Single(*self.to));
+        // }
 
         let lambda = T::one() / direction.magnitude();
 
@@ -112,7 +112,45 @@ where
         None
     }
 
-    fn event(_corner: Corner<'a, Point<T>>, _tolerance: &Tolerance<T>) -> Option<Event> {
+    fn event(corner: Corner<'a, Point<T>>, tolerance: &Tolerance<T>) -> Option<Event> {
+        let tail = Self::new(corner.neighbors.tail, corner.vertex);
+        let head = Self::new(corner.vertex, &corner.neighbors.head);
+
+        let sibling = corner
+            .intersection
+            .map(|intersection| intersection.neighbors)?;
+        let sibling_tail = Self::new(&sibling.tail, corner.vertex);
+        let sibling_head = Self::new(corner.vertex, &sibling.head);
+
+        let overlaps = |edge: &Self| {
+            let midpoint = edge.midpoint();
+
+            sibling_tail.contains(&midpoint, tolerance)
+                || sibling_head.contains(&midpoint, tolerance)
+                || edge.contains(&sibling_tail.midpoint(), tolerance)
+                || edge.contains(&sibling_head.midpoint(), tolerance)
+        };
+
+        let projection_plane_normal = sibling_tail.normal().cross(&sibling_head.normal());
+        let projection = |vertex: &Self::Vertex| {
+            let point = Cartesian::from(*vertex);
+            let projection = point - projection_plane_normal * point.dot(&projection_plane_normal);
+            if projection.magnitude().is_close(&T::zero(), tolerance) {
+                return None;
+            }
+
+            Some(projection.normal())
+        };
+
+        // let angle = |other: &Self::Vertex| {
+        //     let atan = (other.y - corner.vertex.y).atan2(other.x - corner.vertex.x);
+        //     if atan < T::zero() {
+        //         atan + T::TAU()
+        //     } else {
+        //         atan
+        //     }
+        // };
+
         todo!()
     }
 }
@@ -198,8 +236,7 @@ mod tests {
     use std::f64::consts::{FRAC_PI_2, FRAC_PI_4, FRAC_PI_8, PI};
 
     use crate::{
-        Edge, MaybePair, Tolerance,
-        spherical::{Arc, Point},
+        spherical::{Arc, Point}, Corner, Edge, Event, Intersection, MaybePair, Neighbors, Role, Tolerance
     };
 
     #[test]
@@ -422,4 +459,194 @@ mod tests {
             assert_eq!(got, test.want, "{}", test.name);
         });
     }
+
+    // #[test]
+    // fn event() {
+    //     struct Test<'a> {
+    //         name: &'a str,
+    //         corner: Corner<'a, Point<f64>>,
+    //         want: Option<Event>,
+    //     }
+
+    //     vec![
+    //         Test {
+    //             name: "entering at edge",
+    //             corner: Corner {
+    //                 vertex: &[1., 1.].into(),
+    //                 neighbors: Neighbors {
+    //                     tail: &[0., 1.].into(),
+    //                     head: &[2., 1.].into(),
+    //                 },
+    //                 role: Role::Subject,
+    //                 intersection: Some(Intersection {
+    //                     event: None,
+    //                     neighbors: Neighbors {
+    //                         tail: &[1., 2.].into(),
+    //                         head: &[1., 0.].into(),
+    //                     },
+    //                 }),
+    //             },
+    //             want: Some(Event::Entry),
+    //         },
+    //         // Test {
+    //         //     name: "exiting at edge",
+    //         //     corner: Corner {
+    //         //         vertex: &[1., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[0., 1.].into(),
+    //         //             head: &[2., 1.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 0.].into(),
+    //         //                 head: &[1., 2.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: Some(Event::Exit),
+    //         // },
+    //         // Test {
+    //         //     name: "entering at corner",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 2.].into(),
+    //         //             head: &[1., 0.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 1.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: Some(Event::Entry),
+    //         // },
+    //         // Test {
+    //         //     name: "exiting at corner",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 0.].into(),
+    //         //             head: &[1., 2.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 1.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: Some(Event::Exit),
+    //         // },
+    //         // Test {
+    //         //     name: "touching edge from the inside",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 0.].into(),
+    //         //             head: &[1., 2.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[0., 2.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: None,
+    //         // },
+    //         // Test {
+    //         //     name: "touching edge from the outside",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 0.].into(),
+    //         //             head: &[1., 2.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[0., 0.].into(),
+    //         //                 head: &[0., 2.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: None,
+    //         // },
+    //         // Test {
+    //         //     name: "joining edge from the inside",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 0.].into(),
+    //         //             head: &[1., 1.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 1.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: None,
+    //         // },
+    //         // Test {
+    //         //     name: "joining edge from the outside",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 2.].into(),
+    //         //             head: &[0., 0.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 1.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: Some(Event::Entry),
+    //         // },
+    //         // Test {
+    //         //     name: "always on the edge",
+    //         //     corner: Corner {
+    //         //         vertex: &[0., 1.].into(),
+    //         //         neighbors: Neighbors {
+    //         //             tail: &[1., 1.].into(),
+    //         //             head: &[0., 0.].into(),
+    //         //         },
+    //         //         role: Role::Subject,
+    //         //         intersection: Some(Intersection {
+    //         //             event: None,
+    //         //             neighbors: Neighbors {
+    //         //                 tail: &[1., 1.].into(),
+    //         //                 head: &[0., 0.].into(),
+    //         //             },
+    //         //         }),
+    //         //     },
+    //         //     want: None,
+    //         // },
+    //     ]
+    //     .into_iter()
+    //     .for_each(|test| {
+    //         let tolerance = Default::default();
+    //         let got = Arc::event(test.corner, &tolerance);
+
+    //         assert_eq!(got, test.want, "{}", test.name);
+    //     });
+    // }
 }

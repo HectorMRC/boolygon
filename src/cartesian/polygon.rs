@@ -124,11 +124,11 @@ where
                 // Avoids usize overflow when position = 0.
                 position += self.vertices.len();
 
-                Determinant::from([
+                Determinant::new(
                     &self.vertices[(position - 1) % self.vertices.len()],
                     min,
                     &self.vertices[(position + 1) % self.vertices.len()],
-                ])
+                )
                 .into_inner()
                 .is_negative()
             })

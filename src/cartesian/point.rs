@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul, Sub};
 
-use num_traits::{Float, FloatConst, Signed};
+use num_traits::{Float, FloatConst, Signed, Zero};
 
 use crate::{IsClose, Tolerance, Vertex};
 
@@ -80,5 +80,15 @@ where
 
     fn is_close(&self, other: &Self, tolerance: &Self::Tolerance) -> bool {
         self.x.is_close(&other.x, tolerance) && self.y.is_close(&other.y, tolerance)
+    }
+}
+
+impl<T> Point<T>
+where 
+    T: Zero,
+{
+    /// Return the point representing the origin of coordinates.
+    pub fn origin() -> Self {
+        Self { x: T::zero(), y: T::zero() }
     }
 }
